@@ -3204,6 +3204,8 @@ import java.util.function.*;
 public class CommandOptions implements JsonSerializable {
     private String description;
     private Object parameter;
+    private Object[] argumentInputs;
+    private ResourceCommandVisibility visibility;
     private String confirmationMessage;
     private String iconName;
     private IconVariant iconVariant;
@@ -3214,6 +3216,10 @@ public class CommandOptions implements JsonSerializable {
     public void setDescription(String value) { this.description = value; }
     public Object getParameter() { return parameter; }
     public void setParameter(Object value) { this.parameter = value; }
+    public Object[] getArgumentInputs() { return argumentInputs; }
+    public void setArgumentInputs(Object[] value) { this.argumentInputs = value; }
+    public ResourceCommandVisibility getVisibility() { return visibility; }
+    public void setVisibility(ResourceCommandVisibility value) { this.visibility = value; }
     public String getConfirmationMessage() { return confirmationMessage; }
     public void setConfirmationMessage(String value) { this.confirmationMessage = value; }
     public String getIconName() { return iconName; }
@@ -3229,6 +3235,8 @@ public class CommandOptions implements JsonSerializable {
         Map<String, Object> map = new HashMap<>();
         map.put("Description", AspireClient.serializeValue(description));
         map.put("Parameter", AspireClient.serializeValue(parameter));
+        map.put("ArgumentInputs", AspireClient.serializeValue(argumentInputs));
+        map.put("Visibility", AspireClient.serializeValue(visibility));
         map.put("ConfirmationMessage", AspireClient.serializeValue(confirmationMessage));
         map.put("IconName", AspireClient.serializeValue(iconName));
         map.put("IconVariant", AspireClient.serializeValue(iconVariant));
@@ -15715,6 +15723,36 @@ public class ResourceBuilderBase extends HandleWrapperBase {
     }
 }
 
+// ===== ResourceCommandVisibility.java =====
+// ResourceCommandVisibility.java - GENERATED CODE - DO NOT EDIT
+
+package aspire;
+
+import java.util.*;
+import java.util.function.*;
+
+/** ResourceCommandVisibility enum. */
+public enum ResourceCommandVisibility implements WireValueEnum {
+    NONE("None"),
+    DASHBOARD("Dashboard"),
+    API("Api");
+
+    private final String value;
+
+    ResourceCommandVisibility(String value) {
+        this.value = value;
+    }
+
+    public String getValue() { return value; }
+
+    public static ResourceCommandVisibility fromValue(String value) {
+        for (ResourceCommandVisibility e : values()) {
+            if (e.value.equals(value)) return e;
+        }
+        throw new IllegalArgumentException("Unknown value: " + value);
+    }
+}
+
 // ===== ResourceEndpointsAllocatedEvent.java =====
 // ResourceEndpointsAllocatedEvent.java - GENERATED CODE - DO NOT EDIT
 
@@ -22742,6 +22780,7 @@ public final class WithVolumeOptions {
 .modules/ReferenceExpression.java
 .modules/ReferenceExpressionBuilder.java
 .modules/ResourceBuilderBase.java
+.modules/ResourceCommandVisibility.java
 .modules/ResourceEndpointsAllocatedEvent.java
 .modules/ResourceEventDto.java
 .modules/ResourceLoggerService.java
