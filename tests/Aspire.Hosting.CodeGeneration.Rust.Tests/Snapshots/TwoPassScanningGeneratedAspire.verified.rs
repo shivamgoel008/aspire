@@ -1,4 +1,4 @@
-//! aspire.rs - Capability-based Aspire SDK
+﻿//! aspire.rs - Capability-based Aspire SDK
 //! GENERATED CODE - DO NOT EDIT
 
 use std::collections::HashMap;
@@ -2394,16 +2394,6 @@ impl CommandArgumentsValidationContext {
         Ok(InteractionInputCollection::new(handle, self.client.clone()))
     }
 
-    /// Sets the Arguments property
-    pub fn set_arguments(&self, value: &InteractionInputCollection) -> Result<CommandArgumentsValidationContext, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("context".to_string(), self.handle.to_json());
-        args.insert("value".to_string(), value.handle().to_json());
-        let result = self.client.invoke_capability("Aspire.Hosting.ApplicationModel/CommandArgumentsValidationContext.setArguments", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(CommandArgumentsValidationContext::new(handle, self.client.clone()))
-    }
-
     /// Gets the CancellationToken property
     pub fn cancellation_token(&self) -> Result<CancellationToken, Box<dyn std::error::Error>> {
         let mut args: HashMap<String, Value> = HashMap::new();
@@ -2411,19 +2401,6 @@ impl CommandArgumentsValidationContext {
         let result = self.client.invoke_capability("Aspire.Hosting.ApplicationModel/CommandArgumentsValidationContext.cancellationToken", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(CancellationToken::new(handle, self.client.clone()))
-    }
-
-    /// Sets the CancellationToken property
-    pub fn set_cancellation_token(&self, value: Option<&CancellationToken>) -> Result<CommandArgumentsValidationContext, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("context".to_string(), self.handle.to_json());
-        if let Some(token) = value {
-            let token_id = register_cancellation(token, self.client.clone());
-            args.insert("value".to_string(), Value::String(token_id));
-        }
-        let result = self.client.invoke_capability("Aspire.Hosting.ApplicationModel/CommandArgumentsValidationContext.setCancellationToken", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(CommandArgumentsValidationContext::new(handle, self.client.clone()))
     }
 
     /// Invokes the AddValidationError method
@@ -2674,16 +2651,6 @@ impl ContainerImagePushOptionsCallbackContext {
         Ok(IResource::new(handle, self.client.clone()))
     }
 
-    /// Sets the Resource property
-    pub fn set_resource(&self, value: &IResource) -> Result<ContainerImagePushOptionsCallbackContext, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("context".to_string(), self.handle.to_json());
-        args.insert("value".to_string(), value.handle().to_json());
-        let result = self.client.invoke_capability("Aspire.Hosting.ApplicationModel/ContainerImagePushOptionsCallbackContext.setResource", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(ContainerImagePushOptionsCallbackContext::new(handle, self.client.clone()))
-    }
-
     /// Gets the CancellationToken property
     pub fn cancellation_token(&self) -> Result<CancellationToken, Box<dyn std::error::Error>> {
         let mut args: HashMap<String, Value> = HashMap::new();
@@ -2693,19 +2660,6 @@ impl ContainerImagePushOptionsCallbackContext {
         Ok(CancellationToken::new(handle, self.client.clone()))
     }
 
-    /// Sets the CancellationToken property
-    pub fn set_cancellation_token(&self, value: Option<&CancellationToken>) -> Result<ContainerImagePushOptionsCallbackContext, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("context".to_string(), self.handle.to_json());
-        if let Some(token) = value {
-            let token_id = register_cancellation(token, self.client.clone());
-            args.insert("value".to_string(), Value::String(token_id));
-        }
-        let result = self.client.invoke_capability("Aspire.Hosting.ApplicationModel/ContainerImagePushOptionsCallbackContext.setCancellationToken", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(ContainerImagePushOptionsCallbackContext::new(handle, self.client.clone()))
-    }
-
     /// Gets the Options property
     pub fn options(&self) -> Result<ContainerImagePushOptions, Box<dyn std::error::Error>> {
         let mut args: HashMap<String, Value> = HashMap::new();
@@ -2713,16 +2667,6 @@ impl ContainerImagePushOptionsCallbackContext {
         let result = self.client.invoke_capability("Aspire.Hosting.ApplicationModel/ContainerImagePushOptionsCallbackContext.options", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(ContainerImagePushOptions::new(handle, self.client.clone()))
-    }
-
-    /// Sets the Options property
-    pub fn set_options(&self, value: &ContainerImagePushOptions) -> Result<ContainerImagePushOptionsCallbackContext, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("context".to_string(), self.handle.to_json());
-        args.insert("value".to_string(), value.handle().to_json());
-        let result = self.client.invoke_capability("Aspire.Hosting.ApplicationModel/ContainerImagePushOptionsCallbackContext.setOptions", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(ContainerImagePushOptionsCallbackContext::new(handle, self.client.clone()))
     }
 }
 
@@ -6283,16 +6227,6 @@ impl EndpointReference {
         Ok(serde_json::from_value(result)?)
     }
 
-    /// Sets the ErrorMessage property
-    pub fn set_error_message(&self, value: &str) -> Result<EndpointReference, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("context".to_string(), self.handle.to_json());
-        args.insert("value".to_string(), serde_json::to_value(&value).unwrap_or(Value::Null));
-        let result = self.client.invoke_capability("Aspire.Hosting.ApplicationModel/EndpointReference.setErrorMessage", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(EndpointReference::new(handle, self.client.clone()))
-    }
-
     /// Gets the IsAllocated property
     pub fn is_allocated(&self) -> Result<bool, Box<dyn std::error::Error>> {
         let mut args: HashMap<String, Value> = HashMap::new();
@@ -7924,32 +7858,12 @@ impl ExecuteCommandContext {
         Ok(IServiceProvider::new(handle, self.client.clone()))
     }
 
-    /// Sets the ServiceProvider property
-    pub fn set_service_provider(&self, value: &IServiceProvider) -> Result<ExecuteCommandContext, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("context".to_string(), self.handle.to_json());
-        args.insert("value".to_string(), value.handle().to_json());
-        let result = self.client.invoke_capability("Aspire.Hosting.ApplicationModel/ExecuteCommandContext.setServiceProvider", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(ExecuteCommandContext::new(handle, self.client.clone()))
-    }
-
     /// Gets the ResourceName property
     pub fn resource_name(&self) -> Result<String, Box<dyn std::error::Error>> {
         let mut args: HashMap<String, Value> = HashMap::new();
         args.insert("context".to_string(), self.handle.to_json());
         let result = self.client.invoke_capability("Aspire.Hosting.ApplicationModel/ExecuteCommandContext.resourceName", args)?;
         Ok(serde_json::from_value(result)?)
-    }
-
-    /// Sets the ResourceName property
-    pub fn set_resource_name(&self, value: &str) -> Result<ExecuteCommandContext, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("context".to_string(), self.handle.to_json());
-        args.insert("value".to_string(), serde_json::to_value(&value).unwrap_or(Value::Null));
-        let result = self.client.invoke_capability("Aspire.Hosting.ApplicationModel/ExecuteCommandContext.setResourceName", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(ExecuteCommandContext::new(handle, self.client.clone()))
     }
 
     /// Gets the CancellationToken property
@@ -7961,19 +7875,6 @@ impl ExecuteCommandContext {
         Ok(CancellationToken::new(handle, self.client.clone()))
     }
 
-    /// Sets the CancellationToken property
-    pub fn set_cancellation_token(&self, value: Option<&CancellationToken>) -> Result<ExecuteCommandContext, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("context".to_string(), self.handle.to_json());
-        if let Some(token) = value {
-            let token_id = register_cancellation(token, self.client.clone());
-            args.insert("value".to_string(), Value::String(token_id));
-        }
-        let result = self.client.invoke_capability("Aspire.Hosting.ApplicationModel/ExecuteCommandContext.setCancellationToken", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(ExecuteCommandContext::new(handle, self.client.clone()))
-    }
-
     /// Gets the Logger property
     pub fn logger(&self) -> Result<ILogger, Box<dyn std::error::Error>> {
         let mut args: HashMap<String, Value> = HashMap::new();
@@ -7983,16 +7884,6 @@ impl ExecuteCommandContext {
         Ok(ILogger::new(handle, self.client.clone()))
     }
 
-    /// Sets the Logger property
-    pub fn set_logger(&self, value: &ILogger) -> Result<ExecuteCommandContext, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("context".to_string(), self.handle.to_json());
-        args.insert("value".to_string(), value.handle().to_json());
-        let result = self.client.invoke_capability("Aspire.Hosting.ApplicationModel/ExecuteCommandContext.setLogger", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(ExecuteCommandContext::new(handle, self.client.clone()))
-    }
-
     /// Gets the Arguments property
     pub fn arguments(&self) -> Result<InteractionInputCollection, Box<dyn std::error::Error>> {
         let mut args: HashMap<String, Value> = HashMap::new();
@@ -8000,16 +7891,6 @@ impl ExecuteCommandContext {
         let result = self.client.invoke_capability("Aspire.Hosting.ApplicationModel/ExecuteCommandContext.arguments", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(InteractionInputCollection::new(handle, self.client.clone()))
-    }
-
-    /// Sets the Arguments property
-    pub fn set_arguments(&self, value: &InteractionInputCollection) -> Result<ExecuteCommandContext, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("context".to_string(), self.handle.to_json());
-        args.insert("value".to_string(), value.handle().to_json());
-        let result = self.client.invoke_capability("Aspire.Hosting.ApplicationModel/ExecuteCommandContext.setArguments", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(ExecuteCommandContext::new(handle, self.client.clone()))
     }
 }
 
@@ -11214,16 +11095,6 @@ impl PipelineStepContext {
         Ok(PipelineContext::new(handle, self.client.clone()))
     }
 
-    /// Sets the PipelineContext property
-    pub fn set_pipeline_context(&self, value: &PipelineContext) -> Result<PipelineStepContext, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("context".to_string(), self.handle.to_json());
-        args.insert("value".to_string(), value.handle().to_json());
-        let result = self.client.invoke_capability("Aspire.Hosting.Pipelines/PipelineStepContext.setPipelineContext", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(PipelineStepContext::new(handle, self.client.clone()))
-    }
-
     /// Gets the ReportingStep property
     pub fn reporting_step(&self) -> Result<IReportingStep, Box<dyn std::error::Error>> {
         let mut args: HashMap<String, Value> = HashMap::new();
@@ -11231,16 +11102,6 @@ impl PipelineStepContext {
         let result = self.client.invoke_capability("Aspire.Hosting.Pipelines/PipelineStepContext.reportingStep", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(IReportingStep::new(handle, self.client.clone()))
-    }
-
-    /// Sets the ReportingStep property
-    pub fn set_reporting_step(&self, value: &IReportingStep) -> Result<PipelineStepContext, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("context".to_string(), self.handle.to_json());
-        args.insert("value".to_string(), value.handle().to_json());
-        let result = self.client.invoke_capability("Aspire.Hosting.Pipelines/PipelineStepContext.setReportingStep", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(PipelineStepContext::new(handle, self.client.clone()))
     }
 
     /// Gets the Model property
@@ -11332,16 +11193,6 @@ impl PipelineStepFactoryContext {
         Ok(PipelineContext::new(handle, self.client.clone()))
     }
 
-    /// Sets the PipelineContext property
-    pub fn set_pipeline_context(&self, value: &PipelineContext) -> Result<PipelineStepFactoryContext, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("context".to_string(), self.handle.to_json());
-        args.insert("value".to_string(), value.handle().to_json());
-        let result = self.client.invoke_capability("Aspire.Hosting.Pipelines/PipelineStepFactoryContext.setPipelineContext", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(PipelineStepFactoryContext::new(handle, self.client.clone()))
-    }
-
     /// Gets the Resource property
     pub fn resource(&self) -> Result<IResource, Box<dyn std::error::Error>> {
         let mut args: HashMap<String, Value> = HashMap::new();
@@ -11349,16 +11200,6 @@ impl PipelineStepFactoryContext {
         let result = self.client.invoke_capability("Aspire.Hosting.Pipelines/PipelineStepFactoryContext.resource", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(IResource::new(handle, self.client.clone()))
-    }
-
-    /// Sets the Resource property
-    pub fn set_resource(&self, value: &IResource) -> Result<PipelineStepFactoryContext, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("context".to_string(), self.handle.to_json());
-        args.insert("value".to_string(), value.handle().to_json());
-        let result = self.client.invoke_capability("Aspire.Hosting.Pipelines/PipelineStepFactoryContext.setResource", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(PipelineStepFactoryContext::new(handle, self.client.clone()))
     }
 }
 
@@ -17270,16 +17111,6 @@ impl UpdateCommandStateContext {
         let result = self.client.invoke_capability("Aspire.Hosting.ApplicationModel/UpdateCommandStateContext.serviceProvider", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(IServiceProvider::new(handle, self.client.clone()))
-    }
-
-    /// Sets the ServiceProvider property
-    pub fn set_service_provider(&self, value: &IServiceProvider) -> Result<UpdateCommandStateContext, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("context".to_string(), self.handle.to_json());
-        args.insert("value".to_string(), value.handle().to_json());
-        let result = self.client.invoke_capability("Aspire.Hosting.ApplicationModel/UpdateCommandStateContext.setServiceProvider", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(UpdateCommandStateContext::new(handle, self.client.clone()))
     }
 }
 
