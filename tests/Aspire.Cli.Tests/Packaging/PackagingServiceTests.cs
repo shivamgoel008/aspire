@@ -517,7 +517,11 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["overrideStagingQuality"] = "Prerelease"
+                ["overrideStagingQuality"] = "Prerelease",
+                // Pin the CLI version for the daily-CLI guard so this test exercises the
+                // shared-feed code path regardless of the actual test-assembly version
+                // (which on CI is daily-flavored and would otherwise omit staging).
+                ["internal:packaging:cliVersionForTesting"] = "13.4.0"
             })
             .Build();
 
@@ -553,7 +557,10 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["overrideStagingQuality"] = "Both"
+                ["overrideStagingQuality"] = "Both",
+                // Pin the CLI version for the daily-CLI guard so this test exercises the
+                // shared-feed code path regardless of the actual test-assembly version.
+                ["internal:packaging:cliVersionForTesting"] = "13.4.0"
             })
             .Build();
 
@@ -625,7 +632,10 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["overrideStagingQuality"] = "Prerelease"
+                ["overrideStagingQuality"] = "Prerelease",
+                // Pin the CLI version for the daily-CLI guard so the staging channel is
+                // created on shared feed regardless of the actual test-assembly version.
+                ["internal:packaging:cliVersionForTesting"] = "13.4.0"
             })
             .Build();
 
@@ -671,7 +681,10 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["overrideStagingQuality"] = "Prerelease",
-                ["stagingPinToCliVersion"] = "true"
+                ["stagingPinToCliVersion"] = "true",
+                // Pin the CLI version for the daily-CLI guard so this test exercises the
+                // pinning code path regardless of the actual test-assembly version.
+                ["internal:packaging:cliVersionForTesting"] = "13.4.0"
             })
             .Build();
 
@@ -703,8 +716,11 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["overrideStagingQuality"] = "Prerelease"
+                ["overrideStagingQuality"] = "Prerelease",
                 // No stagingPinToCliVersion
+                // Pin the CLI version for the daily-CLI guard so this test exercises the
+                // shared-feed code path regardless of the actual test-assembly version.
+                ["internal:packaging:cliVersionForTesting"] = "13.4.0"
             })
             .Build();
 
@@ -840,7 +856,10 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["overrideStagingQuality"] = "Prerelease",
-                ["stagingPinToCliVersion"] = "true"
+                ["stagingPinToCliVersion"] = "true",
+                // Pin the CLI version for the daily-CLI guard so this test exercises the
+                // shared-feed pinning code path regardless of the actual test-assembly version.
+                ["internal:packaging:cliVersionForTesting"] = "13.4.0"
             })
             .Build();
 
@@ -893,7 +912,10 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["overrideStagingQuality"] = "Prerelease",
-                ["stagingPinToCliVersion"] = "true"
+                ["stagingPinToCliVersion"] = "true",
+                // Pin the CLI version for the daily-CLI guard so this test exercises the
+                // shared-feed pinning code path regardless of the actual test-assembly version.
+                ["internal:packaging:cliVersionForTesting"] = "13.4.0"
             })
             .Build();
 
@@ -944,8 +966,11 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["overrideStagingQuality"] = "Prerelease"
+                ["overrideStagingQuality"] = "Prerelease",
                 // No stagingPinToCliVersion — should return all prerelease
+                // Pin the CLI version for the daily-CLI guard so this test exercises the
+                // shared-feed code path regardless of the actual test-assembly version.
+                ["internal:packaging:cliVersionForTesting"] = "13.4.0"
             })
             .Build();
 
