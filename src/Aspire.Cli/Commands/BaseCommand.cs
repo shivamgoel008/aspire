@@ -85,10 +85,7 @@ internal abstract class BaseCommand : Command
         {
             if (option.Name == "--format" && option is Option<OutputFormat> formatOption)
             {
-                if (parseResult.GetValue(formatOption) == OutputFormat.Json)
-                {
-                    return true;
-                }
+                return parseResult.GetValue(formatOption) == OutputFormat.Json;
             }
         }
 
