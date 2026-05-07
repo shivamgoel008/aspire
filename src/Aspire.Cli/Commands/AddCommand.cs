@@ -109,10 +109,15 @@ internal sealed class AddCommand : BaseCommand
                     return ExitCodeConstants.MissingRequiredArgument;
                 }
 
-                var workingDirectory = passedAppHostProjectFile?.Directory ?? ExecutionContext.WorkingDirectory;
+                var (workingDirectory, discoveryConfiguredChannel, discoveryContextExitCode) = await GetDiscoveryPackageSearchContextAsync(passedAppHostProjectFile, cancellationToken);
+                if (discoveryContextExitCode is { } discoveryExitCode)
+                {
+                    return discoveryExitCode;
+                }
+
                 var discoveryPackagesWithChannels = await InteractionService.ShowStatusAsync(
                     AddCommandStrings.SearchingForAspirePackages,
-                    async () => await GetIntegrationPackagesWithChannelsAsync(workingDirectory, configuredChannel: null, cancellationToken));
+                    async () => await GetIntegrationPackagesWithChannelsAsync(workingDirectory, discoveryConfiguredChannel, cancellationToken));
 
                 if (!discoveryPackagesWithChannels.Any())
                 {
@@ -153,29 +158,10 @@ internal sealed class AddCommand : BaseCommand
                 }
             }
 
-            // For non-.NET projects, read the channel from the local Aspire configuration if available.
-            // Unlike .NET projects which have a nuget.config, polyglot apphosts persist the channel
-            // in aspire.config.json (or the legacy settings.json during migration).
-            string? configuredChannel = null;
-            if (project.LanguageId != KnownLanguageId.CSharp)
+            var (configuredChannel, configuredChannelExitCode) = GetConfiguredChannel(effectiveAppHostProjectFile, project);
+            if (configuredChannelExitCode is { } exitCode)
             {
-                var appHostDirectory = effectiveAppHostProjectFile.Directory!.FullName;
-                var isProjectReferenceMode = AspireRepositoryDetector.DetectRepositoryRoot(appHostDirectory) is not null;
-                if (!isProjectReferenceMode)
-                {
-                    // TODO: Remove legacy AspireJsonConfiguration fallback once confident most users
-                    // have migrated. Tracked by https://github.com/microsoft/aspire/issues/15239
-                    try
-                    {
-                        configuredChannel = AspireConfigFile.Load(appHostDirectory)?.Channel
-                            ?? AspireJsonConfiguration.Load(appHostDirectory)?.Channel;
-                    }
-                    catch (JsonException ex)
-                    {
-                        InteractionService.DisplayError(ex.Message);
-                        return ExitCodeConstants.FailedToLoadConfiguration;
-                    }
-                }
+                return exitCode;
             }
 
             var packagesWithChannels = await InteractionService.ShowStatusAsync(
@@ -362,13 +348,72 @@ internal sealed class AddCommand : BaseCommand
         return packages;
     }
 
+    private async Task<(DirectoryInfo WorkingDirectory, string? ConfiguredChannel, int? ExitCode)> GetDiscoveryPackageSearchContextAsync(FileInfo? passedAppHostProjectFile, CancellationToken cancellationToken)
+    {
+        FileInfo? appHostProjectFile;
+        if (passedAppHostProjectFile is not null)
+        {
+            var searchResult = await _projectLocator.UseOrFindAppHostProjectFileAsync(
+                passedAppHostProjectFile,
+                MultipleAppHostProjectsFoundBehavior.Throw,
+                createSettingsFile: false,
+                cancellationToken);
+
+            appHostProjectFile = searchResult.SelectedProjectFile;
+        }
+        else
+        {
+            appHostProjectFile = await _projectLocator.GetAppHostFromSettingsAsync(cancellationToken);
+        }
+
+        if (appHostProjectFile is null)
+        {
+            return (ExecutionContext.WorkingDirectory, ConfiguredChannel: null, ExitCode: null);
+        }
+
+        var project = _projectFactory.GetProject(appHostProjectFile);
+        var (configuredChannel, exitCode) = GetConfiguredChannel(appHostProjectFile, project);
+        return (appHostProjectFile.Directory!, configuredChannel, exitCode);
+    }
+
+    private (string? ConfiguredChannel, int? ExitCode) GetConfiguredChannel(FileInfo appHostProjectFile, IAppHostProject project)
+    {
+        // For non-.NET projects, read the channel from the local Aspire configuration if available.
+        // Unlike .NET projects which have a nuget.config, polyglot apphosts persist the channel
+        // in aspire.config.json (or the legacy settings.json during migration).
+        if (project.LanguageId == KnownLanguageId.CSharp)
+        {
+            return (ConfiguredChannel: null, ExitCode: null);
+        }
+
+        var appHostDirectory = appHostProjectFile.Directory!.FullName;
+        var isProjectReferenceMode = project.IsUsingProjectReferences(appHostProjectFile);
+        if (isProjectReferenceMode)
+        {
+            return (ConfiguredChannel: null, ExitCode: null);
+        }
+
+        // TODO: Remove legacy AspireJsonConfiguration fallback once confident most users
+        // have migrated. Tracked by https://github.com/microsoft/aspire/issues/15239
+        try
+        {
+            return (AspireConfigFile.Load(appHostDirectory)?.Channel
+                ?? AspireJsonConfiguration.Load(appHostDirectory)?.Channel, ExitCode: null);
+        }
+        catch (JsonException ex)
+        {
+            InteractionService.DisplayError(ex.Message);
+            return (ConfiguredChannel: null, ExitCode: ExitCodeConstants.FailedToLoadConfiguration);
+        }
+    }
+
     private int DisplayIntegrationDiscoveryResults(IEnumerable<(string FriendlyName, NuGetPackage Package, PackageChannel Channel)> packages, string? searchTerm, bool jsonRequested)
     {
         var matches = (searchTerm is null
             ? packages.Select(p => (p.FriendlyName, p.Package, p.Channel, SearchScore: 0.0))
             : GetIntegrationSearchMatches(packages, searchTerm))
             .GroupBy(p => p.Package.Id)
-            .Select(g => g.OrderByDescending(p => SemVersion.Parse(p.Package.Version), SemVersion.PrecedenceComparer).First());
+            .Select(SelectPreferredIntegrationPackage);
 
         var orderedMatches = searchTerm is null
             ? matches.OrderBy(p => p.FriendlyName, new CommunityToolkitFirstComparer()).ThenBy(p => p.Package.Id, StringComparer.OrdinalIgnoreCase)
@@ -437,6 +482,14 @@ internal sealed class AddCommand : BaseCommand
             .Where(p => p.SearchScore > FuzzyMatchThreshold)
             .OrderByDescending(p => p.SearchScore)
             .ThenByDescending(p => p.FriendlyName, new CommunityToolkitFirstComparer());
+    }
+
+    private static (string FriendlyName, NuGetPackage Package, PackageChannel Channel, double SearchScore) SelectPreferredIntegrationPackage(IEnumerable<(string FriendlyName, NuGetPackage Package, PackageChannel Channel, double SearchScore)> packages)
+    {
+        return packages
+            .OrderByDescending(p => p.Channel.Type is PackageChannelType.Implicit)
+            .ThenByDescending(p => SemVersion.Parse(p.Package.Version), SemVersion.PrecedenceComparer)
+            .First();
     }
 
     private static double GetIntegrationSearchScore(string searchTerm, (string FriendlyName, NuGetPackage Package, PackageChannel Channel) package)
