@@ -189,28 +189,20 @@ internal sealed class RunCommand : BaseCommand
 
         try
         {
-            var profilingTelemetryContext = _profilingTelemetry.Context;
-
             // Start a reported telemetry activity for the app host run early so that
             // all failure paths (project not found, incompatible version, etc.) are captured.
             runActivity = Telemetry.StartReportedActivity(name: TelemetryConstants.Activities.RunAppHost);
             runActivity?.SetTag(TelemetryConstants.Tags.AppHostDetached, _configuration.GetBool(KnownConfigNames.CliRunDetached) is true);
             runActivity?.SetTag(TelemetryConstants.Tags.AppHostIsolated, isolated);
 
-            using var activity = _profilingTelemetry.StartRunCommand(profilingTelemetryContext);
-            if (profilingTelemetryContext is null && activity.IsRunning)
-            {
-                // Direct `aspire run` has no parent startup context. The root profiling span
-                // becomes the correlation point passed down to dotnet, AppHost, and DCP.
-                profilingTelemetryContext = _profilingTelemetry.CreateContext(activity);
-            }
+            using var activity = _profilingTelemetry.StartRunCommand();
 
             var multipleAppHostBehavior = _hostEnvironment.SupportsInteractiveInput
                 ? MultipleAppHostProjectsFoundBehavior.Prompt
                 : MultipleAppHostProjectsFoundBehavior.Throw;
 
             AppHostProjectSearchResult searchResult;
-            using (var findAppHostActivity = _profilingTelemetry.StartRunAppHostFindAppHost(passedAppHostProjectFile, profilingTelemetryContext))
+            using (var findAppHostActivity = _profilingTelemetry.StartRunAppHostFindAppHost(passedAppHostProjectFile))
             {
                 searchResult = await _projectLocator.UseOrFindAppHostProjectFileAsync(
                     passedAppHostProjectFile,
@@ -241,7 +233,7 @@ internal sealed class RunCommand : BaseCommand
             // block the apphost starting to make sure we don't ever break flow.
             // It should mostly stop just fine though.
             RunningInstanceResult runningInstanceResult;
-            using (var stopRunningInstanceActivity = _profilingTelemetry.StartRunAppHostStopExistingInstance(profilingTelemetryContext))
+            using (var stopRunningInstanceActivity = _profilingTelemetry.StartRunAppHostStopExistingInstance())
             {
                 runningInstanceResult = await project.FindAndStopRunningInstanceAsync(effectiveAppHostFile, ExecutionContext.HomeDirectory, cancellationToken);
                 stopRunningInstanceActivity.SetAppHostRunningInstanceResult(runningInstanceResult);
@@ -274,18 +266,18 @@ internal sealed class RunCommand : BaseCommand
                 BuildCompletionSource = buildCompletionSource,
                 BackchannelCompletionSource = backchannelCompletionSource,
             };
-            profilingTelemetryContext?.AddToEnvironment(context.EnvironmentVariables);
+            ProfilingTelemetry.AddCurrentContextToEnvironment(context.EnvironmentVariables);
 
             // Start the project run as a pending task - we'll handle UX while it runs
             Task<int> pendingRun;
-            using (_profilingTelemetry.StartRunAppHostStartProject(project.LanguageId, noBuild, waitForDebugger, profilingTelemetryContext))
+            using (_profilingTelemetry.StartRunAppHostStartProject(project.LanguageId, noBuild, waitForDebugger))
             {
                 pendingRun = project.RunAsync(context, cancellationToken);
             }
 
             // Wait for the build to complete first (project handles its own build status spinners)
             bool buildSuccess;
-            using (var waitForBuildActivity = _profilingTelemetry.StartRunAppHostWaitForBuild(profilingTelemetryContext))
+            using (var waitForBuildActivity = _profilingTelemetry.StartRunAppHostWaitForBuild())
             {
                 buildSuccess = await buildCompletionSource.Task.WaitAsync(cancellationToken);
                 waitForBuildActivity.SetAppHostBuildSuccess(buildSuccess);
@@ -310,7 +302,7 @@ internal sealed class RunCommand : BaseCommand
 
             // Now wait for the backchannel to be established
             IAppHostCliBackchannel backchannel;
-            using (var waitForBackchannelActivity = _profilingTelemetry.StartRunAppHostWaitForBackchannel(profilingTelemetryContext))
+            using (var waitForBackchannelActivity = _profilingTelemetry.StartRunAppHostWaitForBackchannel())
             {
                 backchannel = await InteractionService.ShowStatusAsync(
                     RunCommandStrings.ConnectingToAppHost,
@@ -323,7 +315,7 @@ internal sealed class RunCommand : BaseCommand
 
             // Get dashboard URLs
             DashboardUrlsState dashboardUrls;
-            using (var getDashboardUrlsActivity = _profilingTelemetry.StartRunAppHostGetDashboardUrls(profilingTelemetryContext))
+            using (var getDashboardUrlsActivity = _profilingTelemetry.StartRunAppHostGetDashboardUrls())
             {
                 dashboardUrls = await InteractionService.ShowStatusAsync(
                     RunCommandStrings.StartingDashboard,
@@ -431,7 +423,7 @@ internal sealed class RunCommand : BaseCommand
                 extInteractionService.NotifyAppHostStartupCompleted();
             }
 
-            using (var lifetimeActivity = _profilingTelemetry.StartRunAppHostLifetime(profilingTelemetryContext))
+            using (var lifetimeActivity = _profilingTelemetry.StartRunAppHostLifetime())
             {
                 runActivity?.Stop();
                 await pendingLogCapture;

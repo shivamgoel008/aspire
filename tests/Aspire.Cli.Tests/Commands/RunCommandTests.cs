@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Runtime.CompilerServices;
+using System.Diagnostics;
 using System.Text.Json;
 using Aspire.Cli.Backchannel;
 using Aspire.Cli.Commands;
@@ -1740,26 +1741,21 @@ public class RunCommandTests(ITestOutputHelper outputHelper)
     [Fact]
     public void DetachedChildEnvironment_IncludesProfilingTelemetryContext()
     {
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection([
-                new(ProfilingTelemetryContext.EnabledEnvironmentVariable, "true"),
-                new(ProfilingTelemetryContext.SessionIdEnvironmentVariable, "session-1"),
-                new(ProfilingTelemetryContext.TraceParentEnvironmentVariable, "00-0102030405060708090a0b0c0d0e0f10-1112131415161718-01"),
-                new(ProfilingTelemetryContext.TraceStateEnvironmentVariable, "state-1")
-            ])
-            .Build();
-        var context = ProfilingTelemetryContext.FromConfiguration(configuration);
+        using var listener = CreateActivityListener("test-detached-child-environment");
+        using var source = new ActivitySource("test-detached-child-environment");
+        using var activity = source.StartActivity("parent");
+        Assert.NotNull(activity);
+        activity.SetBaggage(ProfilingTelemetry.SessionIdBaggageName, "session-1");
+        activity.TraceStateString = "state-1";
 
-        Assert.NotNull(context);
-
-        var environment = AppHostLauncher.CreateDetachedChildEnvironment(context);
+        var environment = AppHostLauncher.CreateDetachedChildEnvironment(activity);
 
         Assert.Equal("true", environment[KnownConfigNames.CliRunDetached]);
-        Assert.Equal("true", environment[ProfilingTelemetryContext.EnabledEnvironmentVariable]);
-        Assert.Equal("session-1", environment[ProfilingTelemetryContext.SessionIdEnvironmentVariable]);
+        Assert.Equal("true", environment[ProfilingTelemetry.EnabledEnvironmentVariable]);
+        Assert.Equal("session-1", environment[ProfilingTelemetry.SessionIdEnvironmentVariable]);
         Assert.Equal("session-1", environment[KnownConfigNames.Legacy.StartupOperationId]);
-        Assert.Equal("00-0102030405060708090a0b0c0d0e0f10-1112131415161718-01", environment[ProfilingTelemetryContext.TraceParentEnvironmentVariable]);
-        Assert.Equal("state-1", environment[ProfilingTelemetryContext.TraceStateEnvironmentVariable]);
+        Assert.Equal(activity.Id, environment[ProfilingTelemetry.TraceParentEnvironmentVariable]);
+        Assert.Equal("state-1", environment[ProfilingTelemetry.TraceStateEnvironmentVariable]);
     }
 
     [Fact]
@@ -1768,10 +1764,10 @@ public class RunCommandTests(ITestOutputHelper outputHelper)
         var environment = AppHostLauncher.CreateDetachedChildEnvironment(null);
 
         Assert.Equal("true", environment[KnownConfigNames.CliRunDetached]);
-        Assert.False(environment.ContainsKey(ProfilingTelemetryContext.EnabledEnvironmentVariable));
-        Assert.False(environment.ContainsKey(ProfilingTelemetryContext.SessionIdEnvironmentVariable));
-        Assert.False(environment.ContainsKey(ProfilingTelemetryContext.TraceParentEnvironmentVariable));
-        Assert.False(environment.ContainsKey(ProfilingTelemetryContext.TraceStateEnvironmentVariable));
+        Assert.False(environment.ContainsKey(ProfilingTelemetry.EnabledEnvironmentVariable));
+        Assert.False(environment.ContainsKey(ProfilingTelemetry.SessionIdEnvironmentVariable));
+        Assert.False(environment.ContainsKey(ProfilingTelemetry.TraceParentEnvironmentVariable));
+        Assert.False(environment.ContainsKey(ProfilingTelemetry.TraceStateEnvironmentVariable));
     }
 
     [Theory]
@@ -1826,4 +1822,14 @@ public class RunCommandTests(ITestOutputHelper outputHelper)
         Assert.Equal("certificate_trust_failed", tags[TelemetryConstants.Tags.ErrorType]);
     }
 
+    private static ActivityListener CreateActivityListener(string sourceName)
+    {
+        var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == sourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded
+        };
+        ActivitySource.AddActivityListener(listener);
+        return listener;
+    }
 }

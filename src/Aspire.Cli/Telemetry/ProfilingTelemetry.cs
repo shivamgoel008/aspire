@@ -4,6 +4,7 @@
 using System.Diagnostics;
 using Aspire.Cli.Backchannel;
 using Aspire.Cli.DotNet;
+using Aspire.Hosting;
 using Microsoft.Extensions.Configuration;
 
 namespace Aspire.Cli.Telemetry;
@@ -15,9 +16,13 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration) : IDispos
 {
     public const string ActivitySourceName = "Aspire.Cli.Profiling";
 
+    internal const string EnabledEnvironmentVariable = KnownConfigNames.ProfilingEnabled;
+    internal const string SessionIdEnvironmentVariable = KnownConfigNames.ProfilingSessionId;
+    internal const string TraceParentEnvironmentVariable = KnownConfigNames.ProfilingTraceParent;
+    internal const string TraceStateEnvironmentVariable = KnownConfigNames.ProfilingTraceState;
+    internal const string SessionIdBaggageName = "aspire.profiling.session_id";
+
     private readonly ActivitySource _activitySource = new(ActivitySourceName);
-    private ProfilingTelemetryContext? _profilingTelemetryContext;
-    private bool _profilingTelemetryContextInitialized;
 
     /// <summary>
     /// Activity names for profiling spans. These names describe local diagnostic
@@ -155,45 +160,49 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration) : IDispos
         public const string MsBuildBinlog = "msbuild.binlog";
     }
 
-    public bool IsEnabled => ProfilingTelemetryContext.IsEnabled(configuration);
+    public bool IsEnabled => IsProfilingEnabled(configuration);
 
     public ActivityScope CurrentActivity => IsEnabled ? new(Activity.Current, ownsActivity: false) : default;
 
-    public ProfilingTelemetryContext? Context
+    public static bool IsProfilingEnabled(IConfiguration configuration)
     {
-        get
-        {
-            if (!_profilingTelemetryContextInitialized)
-            {
-                _profilingTelemetryContext = ProfilingTelemetryContext.FromConfiguration(configuration);
-                _profilingTelemetryContextInitialized = true;
-            }
-
-            return _profilingTelemetryContext;
-        }
+        return IsTruthy(configuration[EnabledEnvironmentVariable]) ||
+            IsTruthy(configuration[KnownConfigNames.Legacy.StartupProfilingEnabled]);
     }
 
-    public ProfilingTelemetryContext? CreateContext(ActivityScope parentActivity)
+    public static void AddCurrentContextToEnvironment(IDictionary<string, string> environment)
     {
-        return parentActivity.CreateProfilingTelemetryContext(this);
+        AddActivityContextToEnvironment(Activity.Current, environment);
     }
 
-    private ProfilingTelemetryContext? CreateContext(Activity? parentActivity)
+    public static void AddActivityContextToEnvironment(Activity? activity, IDictionary<string, string> environment)
     {
-        if (!IsEnabled)
+        if (activity is null)
         {
-            return null;
+            return;
         }
 
-        var context = ProfilingTelemetryContext.Create(parentActivity);
-        _profilingTelemetryContext = context;
-        _profilingTelemetryContextInitialized = true;
-        return context;
-    }
+        environment[EnabledEnvironmentVariable] = "true";
+        environment[KnownConfigNames.Legacy.StartupProfilingEnabled] = "true";
 
-    public ProfilingTelemetryContext? CreateContextFromCurrentActivity()
-    {
-        return CreateContext(Activity.Current);
+        var sessionId = GetProfilingSessionId(activity);
+        if (!string.IsNullOrWhiteSpace(sessionId))
+        {
+            environment[SessionIdEnvironmentVariable] = sessionId;
+            environment[KnownConfigNames.Legacy.StartupOperationId] = sessionId;
+        }
+
+        if (!string.IsNullOrWhiteSpace(activity.Id))
+        {
+            environment[TraceParentEnvironmentVariable] = activity.Id;
+            environment[KnownConfigNames.Legacy.StartupTraceParent] = activity.Id;
+        }
+
+        if (!string.IsNullOrWhiteSpace(activity.TraceStateString))
+        {
+            environment[TraceStateEnvironmentVariable] = activity.TraceStateString;
+            environment[KnownConfigNames.Legacy.StartupTraceState] = activity.TraceStateString;
+        }
     }
 
     internal ActivityScope StartAppHostBuild(bool noRestore, bool extensionHost, bool extensionHasBuildCapability)
@@ -261,23 +270,23 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration) : IDispos
         return StartActivity(Activities.BackchannelGetDashboardUrls);
     }
 
-    internal ActivityScope StartDetachedGetDashboardUrls(ProfilingTelemetryContext? profilingTelemetryContext)
+    internal ActivityScope StartDetachedGetDashboardUrls()
     {
-        return StartActivity(Activities.StartAppHostGetDashboardUrls, profilingTelemetryContext: profilingTelemetryContext);
+        return StartActivity(Activities.StartAppHostGetDashboardUrls);
     }
 
-    internal ActivityScope StartDetachedSpawnChild(string executablePath, int argsCount, string childCommand, ProfilingTelemetryContext? profilingTelemetryContext)
+    internal ActivityScope StartDetachedSpawnChild(string executablePath, int argsCount, string childCommand)
     {
-        var activity = StartActivity(Activities.StartAppHostSpawnChild, profilingTelemetryContext: profilingTelemetryContext);
+        var activity = StartActivity(Activities.StartAppHostSpawnChild);
         activity.SetProcessExecutableName(Path.GetFileName(executablePath));
         activity.SetProcessCommandArgsCount(argsCount);
         activity.SetChildCommand(childCommand);
         return activity;
     }
 
-    internal ActivityScope StartDetachedWaitForBackchannel(int childProcessId, string expectedHash, bool hasLegacyHash, ProfilingTelemetryContext? profilingTelemetryContext)
+    internal ActivityScope StartDetachedWaitForBackchannel(int childProcessId, string expectedHash, bool hasLegacyHash)
     {
-        var activity = StartActivity(Activities.StartAppHostWaitForBackchannel, profilingTelemetryContext: profilingTelemetryContext);
+        var activity = StartActivity(Activities.StartAppHostWaitForBackchannel);
         activity.SetProcessId(childProcessId);
         activity.SetBackchannelExpectedHash(expectedHash);
         activity.SetBackchannelHasLegacyHash(hasLegacyHash);
@@ -326,61 +335,57 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration) : IDispos
         return activity;
     }
 
-    internal ActivityScope StartRunAppHostFindAppHost(FileInfo? passedAppHostProjectFile, ProfilingTelemetryContext? profilingTelemetryContext)
+    internal ActivityScope StartRunAppHostFindAppHost(FileInfo? passedAppHostProjectFile)
     {
-        var activity = StartActivity(Activities.RunAppHostFindAppHost, profilingTelemetryContext: profilingTelemetryContext);
+        var activity = StartActivity(Activities.RunAppHostFindAppHost);
         activity.SetAppHostProjectFileSpecified(passedAppHostProjectFile is not null);
         return activity;
     }
 
-    internal ActivityScope StartRunAppHostGetDashboardUrls(ProfilingTelemetryContext? profilingTelemetryContext)
+    internal ActivityScope StartRunAppHostGetDashboardUrls()
     {
-        return StartActivity(Activities.RunAppHostGetDashboardUrls, profilingTelemetryContext: profilingTelemetryContext);
+        return StartActivity(Activities.RunAppHostGetDashboardUrls);
     }
 
-    internal ActivityScope StartRunAppHostLifetime(ProfilingTelemetryContext? profilingTelemetryContext)
+    internal ActivityScope StartRunAppHostLifetime()
     {
-        var activity = StartActivity(Activities.RunAppHostLifetime, profilingTelemetryContext: profilingTelemetryContext);
+        var activity = StartActivity(Activities.RunAppHostLifetime);
         activity.AddRunAppHostStartedEvent();
         return activity;
     }
 
-    internal ActivityScope StartRunAppHostStartProject(string languageId, bool noBuild, bool waitForDebugger, ProfilingTelemetryContext? profilingTelemetryContext)
+    internal ActivityScope StartRunAppHostStartProject(string languageId, bool noBuild, bool waitForDebugger)
     {
-        var activity = StartActivity(Activities.RunAppHostStartProject, profilingTelemetryContext: profilingTelemetryContext);
+        var activity = StartActivity(Activities.RunAppHostStartProject);
         activity.SetAppHostLanguage(languageId);
         activity.SetAppHostNoBuild(noBuild);
         activity.SetAppHostWaitForDebugger(waitForDebugger);
         return activity;
     }
 
-    internal ActivityScope StartRunAppHostStopExistingInstance(ProfilingTelemetryContext? profilingTelemetryContext)
+    internal ActivityScope StartRunAppHostStopExistingInstance()
     {
-        return StartActivity(Activities.RunAppHostStopExistingInstance, profilingTelemetryContext: profilingTelemetryContext);
+        return StartActivity(Activities.RunAppHostStopExistingInstance);
     }
 
-    internal ActivityScope StartRunAppHostWaitForBackchannel(ProfilingTelemetryContext? profilingTelemetryContext)
+    internal ActivityScope StartRunAppHostWaitForBackchannel()
     {
-        return StartActivity(Activities.RunAppHostWaitForBackchannel, profilingTelemetryContext: profilingTelemetryContext);
+        return StartActivity(Activities.RunAppHostWaitForBackchannel);
     }
 
-    internal ActivityScope StartRunAppHostWaitForBuild(ProfilingTelemetryContext? profilingTelemetryContext)
+    internal ActivityScope StartRunAppHostWaitForBuild()
     {
-        return StartActivity(Activities.RunAppHostWaitForBuild, profilingTelemetryContext: profilingTelemetryContext);
+        return StartActivity(Activities.RunAppHostWaitForBuild);
     }
 
-    internal ActivityScope StartRunCommand(ProfilingTelemetryContext? profilingTelemetryContext)
+    internal ActivityScope StartRunCommand()
     {
-        return StartActivity(
-            Activities.RunCommand,
-            profilingTelemetryContext: profilingTelemetryContext,
-            startWithRemoteParent: profilingTelemetryContext is not null);
+        return StartActivity(Activities.RunCommand, startWithRemoteParent: true);
     }
 
     private ActivityScope StartActivity(
         string name,
         ActivityKind kind = ActivityKind.Internal,
-        ProfilingTelemetryContext? profilingTelemetryContext = null,
         bool startWithRemoteParent = false)
     {
         if (!IsEnabled)
@@ -388,14 +393,10 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration) : IDispos
             return default;
         }
 
-        profilingTelemetryContext ??= Context;
-
-        // Detached child processes need to continue the remote parent from the launcher,
-        // while in-process profiling spans should just follow Activity.Current.
+        var ambientActivity = Activity.Current;
         Activity? activity;
         if (startWithRemoteParent &&
-            profilingTelemetryContext is not null &&
-            profilingTelemetryContext.TryGetActivityContext(out var parentContext))
+            TryGetConfiguredActivityContext(out var parentContext))
         {
             activity = _activitySource.StartActivity(name, kind, parentContext);
         }
@@ -404,8 +405,80 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration) : IDispos
             activity = _activitySource.StartActivity(name, kind);
         }
 
-        profilingTelemetryContext?.AddTags(activity);
+        AddProfilingSession(activity, ambientActivity);
         return new ActivityScope(activity);
+    }
+
+    private void AddProfilingSession(Activity? activity, Activity? ambientActivity)
+    {
+        if (activity is null)
+        {
+            return;
+        }
+
+        var sessionId = GetProfilingSessionIdFromAncestors(ambientActivity) ?? GetProfilingSessionId(activity) ?? GetConfiguredSessionId() ?? Guid.NewGuid().ToString("N");
+        AddProfilingSessionBaggage(ambientActivity, sessionId);
+        activity.SetBaggage(SessionIdBaggageName, sessionId);
+        activity.SetTag(Tags.ProfilingSessionId, sessionId);
+        activity.SetTag(Tags.LegacyStartupOperationId, sessionId);
+    }
+
+    private bool TryGetConfiguredActivityContext(out ActivityContext activityContext)
+    {
+        var traceParent = GetConfigurationValue(configuration, TraceParentEnvironmentVariable, KnownConfigNames.Legacy.StartupTraceParent);
+        var traceState = GetConfigurationValue(configuration, TraceStateEnvironmentVariable, KnownConfigNames.Legacy.StartupTraceState);
+        if (!string.IsNullOrWhiteSpace(traceParent) &&
+            ActivityContext.TryParse(traceParent, traceState, out activityContext))
+        {
+            return true;
+        }
+
+        activityContext = default;
+        return false;
+    }
+
+    private string? GetConfiguredSessionId()
+    {
+        return GetConfigurationValue(configuration, SessionIdEnvironmentVariable, KnownConfigNames.Legacy.StartupOperationId);
+    }
+
+    private static string? GetProfilingSessionId(Activity? activity)
+    {
+        return activity?.GetBaggageItem(SessionIdBaggageName) is { Length: > 0 } sessionId ? sessionId : null;
+    }
+
+    private static string? GetProfilingSessionIdFromAncestors(Activity? activity)
+    {
+        for (var current = activity; current is not null; current = current.Parent)
+        {
+            if (GetProfilingSessionId(current) is { } sessionId)
+            {
+                return sessionId;
+            }
+        }
+
+        return null;
+    }
+
+    private static void AddProfilingSessionBaggage(Activity? activity, string sessionId)
+    {
+        for (var current = activity; current is not null; current = current.Parent)
+        {
+            if (GetProfilingSessionId(current) is null)
+            {
+                current.SetBaggage(SessionIdBaggageName, sessionId);
+            }
+        }
+    }
+
+    private static string? GetConfigurationValue(IConfiguration configuration, string name, string legacyName)
+    {
+        return configuration[name] is { Length: > 0 } value ? value : configuration[legacyName];
+    }
+
+    private static bool IsTruthy(string? value)
+    {
+        return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || value == "1";
     }
 
     private ActivityScope StartGuestProcessActivity(string activityName, string languageId, string displayName, string command, int argsCount, DirectoryInfo workingDirectory)
@@ -423,13 +496,6 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration) : IDispos
     internal readonly struct ActivityScope(Activity? activity, bool ownsActivity = true) : IDisposable
     {
         public bool IsRunning => activity is not null;
-
-        internal ProfilingTelemetryContext? CreateProfilingTelemetryContext(ProfilingTelemetry profilingTelemetry)
-        {
-            var context = profilingTelemetry.CreateContext(activity);
-            context?.AddTags(activity);
-            return context;
-        }
 
         public void AddAppHostBuildReadyEvent() => AddEvent(Events.AppHostBuildReady);
 
