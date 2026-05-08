@@ -190,6 +190,6 @@
     <value>Untrusted apps can access telemetry data via the API.</value>
   </data>
   <data name="MainLayoutLaunchAIAgents" xml:space="preserve">
-    <value>AI Agents</value>
+    <value>AI agents</value>
   </data>
 </root>

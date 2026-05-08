@@ -3,6 +3,7 @@
 
 using System.Globalization;
 using Aspire.Dashboard.Configuration;
+using Aspire.Dashboard.Model.Assistant;
 using Aspire.Dashboard.Model.Markdown;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Localization;
@@ -39,9 +40,7 @@ public partial class AIAgentsDialog : IDialogContentComponent
     private string GetDashboardUrl()
     {
         var options = Options.CurrentValue;
-        var endpointAddresses = options.Frontend.GetEndpointAddresses();
-        var baseUrl = options.Frontend.PublicUrl
-            ?? (endpointAddresses.Count > 0 ? endpointAddresses[0].ToString() : null);
+        var baseUrl = AIHelpers.GetDashboardUrl(options);
 
         if (baseUrl is null)
         {
