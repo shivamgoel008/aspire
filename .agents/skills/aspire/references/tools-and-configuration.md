@@ -46,6 +46,7 @@ Use these commands when the question is about effective Aspire CLI configuration
 aspire config set <key> <value>
 aspire config get <key>
 aspire config list
+aspire config list --all
 aspire config delete <key>
 aspire config info
 ```
@@ -53,6 +54,23 @@ aspire config info
 Keep these points in mind:
 
 - Use `aspire config info` when the user wants to know where settings come from, which settings files are in play, or why the CLI is behaving a certain way locally.
+
+## Scenario: I Need Default Watch Behavior
+
+Use these commands when the user asks about Aspire default watch, wants to inspect whether it is enabled, or explicitly wants the CLI-managed default watch workflow.
+
+```bash
+aspire config list --all
+aspire config set features.defaultWatchEnabled true
+```
+
+Keep these points in mind:
+
+- `features.defaultWatchEnabled` controls Aspire default watch.
+- Default watch is AppHost-centered and restart-based for the AppHost-managed application.
+- C# AppHosts and TypeScript AppHosts are both supported by default watch. C# project resources are also controlled by this setting today.
+- Default watch is not a replacement for resource-specific runtime hot reload/watch, Aspire dashboard actions, Aspire CLI resource commands, or IDE-managed debugging.
+- If VS Code, Visual Studio, or Rider is managing debugging or hot reload, let the IDE own that workflow instead of mixing it with Aspire CLI restart, rebuild, or watch behavior.
 
 ## Scenario: My Local Aspire Setup Feels Broken
 

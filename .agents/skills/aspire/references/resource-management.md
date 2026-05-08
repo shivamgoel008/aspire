@@ -25,11 +25,32 @@ Use these commands when the user calls out one resource by name, such as Redis, 
 aspire resource <resource> start
 aspire resource <resource> stop
 aspire resource <resource> restart
+aspire resource <resource> rebuild
 aspire resource <resource> <command>
 ```
 
 Keep these points in mind:
 
 - Prefer resource-scoped commands when the task does not require an AppHost-wide restart.
-- If the user says one resource is wedged, use `aspire resource <resource> restart` before escalating to `aspire start`.
+- If the user says one resource is wedged, use a resource-scoped command such as `aspire resource <resource> restart` when available, or stop and start that resource, before escalating to `aspire start`.
 - Use `aspire resource <resource> <command>` when the AppHost exposes a resource-specific dashboard or operational command.
+
+## Scenario: Apply One Resource's Code Change Without Bouncing The Whole App
+
+Use these commands when the AppHost is already running and a single resource needs to pick up a code or runtime change.
+
+```bash
+aspire resource api rebuild
+aspire resource api stop
+aspire resource api start
+aspire wait api
+```
+
+Keep these points in mind:
+
+- Use the shape `aspire resource <resource-name> <command>`.
+- Use `rebuild` for C# project resources when that command is available and the resource needs rebuilt output.
+- Use stop/start when the resource process needs to restart but the AppHost model did not change.
+- Use framework or runtime-native watch, hot reload, or hot module replacement (HMR) for tight resource implementation loops when available.
+- Frontend frameworks such as Vite, Next.js, and similar client-side JavaScript stacks often enable HMR by default; if the resource's dev server is already handling the update, do not force a resource or AppHost restart.
+- Do not stop or restart the whole AppHost just because one resource changed.
