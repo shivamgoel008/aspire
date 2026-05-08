@@ -1,0 +1,9 @@
+{
+  "author": "IEvangelist",
+  "comment": "Fix to docs repo frontend tooling (pnpm vs npm), not documentation of an Aspire feature",
+  "mergedAt": "2026-05-08T14:26:53Z",
+  "number": 881,
+  "runDate": "2026-05-08T14:38:01Z",
+  "status": "excluded",
+  "title": "Use pnpm instead of npm in check-data-files.mjs"
+}
