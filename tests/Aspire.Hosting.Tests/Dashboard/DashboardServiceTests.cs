@@ -311,7 +311,7 @@ public class DashboardServiceTests(ITestOutputHelper testOutputHelper)
     }
 
     [Fact]
-    public async Task ExecuteResourceCommand_ValidateOnlyWithInvalidArguments_ReturnsValidationErrors()
+    public async Task ExecuteResourceCommand_WithInvalidArguments_ReturnsValidationErrors()
     {
         var resourceLoggerService = new ResourceLoggerService();
         var resourceNotificationService = CreateResourceNotificationService(resourceLoggerService);
@@ -361,7 +361,6 @@ public class DashboardServiceTests(ITestOutputHelper testOutputHelper)
             {
                 ResourceName = testResource.Name,
                 CommandName = "validate",
-                ValidateOnly = true,
                 Arguments = Value.ForStruct(new Struct
                 {
                     Fields =
