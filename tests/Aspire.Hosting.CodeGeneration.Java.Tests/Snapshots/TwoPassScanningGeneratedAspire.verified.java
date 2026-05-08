@@ -1,4 +1,4 @@
-﻿// ===== AddContainerOptions.java =====
+// ===== AddContainerOptions.java =====
 // AddContainerOptions.java - GENERATED CODE - DO NOT EDIT
 
 package aspire;
@@ -12724,7 +12724,7 @@ import java.util.*;
 import java.util.function.*;
 
 /** InteractionInput DTO. */
-public class InteractionInput {
+public class InteractionInput implements JsonSerializable {
     private String name;
     private String label;
     private String description;
@@ -22908,3 +22908,4 @@ public final class WithVolumeOptions {
 .modules/WithPipelineStepFactoryOptions.java
 .modules/WithReferenceOptions.java
 .modules/WithVolumeOptions.java
+
