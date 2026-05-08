@@ -370,7 +370,6 @@ internal sealed partial class DashboardService(DashboardServiceData serviceData,
             new ExecuteResourceCommandOptions
             {
                 ArgumentValues = ConvertArgumentValues(request.Arguments),
-                ValidateOnly = request.ValidateOnly,
                 NonInteractive = request.NonInteractive
             },
             context.CancellationToken).ConfigureAwait(false);

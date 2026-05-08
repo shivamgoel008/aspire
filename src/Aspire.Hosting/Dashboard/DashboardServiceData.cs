@@ -100,18 +100,16 @@ internal sealed class DashboardServiceData : IDisposable
 
         try
         {
-            var result = options.ValidateOnly
-                ? await ValidateCommandArgumentsAsync(_resourceCommandService, resourceId, type, options.ArgumentValues, cancellationToken).ConfigureAwait(false)
-                : await _resourceCommandService.ExecuteCommandAsync(
-                    resourceId,
-                    type,
-                    new ResourceCommandExecutionOptions
-                    {
-                        ArgumentValues = options.ArgumentValues,
-                        ArgumentsProvided = options.ArgumentValues is not null,
-                        NonInteractive = options.NonInteractive
-                    },
-                    cancellationToken).ConfigureAwait(false);
+            var result = await _resourceCommandService.ExecuteCommandAsync(
+                resourceId,
+                type,
+                new ResourceCommandExecutionOptions
+                {
+                    ArgumentValues = options.ArgumentValues,
+                    ArgumentsProvided = options.ArgumentValues is not null,
+                    NonInteractive = options.NonInteractive
+                },
+                cancellationToken).ConfigureAwait(false);
             if (result.Canceled)
             {
                 return (ExecuteCommandResultType.Canceled, result.Message, null, null);
@@ -122,12 +120,6 @@ internal sealed class DashboardServiceData : IDisposable
         {
             // Note: Exception is already logged in the command executor.
             return (ExecuteCommandResultType.Failure, "Unhandled exception thrown while executing command.", null, null);
-        }
-
-        static async Task<ExecuteCommandResult> ValidateCommandArgumentsAsync(ResourceCommandService resourceCommandService, string resourceId, string type, IReadOnlyDictionary<string, string?>? argumentValues, CancellationToken cancellationToken)
-        {
-            var arguments = resourceCommandService.CreateCommandArguments(resourceId, type, argumentValues);
-            return await resourceCommandService.ValidateCommandArgumentsAsync(resourceId, type, arguments, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -261,8 +253,6 @@ internal sealed class DashboardServiceData : IDisposable
 internal sealed class ExecuteResourceCommandOptions
 {
     public IReadOnlyDictionary<string, string?>? ArgumentValues { get; init; }
-
-    public bool ValidateOnly { get; init; }
 
     public bool NonInteractive { get; init; }
 }

@@ -763,7 +763,6 @@ internal sealed class DashboardClient : IDashboardClient
             Arguments = options.Arguments,
             ResourceName = resourceName,
             ResourceType = resourceType,
-            ValidateOnly = options.ValidateOnly,
             NonInteractive = options.NonInteractive
         };
 

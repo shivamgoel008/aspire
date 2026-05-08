@@ -81,10 +81,8 @@ message ResourceCommandRequest {
     // Unlike parameter, this value is supplied by the client for this execution.
     // Dashboard requests encode arguments as an object-valued google.protobuf.Value keyed by InteractionInput.name.
     optional google.protobuf.Value arguments = 5;
-    // When true, validate the supplied arguments without executing the command.
-    bool validate_only = 6;
     // When true, command execution should fail instead of prompting for missing input.
-    bool non_interactive = 7;
+    bool non_interactive = 6;
 }
 
 enum ResourceCommandState {

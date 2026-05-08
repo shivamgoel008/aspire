@@ -85,11 +85,6 @@ public sealed class ExecuteResourceCommandOptions
     public Value? Arguments { get; init; }
 
     /// <summary>
-    /// Gets a value indicating whether the request should validate arguments without executing the command.
-    /// </summary>
-    public bool ValidateOnly { get; init; }
-
-    /// <summary>
     /// Gets a value indicating whether command execution should fail instead of prompting for missing input.
     /// </summary>
     public bool NonInteractive { get; init; }
