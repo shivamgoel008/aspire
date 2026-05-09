@@ -163,9 +163,9 @@ internal static class ResourceCommandHelper
         return string.IsNullOrEmpty(errorMessage) ? "Unknown error occurred." : errorMessage;
     }
 
-    private static string AppendValidationErrors(string errorMessage, ResourceCommandArgumentValidationError[] validationErrors)
+    private static string AppendValidationErrors(string errorMessage, ResourceCommandArgumentValidationError[]? validationErrors)
     {
-        if (validationErrors.Length == 0)
+        if (validationErrors is not { Length: > 0 })
         {
             return errorMessage;
         }
