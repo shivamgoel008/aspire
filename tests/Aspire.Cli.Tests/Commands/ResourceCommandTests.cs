@@ -1295,8 +1295,10 @@ public class ResourceCommandTests(ITestOutputHelper outputHelper)
 
         Assert.Equal(ExitCodeConstants.Success, exitCode);
         Assert.Contains("Waits for text in the browser.", helpOutput);
-        Assert.Contains("--selector <value>  Selector to wait for. Required.", helpOutput);
-        Assert.Contains("--timeout-milliseconds <value>  Timeout in milliseconds.", helpOutput);
+        Assert.Contains("--selector <value>", helpOutput);
+        Assert.Contains("Selector to wait for. Required.", helpOutput);
+        Assert.Contains("--timeout-milliseconds <value>", helpOutput);
+        Assert.Contains("Timeout in milliseconds.", helpOutput);
     }
 
     [Fact]
@@ -1333,8 +1335,10 @@ public class ResourceCommandTests(ITestOutputHelper outputHelper)
         var helpOutput = helpWriter.ToString();
 
         Assert.Equal(ExitCodeConstants.Success, exitCode);
-        Assert.Contains("aspire resource web-browser-automation configure -- [command-options]", helpOutput);
-        Assert.Contains("--log-level <value>  Log level for the resource command. Use `-- --log-level <value>` to pass this command option.", helpOutput);
+        Assert.Contains("aspire resource web-browser-automation configure [options] [[--] <command-options>...]", helpOutput);
+        Assert.Contains("--log-level <value>", helpOutput);
+        Assert.Contains("Log level for the resource command.", helpOutput);
+        Assert.Contains("Use `-- --log-level <value>` to pass this command", helpOutput);
     }
 
     [Fact]
@@ -1362,7 +1366,7 @@ public class ResourceCommandTests(ITestOutputHelper outputHelper)
 
         Assert.Equal(ExitCodeConstants.Success, exitCode);
         Assert.Contains("--apphost <apphost>", helpOutput);
-        Assert.Contains("-?, -h, --help", helpOutput);
+        Assert.Contains("-?, -h, /?, /h, --help", helpOutput);
         Assert.Contains("-l, --log-level <log-level>", helpOutput);
         Assert.Contains("--non-interactive", helpOutput);
         Assert.Contains("--nologo", helpOutput);
@@ -1398,8 +1402,9 @@ public class ResourceCommandTests(ITestOutputHelper outputHelper)
         var helpOutput = helpWriter.ToString();
 
         Assert.Equal(ExitCodeConstants.Success, exitCode);
-        Assert.Contains("--count <value>  Count value. Default: 5.", helpOutput);
-        Assert.DoesNotContain("--count <value>  Count value. Required.", helpOutput);
+        Assert.Contains("--count <value>", helpOutput);
+        Assert.Contains("Count value. Default: 5.", helpOutput);
+        Assert.DoesNotContain("Count value. Required.", helpOutput);
     }
 
     [Fact]

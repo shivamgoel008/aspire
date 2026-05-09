@@ -483,62 +483,25 @@ internal sealed class ResourceCommand : BaseCommand
 
             writer.WriteLine(command.Description is { Length: > 0 } ? command.Description : command.DisplayName ?? command.Name);
             writer.WriteLine();
-            writer.WriteLine("Usage:");
-            writer.WriteLine($"  aspire resource {resourceName} {command.Name} [command-options] [options]");
-            writer.WriteLine($"  aspire resource {resourceName} {command.Name} -- [command-options]");
+            GroupedHelpWriter.WriteUsage(
+                writer,
+                string.Format(CultureInfo.CurrentCulture, ResourceCommandStrings.CommandSpecificHelpUsageSyntax, resourceName, command.Name));
 
             if (command.ArgumentInputs.Length > 0)
             {
-                writer.WriteLine();
-                writer.WriteLine("Command options:");
-                foreach (var argument in command.ArgumentInputs)
-                {
-                    var optionName = ToKebabCase(argument.Name);
-                    writer.Write("  --");
-                    writer.Write(optionName);
-                    if (!IsBooleanInput(argument))
-                    {
-                        writer.Write(" <value>");
-                    }
-
-                    var description = GetArgumentDescription(argument);
-                    if (description.Length > 0)
-                    {
-                        writer.Write("  ");
-                        writer.Write(description);
-                    }
-
-                    if (cliOptionNames.Contains(optionName))
-                    {
-                        writer.Write(" Use `-- --");
-                        writer.Write(optionName);
-                        if (!IsBooleanInput(argument))
-                        {
-                            writer.Write(" <value>");
-                        }
-
-                        writer.Write("` to pass this command option.");
-                    }
-
-                    writer.WriteLine();
-                }
+                GroupedHelpWriter.WriteTwoColumnSection(
+                    writer,
+                    ResourceCommandStrings.CommandSpecificHelpCommandOptions,
+                    command.ArgumentInputs.Select(argument => (GetCommandOptionLabel(argument), GetArgumentDescription(argument, cliOptionNames))),
+                    maxWidth: 120);
             }
 
-            writer.WriteLine();
-            writer.WriteLine("Options:");
-            foreach (var option in GetVisibleCliOptions(commandResult))
-            {
-                var description = option.Description ?? string.Empty;
-                writer.Write("  ");
-                writer.Write(GetOptionUsage(option));
-                if (description.Length > 0)
-                {
-                    writer.Write("  ");
-                    writer.Write(description);
-                }
-
-                writer.WriteLine();
-            }
+            GroupedHelpWriter.WriteTwoColumnSection(
+                writer,
+                HelpGroupStrings.Options,
+                GetVisibleCliOptions(commandResult).Select(static option => (GroupedHelpWriter.FormatOptionLabel(option, includeValueName: true), option.Description ?? string.Empty)),
+                maxWidth: 120,
+                trailingBlankLine: false);
         }
 
         private static IEnumerable<Option> GetVisibleCliOptions(CommandResult commandResult)
@@ -566,36 +529,6 @@ internal sealed class ResourceCommand : BaseCommand
 
                 current = parentCommandResult.Parent;
             }
-        }
-
-        private static string GetOptionUsage(Option option)
-        {
-            var names = GetDisplayOptionNames(option);
-            var suffix = IsBooleanOption(option) ? string.Empty : $" <{GetOptionValueName(option)}>";
-
-            return $"{string.Join(", ", names)}{suffix}";
-        }
-
-        private static string[] GetDisplayOptionNames(Option option)
-        {
-            return option.Aliases
-                .Prepend(option.Name)
-                .Where(static name => name.StartsWith("-", StringComparison.Ordinal))
-                .Distinct(StringComparer.Ordinal)
-                .OrderBy(static name => name.StartsWith("--", StringComparison.Ordinal) ? 1 : 0)
-                .ThenBy(static name => name, StringComparer.Ordinal)
-                .ToArray();
-        }
-
-        private static bool IsBooleanOption(Option option)
-        {
-            return option is Option<bool> or HelpOption;
-        }
-
-        private static string GetOptionValueName(Option option)
-        {
-            var name = GetDisplayOptionNames(option).Last(static name => name.StartsWith("--", StringComparison.Ordinal));
-            return name[2..];
         }
 
         private static HashSet<string> GetCliOptionNames(CommandResult commandResult)
@@ -643,7 +576,15 @@ internal sealed class ResourceCommand : BaseCommand
             }
         }
 
-        private static string GetArgumentDescription(ResourceSnapshotCommandArgument argument)
+        private static string GetCommandOptionLabel(ResourceSnapshotCommandArgument argument)
+        {
+            var optionName = ToKebabCase(argument.Name);
+            return IsBooleanInput(argument)
+                ? $"--{optionName}"
+                : $"--{optionName} <{ResourceCommandStrings.CommandSpecificHelpValuePlaceholder}>";
+        }
+
+        private static string GetArgumentDescription(ResourceSnapshotCommandArgument argument, HashSet<string> cliOptionNames)
         {
             var parts = new List<string>();
             if (argument.Description is { Length: > 0 })
@@ -657,17 +598,26 @@ internal sealed class ResourceCommand : BaseCommand
 
             if (argument.Required && string.IsNullOrEmpty(argument.Value))
             {
-                parts.Add("Required.");
+                parts.Add(ResourceCommandStrings.CommandSpecificHelpRequired);
             }
 
             if (argument.Options is { Count: > 0 } options)
             {
-                parts.Add($"Allowed values: {string.Join(", ", options.Keys)}.");
+                parts.Add(string.Format(CultureInfo.CurrentCulture, ResourceCommandStrings.CommandSpecificHelpAllowedValues, string.Join(", ", options.Keys)));
             }
 
             if (argument.Value is { Length: > 0 } value)
             {
-                parts.Add($"Default: {value}.");
+                parts.Add(string.Format(CultureInfo.CurrentCulture, ResourceCommandStrings.CommandSpecificHelpDefaultValue, value));
+            }
+
+            var optionName = ToKebabCase(argument.Name);
+            if (cliOptionNames.Contains(optionName))
+            {
+                var valuePlaceholder = IsBooleanInput(argument)
+                    ? string.Empty
+                    : $" <{ResourceCommandStrings.CommandSpecificHelpValuePlaceholder}>";
+                parts.Add(string.Format(CultureInfo.CurrentCulture, ResourceCommandStrings.CommandSpecificHelpDelimiterHint, optionName, valuePlaceholder));
             }
 
             return string.Join(" ", parts);
