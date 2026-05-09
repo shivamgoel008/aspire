@@ -33,8 +33,7 @@
 
     ::deep.layout > .layout-body-container {
         grid-area: main;
-        overflow-x: auto; /* allow horizontal scrolling */
-        overflow: auto;
+        overflow: hidden;
         border-left: none;
         display: flex;
         flex: 1;
@@ -42,7 +41,7 @@
     }
 
     :global([data-theme="dark"]) ::deep.layout > .layout-body-container {
-        background: #1F1E33 !important;
+        background: var(--aspire-surface-page) !important;
     }
 
     ::deep.layout .layout-sidebar-spacer {
@@ -52,18 +51,18 @@
 
     ::deep.layout > .messagebar-container {
         grid-area: messagebar;
-        background: linear-gradient(90deg, #7455DD 0%, #B30F87 50%, #F65163 100%);
+        background: var(--aspire-messagebar-strip-bg);
         border-top: none;
         border-left: none;
         display: flex;
     }
 
     ::deep.layout > .messagebar-container:has(.fluent-messagebar, fluent-message-bar) {
-        background: linear-gradient(135deg, #F6F2FF 0%, #FFF4FC 100%);
+        background: var(--aspire-messagebar-fill);
     }
 
     :global([data-theme="dark"]) ::deep.layout > .messagebar-container:has(.fluent-messagebar, fluent-message-bar) {
-        background: linear-gradient(135deg, #302754 0%, #281F45 58%, #231D39 100%) !important;
+        background: var(--aspire-messagebar-fill) !important;
     }
 
     ::deep .header-right {
@@ -134,25 +133,24 @@
 
     ::deep.layout > .layout-body-container {
         grid-area: main;
-        overflow-x: auto; /* allow horizontal scrolling */
-        overflow: auto;
+        overflow: hidden;
         border-left: 1px solid var(--aspire-border-subtle);
     }
 
     ::deep.layout > .messagebar-container {
         grid-area: messagebar;
-        background: linear-gradient(90deg, #7455DD 0%, #B30F87 50%, #F65163 100%);
+        background: var(--aspire-messagebar-strip-bg);
         border-top: none;
         border-left: none;
         display: flex;
     }
 
     ::deep.layout > .messagebar-container:has(.fluent-messagebar, fluent-message-bar) {
-        background: linear-gradient(135deg, #F6F2FF 0%, #FFF4FC 100%);
+        background: var(--aspire-messagebar-fill);
     }
 
     :global([data-theme="dark"]) ::deep.layout > .messagebar-container:has(.fluent-messagebar, fluent-message-bar) {
-        background: linear-gradient(135deg, #302754 0%, #281F45 58%, #231D39 100%) !important;
+        background: var(--aspire-messagebar-fill) !important;
     }
 
     ::deep .header-right {
@@ -205,8 +203,12 @@
     padding-left: 0;
     padding-right: 0;
     font-family: 'Poppins', var(--body-font);
-    font-weight: 600;
+    font-weight: 400;
     letter-spacing: -0.01em;
+}
+
+::deep .desktop-nav-menu > .fluent-appbar-item > .fluentui-counterbadge-container > a.active > .stack-vertical {
+    font-weight: 600;
 }
 
 ::deep .desktop-nav-menu > .fluent-appbar-item > .fluentui-counterbadge-container > a {
