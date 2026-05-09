@@ -226,6 +226,15 @@ public static class CommandResults
     public static ExecuteCommandResult Success(string message, string result, CommandResultFormat resultFormat = CommandResultFormat.Text) => new() { Success = true, Message = message, Data = new CommandResultData { Value = result, Format = resultFormat } };
 
     /// <summary>
+    /// Produces a success result with a message and result data.
+    /// </summary>
+    /// <param name="message">The message associated with the result.</param>
+    /// <param name="result">The result data.</param>
+    /// <param name="resultFormat">The format of the result data.</param>
+    /// <param name="displayImmediately">A value indicating whether the result data should be displayed immediately in the dashboard.</param>
+    public static ExecuteCommandResult Success(string message, string result, CommandResultFormat resultFormat, bool displayImmediately) => new() { Success = true, Message = message, Data = new CommandResultData { Value = result, Format = resultFormat, DisplayImmediately = displayImmediately } };
+
+    /// <summary>
     /// Produces a success result with a message and a value.
     /// </summary>
     /// <param name="message">The message associated with the result.</param>
