@@ -1,0 +1,9 @@
+{
+  "author": "app/aspire-repo-bot",
+  "comment": "Documents features from microsoft/aspire#16710 which is not in the 13.3 milestone (targets 13.4)",
+  "mergedAt": "2026-05-09T01:34:09Z",
+  "number": 892,
+  "runDate": "2026-05-09T03:08:30Z",
+  "status": "excluded",
+  "title": "[docs] Add command arguments, validation, and visibility to custom-resource-commands"
+}
