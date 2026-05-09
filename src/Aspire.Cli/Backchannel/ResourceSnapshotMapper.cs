@@ -108,9 +108,9 @@ internal static class ResourceSnapshotMapper
             .OrderBy(c => c.Name)
             .ToDistinctDictionary(
                  c => c.Name,
-                  c => new ResourceCommandJson
-                  {
-                      DisplayName = c.DisplayName,
+                   c => new ResourceCommandJson
+                   {
+                      DisplayName = string.IsNullOrWhiteSpace(c.DisplayName) ? null : c.DisplayName.Trim(),
                       Description = c.Description,
                       Visibility = IsDefaultCommandVisibility(c.Visibility) ? null : c.Visibility,
                       ArgumentInputs = c.ArgumentInputs.Length > 0
