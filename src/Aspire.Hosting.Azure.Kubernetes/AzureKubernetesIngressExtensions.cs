@@ -92,6 +92,22 @@ public static class AzureKubernetesIngressExtensions
     /// </param>
     /// <param name="chartVersion">The chart version to install.</param>
     /// <returns>A resource builder for the Helm chart resource.</returns>
+    /// <remarks>
+    /// <para>
+    /// This method delegates to the inner <see cref="KubernetesEnvironmentResource"/> of the AKS
+    /// environment, so the returned <see cref="KubernetesHelmChartResource"/> can be configured
+    /// with the same <see cref="KubernetesHelmChartExtensions.WithHelmValue"/>,
+    /// <see cref="KubernetesHelmChartExtensions.WithNamespace"/>,
+    /// <see cref="KubernetesHelmChartExtensions.WithReleaseName"/>, and
+    /// <see cref="KubernetesHelmChartExtensions.WithDestroy"/> extensions used with
+    /// non-AKS Kubernetes environments.
+    /// </para>
+    /// <para>
+    /// External Helm charts are <em>not</em> uninstalled by <c>aspire destroy</c> by default,
+    /// because they may be shared with workloads outside the Aspire app. Opt in by chaining
+    /// <see cref="KubernetesHelmChartExtensions.WithDestroy"/>.
+    /// </para>
+    /// </remarks>
     /// <example>
     /// <code>
     /// var aks = builder.AddAzureKubernetesEnvironment("aks");
