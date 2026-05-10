@@ -19,6 +19,7 @@ using Aspire.Cli.Telemetry;
 using Aspire.Cli.Templating;
 using Aspire.Cli.Utils;
 using Aspire.Hosting;
+using Aspire.Hosting.Utils;
 using Aspire.Shared;
 
 namespace Aspire.Cli.Commands;
@@ -405,18 +406,18 @@ internal sealed class InitCommand : BaseCommand
         var appHostFileName = language.AppHostFileName
             ?? throw new NotSupportedException($"Polyglot skeleton not yet supported for language: {language.LanguageId}");
 
-        var appHostPath = Path.Combine(workingDirectory.FullName, appHostFileName);
+        var appHostPath = ScaffoldingService.GetAppHostPath(workingDirectory, language);
         if (File.Exists(appHostPath))
         {
-            InteractionService.DisplayMessage(KnownEmojis.CheckMarkButton, $"{appHostFileName} already exists — skipping.");
+            var displayPath = PathNormalizer.NormalizePathForStorage(Path.GetRelativePath(workingDirectory.FullName, appHostPath));
+            InteractionService.DisplayMessage(KnownEmojis.CheckMarkButton, $"{displayPath} already exists — skipping.");
             return ExitCodeConstants.Success;
         }
 
         var context = new ScaffoldContext(
             language,
             workingDirectory,
-            workingDirectory.Name,
-            Options: ScaffoldOptions.GetDefaults(language, ScaffoldOptionsContext.Init));
+            workingDirectory.Name);
         var scaffolded = await _scaffoldingService.ScaffoldAsync(context, cancellationToken);
         if (!scaffolded)
         {

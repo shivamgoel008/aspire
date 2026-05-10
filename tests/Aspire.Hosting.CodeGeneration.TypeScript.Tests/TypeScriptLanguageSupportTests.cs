@@ -66,34 +66,6 @@ public sealed class TypeScriptLanguageSupportTests
     }
 
     [Fact]
-    public void Scaffold_CanDisableLinting_ForNewProject()
-    {
-        using var testDir = new TestTempDirectory();
-
-        var files = _languageSupport.Scaffold(new ScaffoldRequest
-        {
-            TargetPath = testDir.Path,
-            ProjectName = "BrownfieldApp",
-            Options = new Dictionary<string, string>
-            {
-                ["typescript.includeESLint"] = false.ToString()
-            }
-        });
-
-        var packageJson = ParseJson(files["package.json"]);
-        var scripts = packageJson["scripts"]!.AsObject();
-        var devDependencies = packageJson["devDependencies"]!.AsObject();
-
-        Assert.False(scripts.ContainsKey("aspire:lint"));
-        Assert.False(scripts.ContainsKey("lint"));
-        Assert.False(scripts.ContainsKey("predev"));
-        Assert.False(scripts.ContainsKey("prebuild"));
-        Assert.False(devDependencies.ContainsKey("eslint"));
-        Assert.False(devDependencies.ContainsKey("typescript-eslint"));
-        Assert.DoesNotContain("eslint.config.mjs", files.Keys);
-    }
-
-    [Fact]
     public void Scaffold_BrownfieldOutput_ContainsOnlyAspireEntries()
     {
         using var testDir = new TestTempDirectory();
@@ -121,11 +93,7 @@ public sealed class TypeScriptLanguageSupportTests
         var files = _languageSupport.Scaffold(new ScaffoldRequest
         {
             TargetPath = testDir.Path,
-            ProjectName = "Ignored",
-            Options = new Dictionary<string, string>
-            {
-                ["typescript.includeESLint"] = false.ToString()
-            }
+            ProjectName = "Ignored"
         });
 
         var packageJson = ParseJson(files["package.json"]);
@@ -143,7 +111,7 @@ public sealed class TypeScriptLanguageSupportTests
         Assert.Equal("aspire run", scripts["aspire:start"]?.GetValue<string>());
         Assert.Equal("tsc -p tsconfig.apphost.json", scripts["aspire:build"]?.GetValue<string>());
         Assert.Equal("tsc --watch -p tsconfig.apphost.json", scripts["aspire:dev"]?.GetValue<string>());
-        Assert.False(scripts.ContainsKey("aspire:lint"));
+        Assert.Equal("eslint apphost.ts", scripts["aspire:lint"]?.GetValue<string>());
         Assert.False(scripts.ContainsKey("dev"));
         Assert.False(scripts.ContainsKey("build"));
         Assert.False(scripts.ContainsKey("preview"));
@@ -155,8 +123,8 @@ public sealed class TypeScriptLanguageSupportTests
         Assert.Equal("^22.0.0", devDependencies["@types/node"]?.GetValue<string>());
         Assert.Equal("^3.1.14", devDependencies["nodemon"]?.GetValue<string>());
         Assert.Equal("^5.9.3", devDependencies["typescript"]?.GetValue<string>());
-        Assert.False(devDependencies.ContainsKey("eslint"));
-        Assert.False(devDependencies.ContainsKey("typescript-eslint"));
+        Assert.Equal("^10.0.3", devDependencies["eslint"]?.GetValue<string>());
+        Assert.Equal("^8.57.1", devDependencies["typescript-eslint"]?.GetValue<string>());
         Assert.False(devDependencies.ContainsKey("vite"));
 
         // engines.node is always set

@@ -139,6 +139,7 @@ public sealed class TypeScriptPolyglotTests(ITestOutputHelper output)
         string? originalDevScript = null;
         string? originalBuildScript = null;
         string? originalPreviewScript = null;
+        string? originalPackageType = null;
         string? originalTsConfig = null;
 
         var counter = new SequenceCounter();
@@ -165,6 +166,7 @@ public sealed class TypeScriptPolyglotTests(ITestOutputHelper output)
         originalDevScript = scripts["dev"]?.GetValue<string>();
         originalBuildScript = scripts["build"]?.GetValue<string>();
         originalPreviewScript = scripts["preview"]?.GetValue<string>();
+        originalPackageType = packageJson["type"]?.GetValue<string>();
         originalTsConfig = File.ReadAllText(Path.Combine(projectRoot, "tsconfig.json"));
 
         if (localChannel is not null)
@@ -186,42 +188,60 @@ public sealed class TypeScriptPolyglotTests(ITestOutputHelper output)
 
         packageJson = JsonNode.Parse(File.ReadAllText(Path.Combine(projectRoot, "package.json")))!.AsObject();
         scripts = packageJson["scripts"]!.AsObject();
-        var dependencies = packageJson["dependencies"]?.AsObject();
-        var devDependencies = packageJson["devDependencies"]!.AsObject();
 
         Assert.Equal(originalDevScript, scripts["dev"]?.GetValue<string>());
         Assert.Equal(originalBuildScript, scripts["build"]?.GetValue<string>());
         Assert.Equal(originalPreviewScript, scripts["preview"]?.GetValue<string>());
-        Assert.Equal("aspire run", scripts["aspire:start"]?.GetValue<string>());
-        Assert.Equal("tsc -p tsconfig.apphost.json", scripts["aspire:build"]?.GetValue<string>());
-        Assert.Equal("tsc --watch -p tsconfig.apphost.json", scripts["aspire:dev"]?.GetValue<string>());
-        Assert.Equal("npm run aspire:start", scripts["start"]?.GetValue<string>());
+        var appHostDirectory = Path.Combine(projectRoot, "aspire-apphost");
+        var appHostPath = Path.Combine(appHostDirectory, "apphost.ts");
+        var usesNestedAppHostPackage = File.Exists(appHostPath);
 
-        Assert.Equal("module", packageJson["type"]?.GetValue<string>());
-        Assert.NotNull(devDependencies["@types/node"]);
-        Assert.NotNull(devDependencies["nodemon"]);
-        Assert.NotNull(devDependencies["tsx"]);
-        Assert.NotNull(devDependencies["typescript"]);
+        if (usesNestedAppHostPackage)
+        {
+            Assert.Equal("npm --prefix aspire-apphost run aspire:start", scripts["aspire:start"]?.GetValue<string>());
+            Assert.Equal("npm --prefix aspire-apphost run aspire:build", scripts["aspire:build"]?.GetValue<string>());
+            Assert.Equal("npm --prefix aspire-apphost run aspire:dev", scripts["aspire:dev"]?.GetValue<string>());
 
-        var hasJsonRpcDependency = dependencies?["vscode-jsonrpc"] is not null;
-        var hasJsonRpcDevDependency = devDependencies["vscode-jsonrpc"] is not null;
-        Assert.True(hasJsonRpcDependency || hasJsonRpcDevDependency);
-        Assert.False(hasJsonRpcDependency && hasJsonRpcDevDependency);
+            Assert.Equal(originalPackageType, packageJson["type"]?.GetValue<string>());
+            Assert.False(scripts.ContainsKey("start"));
 
-        Assert.Equal(originalTsConfig, File.ReadAllText(Path.Combine(projectRoot, "tsconfig.json")));
-        Assert.True(File.Exists(Path.Combine(projectRoot, "tsconfig.apphost.json")));
+            Assert.Equal(originalTsConfig, File.ReadAllText(Path.Combine(projectRoot, "tsconfig.json")));
+            Assert.False(File.Exists(Path.Combine(projectRoot, "tsconfig.apphost.json")));
+            Assert.False(File.Exists(Path.Combine(projectRoot, "apphost.ts")));
+
+            var appHostPackageJson = JsonNode.Parse(File.ReadAllText(Path.Combine(appHostDirectory, "package.json")))!.AsObject();
+            var appHostScripts = appHostPackageJson["scripts"]!.AsObject();
+            var appHostDevDependencies = appHostPackageJson["devDependencies"]!.AsObject();
+            Assert.Equal("module", appHostPackageJson["type"]?.GetValue<string>());
+            Assert.Equal("aspire run", appHostScripts["aspire:start"]?.GetValue<string>());
+            Assert.Equal("^8.2.0", appHostDevDependencies["vscode-jsonrpc"]?.GetValue<string>());
+            Assert.True(File.Exists(Path.Combine(appHostDirectory, "tsconfig.apphost.json")));
+        }
+        else
+        {
+            // Local E2E runs can exercise a released CLI while only using local packages via the channel.
+            // Keep the test compatible with that older root-level layout so it remains useful locally.
+            Assert.Equal("aspire run", scripts["aspire:start"]?.GetValue<string>());
+            Assert.Equal(originalTsConfig, File.ReadAllText(Path.Combine(projectRoot, "tsconfig.json")));
+            Assert.True(File.Exists(Path.Combine(projectRoot, "apphost.ts")));
+
+            appHostPath = Path.Combine(projectRoot, "apphost.ts");
+        }
 
         // Verify Aspire.Hosting.JavaScript was pre-added in config
         var configPath = Path.Combine(projectRoot, "aspire.config.json");
         var config = JsonNode.Parse(File.ReadAllText(configPath))!.AsObject();
+        var appHost = config["appHost"]!.AsObject();
+        Assert.Equal(usesNestedAppHostPackage ? "aspire-apphost/apphost.ts" : "apphost.ts", appHost["path"]?.GetValue<string>());
+
         var packagesNode = config["packages"];
         Assert.NotNull(packagesNode);
         var packages = packagesNode!.AsObject();
         Assert.NotNull(packages["Aspire.Hosting.JavaScript"]);
 
         // Modify apphost.ts to add the Vite app before running
-        var appHostPath = Path.Combine(projectRoot, "apphost.ts");
-        var newContent = """
+        var viteAppDirectory = usesNestedAppHostPackage ? ".." : ".";
+        var newContent = $$"""
             // Aspire TypeScript AppHost
             // For more information, see: https://aspire.dev
 
@@ -229,7 +249,7 @@ public sealed class TypeScriptPolyglotTests(ITestOutputHelper output)
 
             const builder = await createBuilder();
 
-            await builder.addViteApp("brownfield", ".");
+            await builder.addViteApp("brownfield", "{{viteAppDirectory}}");
 
             await builder.build().run();
             """;

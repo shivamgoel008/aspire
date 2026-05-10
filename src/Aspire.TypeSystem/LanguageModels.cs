@@ -23,10 +23,6 @@ public sealed class ScaffoldRequest
     /// </summary>
     public int? PortSeed { get; init; }
 
-    /// <summary>
-    /// Gets language-specific scaffold options.
-    /// </summary>
-    public IReadOnlyDictionary<string, string> Options { get; init; } = new Dictionary<string, string>();
 }
 
 /// <summary>

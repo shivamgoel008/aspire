@@ -392,7 +392,6 @@ public class InitCommandTests(ITestOutputHelper outputHelper)
         var appHost = config["appHost"]!.AsObject();
         Assert.Equal("apphost.ts", appHost["path"]!.GetValue<string>());
         Assert.Equal("typescript/nodejs", appHost["language"]!.GetValue<string>());
-        Assert.Equal(false.ToString(), scaffoldingService.Context?.Options?["typescript.includeESLint"]);
     }
 
     [Fact]
