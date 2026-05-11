@@ -22,6 +22,7 @@ using Aspire.Cli.Secrets;
 using Aspire.Cli.Documentation.ApiDocs;
 using Microsoft.AspNetCore.Certificates.Generation;
 using Aspire.Cli.Commands.Sdk;
+using Aspire.Cli.Commands.Template;
 using Aspire.Cli.Configuration;
 using Aspire.Cli.Diagnostics;
 using Aspire.Cli.DotNet;
@@ -534,6 +535,12 @@ public class Program
         builder.Services.AddTransient<SdkDumpCommand>();
         builder.Services.AddTransient<RestoreCommand>();
         builder.Services.AddTransient<SetupCommand>();
+
+        builder.Services.AddTransient<GitTemplateCommand>();
+        builder.Services.AddTransient<GitTemplateListCommand>();
+        builder.Services.AddTransient<GitTemplateSearchCommand>();
+        builder.Services.AddTransient<GitTemplateRefreshCommand>();
+        builder.Services.AddTransient<GitTemplateNewCommand>();
 #if DEBUG
         builder.Services.AddTransient<RenderCommand>();
 #endif

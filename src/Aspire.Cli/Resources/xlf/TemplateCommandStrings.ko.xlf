@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.2" xsi:schemaLocation="urn:oasis:names:tc:xliff:document:1.2 xliff-core-1.2-transitional.xsd">
+  <file datatype="xml" source-language="en" target-language="ko" original="../TemplateCommandStrings.resx">
+    <body>
+      <trans-unit id="Description">
+        <source>Manage git-based Aspire templates</source>
+        <target state="new">Manage git-based Aspire templates</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ListCommand_Description">
+        <source>List available git-based templates</source>
+        <target state="new">List available git-based templates</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="NewCommand_Description">
+        <source>Scaffold a new aspire-template.json manifest in the current or specified directory</source>
+        <target state="new">Scaffold a new aspire-template.json manifest in the current or specified directory</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="NewCommand_PathArgumentDescription">
+        <source>Path to the directory where the manifest should be created. Defaults to the current directory.</source>
+        <target state="new">Path to the directory where the manifest should be created. Defaults to the current directory.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="NotYetImplemented">
+        <source>The 'aspire template {0}' command is not yet implemented.</source>
+        <target state="new">The 'aspire template {0}' command is not yet implemented.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="RefreshCommand_Description">
+        <source>Force refresh of the template cache</source>
+        <target state="new">Force refresh of the template cache</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="SearchCommand_Description">
+        <source>Search git-based templates by keyword</source>
+        <target state="new">Search git-based templates by keyword</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="SearchCommand_KeywordArgumentDescription">
+        <source>Keyword to search for in template names, descriptions, and tags</source>
+        <target state="new">Keyword to search for in template names, descriptions, and tags</target>
+        <note />
+      </trans-unit>
+    </body>
+  </file>
+</xliff>

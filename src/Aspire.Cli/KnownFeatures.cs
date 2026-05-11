@@ -24,6 +24,7 @@ internal static class KnownFeatures
     public static string StagingChannelEnabled => "stagingChannelEnabled";
     public static string DefaultWatchEnabled => "defaultWatchEnabled";
     public static string ShowAllTemplates => "showAllTemplates";
+    public static string GitTemplatesEnabled => "gitTemplatesEnabled";
     public static string ExperimentalPolyglotRust => "experimentalPolyglot:rust";
     public static string ExperimentalPolyglotJava => "experimentalPolyglot:java";
     public static string ExperimentalPolyglotGo => "experimentalPolyglot:go";
@@ -56,7 +57,12 @@ internal static class KnownFeatures
             ShowAllTemplates,
             "Show all available templates including experimental ones in 'aspire new' and 'aspire init' commands",
             DefaultValue: false),
-        
+
+        [GitTemplatesEnabled] = new(
+            GitTemplatesEnabled,
+            "Enable or disable the git-based template system and the 'aspire template' command group",
+            DefaultValue: false),
+
         [ExperimentalPolyglotRust] = new(
             ExperimentalPolyglotRust,
             "Enable or disable experimental Rust language support for polyglot Aspire applications",

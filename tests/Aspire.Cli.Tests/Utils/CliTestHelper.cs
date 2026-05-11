@@ -9,6 +9,7 @@ using Aspire.Cli.Bundles;
 using Aspire.Cli.Certificates;
 using Aspire.Cli.Commands;
 using Aspire.Cli.Commands.Sdk;
+using Aspire.Cli.Commands.Template;
 using Aspire.Cli.Documentation.ApiDocs;
 using Aspire.Cli.DotNet;
 using Aspire.Cli.Git;
@@ -251,6 +252,12 @@ internal static class CliTestHelper
         services.AddTransient<SecretPathCommand>();
         services.AddTransient<SecretDeleteCommand>();
         services.AddTransient<SecretStoreResolver>();
+
+        services.AddTransient<GitTemplateCommand>();
+        services.AddTransient<GitTemplateListCommand>();
+        services.AddTransient<GitTemplateSearchCommand>();
+        services.AddTransient<GitTemplateRefreshCommand>();
+        services.AddTransient<GitTemplateNewCommand>();
 #if DEBUG
         services.AddTransient<RenderCommand>();
 #endif

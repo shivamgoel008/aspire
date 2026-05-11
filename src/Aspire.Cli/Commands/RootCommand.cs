@@ -13,6 +13,8 @@ using System.Diagnostics;
 
 using Aspire.Cli.Bundles;
 using Aspire.Cli.Commands.Sdk;
+using Aspire.Cli.Commands.Template;
+using Aspire.Cli.Configuration;
 using Aspire.Cli.Interaction;
 using Aspire.Cli.Resources;
 using BaseRootCommand = System.CommandLine.RootCommand;
@@ -138,12 +140,14 @@ internal sealed class RootCommand : BaseRootCommand
         SdkCommand sdkCommand,
         RestoreCommand restoreCommand,
         SetupCommand setupCommand,
+        GitTemplateCommand gitTemplateCommand,
 #if DEBUG
         RenderCommand renderCommand,
 #endif
         ExtensionInternalCommand extensionInternalCommand,
         IBundleService bundleService,
         IInteractionService interactionService,
+        IFeatures featureFlags,
         IAnsiConsole ansiConsole)
         : base(RootCommandStrings.Description)
     {
@@ -236,6 +240,11 @@ internal sealed class RootCommand : BaseRootCommand
         if (bundleService.IsBundle)
         {
             Subcommands.Add(setupCommand);
+        }
+
+        if (featureFlags.IsFeatureEnabled(KnownFeatures.GitTemplatesEnabled, false))
+        {
+            Subcommands.Add(gitTemplateCommand);
         }
 
         Subcommands.Add(sdkCommand);
