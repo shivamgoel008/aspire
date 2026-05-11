@@ -1,0 +1,9 @@
+{
+  "author": "eerhardt",
+  "comment": "Bug fix: compute environment validation (ACA, App Service, Docker, Kubernetes) was incorrectly running in run mode, causing aspire run failures",
+  "mergedAt": "2026-05-11T19:04:02Z",
+  "number": 16945,
+  "runDate": "2026-05-11T20:35:31Z",
+  "status": "included",
+  "title": "Skip compute env validation in run mode (#16940)"
+}

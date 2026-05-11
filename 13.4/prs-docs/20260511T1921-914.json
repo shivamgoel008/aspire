@@ -1,0 +1,9 @@
+{
+  "author": "app/copilot-swe-agent",
+  "comment": "Creates skeleton What's New page for 13.4 - docs infrastructure, not a specific feature changelog entry",
+  "mergedAt": "2026-05-11T19:21:42Z",
+  "number": 914,
+  "runDate": "2026-05-11T20:35:31Z",
+  "status": "excluded",
+  "title": "Draft skeleton What's New for Aspire 13.4"
+}

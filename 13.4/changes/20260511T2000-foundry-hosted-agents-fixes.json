@@ -1,0 +1,19 @@
+{
+  "area": "AppHost",
+  "areaEmoji": "\ud83c\udfe0",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "Fixed multiple issues in the Azure AI Foundry hosted-agent flow: project endpoints now use the correct customSubDomainName format, the Foundry-created agent identity is assigned the Cognitive Services User role automatically, and the app identity is no longer incorrectly injected into the hosted-agent environment.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "\ud83e\udd16",
+  "firstMergedAt": "2026-05-11T20:00:28Z",
+  "lastMergedAt": "2026-05-11T20:00:28Z",
+  "name": "Foundry hosted-agent deployment fixes",
+  "owner": "tommasodotNET",
+  "prs": [
+    16846
+  ]
+}

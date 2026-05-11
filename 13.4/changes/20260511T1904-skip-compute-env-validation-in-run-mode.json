@@ -1,0 +1,19 @@
+{
+  "area": "AppHost",
+  "areaEmoji": "\ud83c\udfe0",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "Fixes a regression introduced in 13.3 where compute environment validation steps (such as Azure Container Apps, App Service, Docker Compose, and Kubernetes checks) were incorrectly running during 'aspire run', causing startup failures even when the app was correctly configured for publishing.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "\ud83d\udd27",
+  "firstMergedAt": "2026-05-11T19:04:02Z",
+  "lastMergedAt": "2026-05-11T19:04:02Z",
+  "name": "Fix spurious publish-environment validation in run mode",
+  "owner": "eerhardt",
+  "prs": [
+    16945
+  ]
+}
