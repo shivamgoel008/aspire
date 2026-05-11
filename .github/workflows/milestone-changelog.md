@@ -183,11 +183,15 @@ jobs:
               # This endpoint only requires metadata-read scope, unlike the
               # bulk collaborators list which requires push/admin access.
               AUTHOR=$(jq -r --argjson n "$NUM" '.[] | select(.number == $n) | .author.login' "$DATA_DIR/batch-prs.json")
-              PERM=$(gh api "repos/$REPO/collaborators/$AUTHOR/permission" --jq '.permission' 2>/dev/null) || PERM=""
-              case "$PERM" in
-                write|maintain|admin) ASSOC="MEMBER" ;;
-                *) ASSOC="CONTRIBUTOR" ;;
-              esac
+              if [ -z "$AUTHOR" ] || [ "$AUTHOR" = "null" ]; then
+                ASSOC="UNKNOWN"
+              else
+                PERM=$(gh api "repos/$REPO/collaborators/$AUTHOR/permission" --jq '.permission' 2>/dev/null) || PERM=""
+                case "$PERM" in
+                  write|maintain|admin) ASSOC="MEMBER" ;;
+                  *) ASSOC="CONTRIBUTOR" ;;
+                esac
+              fi
               echo "$VIEW" | jq --arg n "$NUM" --arg a "$ASSOC" '{($n): {
                 authorAssociation: $a,
                 comments: [(.comments // [])[] | {author: .author.login, body: .body, createdAt: .createdAt}],
@@ -556,9 +560,10 @@ full schema of each entry.
      targeting a release branch.
    Record each excluded bot PR as an individual tracker file in `prs/` with
    `status: "excluded"` in Step 6b so they are not re-processed on future runs.
-2. **Exclude PRs already shipped via backport** — for each batch PR whose
-   `mergedAt` is **before** `${MILESTONE_START}` (i.e., the PR was merged in
-   the previous milestone window and carried over), check the PR's `body` and
+2. **Exclude PRs already shipped via backport** — if `${PREVIOUS_MILESTONE}`
+   is empty or not set, skip this check entirely. Otherwise, for each batch PR
+   whose `mergedAt` is **before** `${MILESTONE_START}` (i.e., the PR was merged
+   in the previous milestone window and carried over), check the PR's `body` and
    `comments` (both available in the batch data) for evidence that a backport
    to the previous milestone's release branch was triggered. Look for:
    - A `/backport to release/${PREVIOUS_MILESTONE}` command in comments.
