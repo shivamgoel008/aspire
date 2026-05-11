@@ -42,6 +42,7 @@ env:
   MILESTONE_START: "2026-05-08"
   MILESTONE: "13.4"
   PREVIOUS_MILESTONE: "13.3"
+  RELEASE_NOTES_URL: "https://aspire.dev/whats-new/upgrade-aspire/"
   BATCH_SIZE: "20"
 
 on:
@@ -451,8 +452,8 @@ Generate and maintain a changelog for the **${PRODUCT} ${MILESTONE} milestone** 
 Each run appends newly merged changes to the existing content while preserving
 previous entries. A companion feedback issue collects editorial comments.
 
-> **Note:** `${PRODUCT}`, `${REPO}`, `${DOCS_REPO}`, `${MILESTONE_START}`, `${MILESTONE}`, `${PREVIOUS_MILESTONE}`, and `${BATCH_SIZE}` refer to values set in the workflow's
-> `env` block (currently **`Aspire`**, **`microsoft/aspire`**, **`microsoft/aspire.dev`**, **`2026-05-08`**, **`13.4`**, **`13.3`**, and **`20`**). All file names,
+> **Note:** `${PRODUCT}`, `${REPO}`, `${DOCS_REPO}`, `${MILESTONE_START}`, `${MILESTONE}`, `${PREVIOUS_MILESTONE}`, `${RELEASE_NOTES_URL}`, and `${BATCH_SIZE}` refer to values set in the workflow's
+> `env` block (currently **`Aspire`**, **`microsoft/aspire`**, **`microsoft/aspire.dev`**, **`2026-05-08`**, **`13.4`**, **`13.3`**, **`https://aspire.dev/whats-new/upgrade-aspire/`**, and **`20`**). All file names,
 > titles, and references below derive from those values.
 
 ## Important: available tools
@@ -492,6 +493,7 @@ use one of these patterns:
 | Docs batch file | `/tmp/gh-aw/pr-data/batch-docs-prs.json` (unprocessed docs PRs) |
 | Docs PR tracker directory | `prs-docs/` (under memory directories; one JSON file per docs PR) |
 | Previous milestone | `${PREVIOUS_MILESTONE}` (optional; used to identify the release branch for backport detection) |
+| Release notes URL | `${RELEASE_NOTES_URL}` (official release notes page) |
 
 ## Step 1: Load existing changelog and feedback
 
@@ -1096,6 +1098,14 @@ entry's individual emoji, `<Name>` is the changelog entry name, and
 (e.g., `-apphost`, `-cli`, `-dashboard`). The `#` before the slug is mandatory
 markdown anchor syntax — always write `(#-apphost)`, never `(-apphost)`.
 
+After the What's New list, add a blockquote disclaimer:
+
+```markdown
+> ℹ️ This changelog is automatically generated from merged pull requests and may
+> contain inaccuracies. For official release notes, see
+> [${RELEASE_NOTES_URL}](${RELEASE_NOTES_URL}).
+```
+
 Under each area heading, add a one-line **summary** counting the entries per change
 type, e.g. `2 new features, 1 improvement` or `3 bug fixes`. Use singular form
 for counts of 1 (`1 new feature`, `1 bug fix`, `1 improvement`).
@@ -1126,6 +1136,10 @@ Use this exact format:
 - [2026-04-22 22:48 — 🧭 Feature name](#-apphost)
 - [2026-04-21 07:30 — 🆕 New CLI command](#-cli)
 - [2026-04-20 23:05 — 🚀 Another feature](#-apphost)
+
+> ℹ️ This changelog is automatically generated from merged pull requests and may
+> contain inaccuracies. For official release notes, see
+> [${RELEASE_NOTES_URL}](${RELEASE_NOTES_URL}).
 
 ## 🏠 AppHost
 
