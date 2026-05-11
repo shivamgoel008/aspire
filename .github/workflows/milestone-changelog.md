@@ -214,7 +214,7 @@ jobs:
           MILESTONE_START="${{ env.MILESTONE_START }}"
           gh pr list --repo "$DOCS_REPO" --state merged --limit 5000 \
             --search "merged:>=${MILESTONE_START}" \
-            --json number,title,body,author,mergedAt,labels,additions,deletions,changedFiles,files \
+            --json number,title,body,author,mergedBy,mergedAt,labels,additions,deletions,changedFiles,files \
             | jq 'sort_by(.mergedAt)' \
             > "$DATA_DIR/all-docs-prs.json"
 
@@ -540,7 +540,7 @@ with `jq` to see their exact shape.
 | File | Contents |
 |------|----------|
 | `all-milestone-prs.json` | All merged PRs in the `${MILESTONE}` milestone, sorted by `mergedAt` ascending |
-| `batch-prs.json` | Oldest ${BATCH_SIZE} unprocessed product PRs, enriched with `authorAssociation`, `mergedBy`, `files`, and `comments` (not available from `gh pr list`) |
+| `batch-prs.json` | Oldest ${BATCH_SIZE} unprocessed product PRs, enriched with `authorAssociation`, `files`, and `comments` (not available from `gh pr list`) |
 | `all-docs-prs.json` | All merged PRs in `${DOCS_REPO}` since `${MILESTONE_START}`, sorted by `mergedAt` ascending |
 | `batch-docs-prs.json` | Oldest ${BATCH_SIZE} unprocessed docs PRs (same base fields as product PRs plus `files`, but **without** `authorAssociation` or `comments`) |
 
@@ -579,9 +579,9 @@ full schema of each entry.
    processing it, the backlog will be fully caught up.
 
 For each remaining (non-bot) PR, collect all data from the batch: number, title,
-author, `mergedBy`, `authorAssociation`, body, labels, changed file paths (`files`
-array), and total changed lines (additions + deletions). No additional API calls
-are needed — the batch data contains everything required.
+author, `authorAssociation`, body, labels, changed file paths (`files` array), and
+total changed lines (additions + deletions). No additional API calls are needed —
+the batch data contains everything required.
 
 ### 3a. Processing backport PRs
 
@@ -754,8 +754,8 @@ A change can have zero or more flags. When present, show each flag on its own
 indented line below the Changes line:
 
 ```
-  Changes: [#1234](https://github.com/${REPO}/pull/1234)  
   Owner: [@jamesnk](https://github.com/jamesnk)  
+  Changes: [#1234](https://github.com/${REPO}/pull/1234)  
   ⚠️ **Breaking change**  
   📝 **Documentation required**  
   🌍 **Community contribution** by [@username](https://github.com/username)  
@@ -774,7 +774,7 @@ non-empty after Step 5f), add a `Docs:` line linking to the docs PRs:
   Docs: [${DOCS_REPO}#456](https://github.com/${DOCS_REPO}/pull/456)  
 ```
 When multiple docs PRs are linked, separate them with commas. The line order
-within each entry is: `Changes:`, `Owner:`, `Docs:` (if any), then flag lines.
+within each entry is: `Owner:`, `Changes:`, `Docs:` (if any), then flag lines.
 Keep the `📝 **Documentation required**` flag line as well.
 
 ### 5c. Write name and description
@@ -926,7 +926,7 @@ Field definitions:
 - **firstMergedAt**: ISO 8601 UTC timestamp of the earliest PR's merge date
 - **lastMergedAt**: ISO 8601 UTC timestamp of the most recent PR's merge date
 - **name**: Short, user-friendly name for the change
-- **owner**: GitHub username (without `@`) of the team member accountable for this change (see Step 5b Owner section)
+- **owner**: GitHub username (without `@`) of the team member accountable for this change
 - **prs**: Array of PR numbers associated with this entry
 
 After writing each file, **normalize formatting** by running:
@@ -1105,7 +1105,7 @@ each flag line) must end with **two trailing spaces** (`  `) to produce a markdo
 line break. This includes the last line of each entry, even when there are no flags.
 
 When a changelog entry has a non-empty `docsPrs` array, add a **Docs:** line after
-the `Owner:` line. Each docs PR is linked using the format
+the `Changes:` line. Each docs PR is linked using the format
 `[${DOCS_REPO}#456](https://github.com/${DOCS_REPO}/pull/456)`. Separate multiple
 docs PRs with commas. The `📝 **Documentation required**` flag line is kept
 regardless of whether docs PRs are linked.
@@ -1135,15 +1135,15 @@ Use this exact format:
 
 1. **🧭 Feature name**  
   Brief user-facing description  
-  Changes: [#1234](https://github.com/${REPO}/pull/1234), [#1235](https://github.com/${REPO}/pull/1235)  
   Owner: [@jamesnk](https://github.com/jamesnk)  
+  Changes: [#1234](https://github.com/${REPO}/pull/1234), [#1235](https://github.com/${REPO}/pull/1235)  
   ⚠️ **Breaking change**  
   📝 **Documentation required**  
 
 1. **🚀 Another feature**  
   What this means for users  
-  Changes: [#1236](https://github.com/${REPO}/pull/1236)  
   Owner: [@davidfowl](https://github.com/davidfowl)  
+  Changes: [#1236](https://github.com/${REPO}/pull/1236)  
   Docs: [${DOCS_REPO}#456](https://github.com/${DOCS_REPO}/pull/456)  
   📝 **Documentation required**  
 
@@ -1151,8 +1151,8 @@ Use this exact format:
 
 1. **⚡ Performance boost**  
   Faster startup for container resources  
-  Changes: [#1238](https://github.com/${REPO}/pull/1238)  
   Owner: [@eerhardt](https://github.com/eerhardt)  
+  Changes: [#1238](https://github.com/${REPO}/pull/1238)  
 
 ## 💻 CLI
 
@@ -1162,15 +1162,15 @@ Use this exact format:
 
 1. **🆕 New CLI command**  
   Added a new command for scaffolding resources  
-  Changes: [#1240](https://github.com/${REPO}/pull/1240)  
   Owner: [@jamesnk](https://github.com/jamesnk)  
+  Changes: [#1240](https://github.com/${REPO}/pull/1240)  
 
 #### Bug fixes
 
 1. **🐛 Fix crash on init**  
   Resolved a crash when running init in an empty directory  
-  Changes: [#1239](https://github.com/${REPO}/pull/1239)  
   Owner: [@maddymontaquila](https://github.com/maddymontaquila)  
+  Changes: [#1239](https://github.com/${REPO}/pull/1239)  
   ⚠️ **Breaking change**  
   🌍 **Community contribution** by [@contributor](https://github.com/contributor)  
 
@@ -1182,8 +1182,8 @@ Use this exact format:
 
 1. **🎨 Dashboard improvement**  
   Description of the change  
-  Changes: [#1237](https://github.com/${REPO}/pull/1237)  
   Owner: [@AdrianJSClique](https://github.com/AdrianJSClique)  
+  Changes: [#1237](https://github.com/${REPO}/pull/1237)  
 
 ---
 
