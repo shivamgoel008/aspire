@@ -14,7 +14,7 @@ public class ProcessCommandOptions : CommandOptions
     private int _maxOutputLineCount = 50;
     private IReadOnlyList<int> _successExitCodes = [0];
 
-    internal static new ProcessCommandOptions Default { get; } = new();
+    internal static new ProcessCommandOptions Default => new();
 
     /// <summary>
     /// Gets or sets the maximum number of stdout and stderr output lines returned as command result data.

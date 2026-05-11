@@ -17,6 +17,24 @@ namespace Aspire.Hosting.Tests;
 public class WithProcessCommandTests(ITestOutputHelper testOutputHelper)
 {
     [Fact]
+    public void ProcessCommandOptions_Default_ReturnsIndependentInstances()
+    {
+        var options = ProcessCommandOptions.Default;
+
+        options.Description = "Mutated description";
+        options.MaxOutputLineCount = 1;
+        options.DisplayImmediately = false;
+        options.SuccessExitCodes = [0, 5];
+
+        var defaultOptions = ProcessCommandOptions.Default;
+
+        Assert.Null(defaultOptions.Description);
+        Assert.Equal(50, defaultOptions.MaxOutputLineCount);
+        Assert.True(defaultOptions.DisplayImmediately);
+        Assert.Equal([0], defaultOptions.SuccessExitCodes);
+    }
+
+    [Fact]
     public void WithProcessCommand_AddsResourceCommandAnnotation_WithCustomValues()
     {
         using var builder = CreateTestDistributedApplicationBuilder();

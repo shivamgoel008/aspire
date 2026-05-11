@@ -114,7 +114,7 @@ public class ProcessUtilTests
             """);
         var spec = DotnetFileAppProcess.CreateDcpProcessSpec(
             appPath,
-            ["failure-argument"],
+            ["failure-argument", "failure argument", "quote\"argument", ""],
             throwOnNonZeroReturnCode: true);
 
         var (pendingProcessResult, processDisposable) = ProcessUtil.Run(spec);
@@ -125,6 +125,7 @@ public class ProcessUtilTests
 
             Assert.Contains("returned non-zero exit code 7", exception.Message);
             Assert.Contains("failure-argument", exception.Message);
+            Assert.Contains("-- failure-argument \"failure argument\" \"quote\\\"argument\" \"\"", exception.Message);
         }
     }
 
@@ -173,9 +174,10 @@ public class ProcessUtilTests
             ThrowOnNonZeroReturnCode = false
         };
 
-        var exception = Assert.Throws<InvalidOperationException>(() => ProcessUtil.Run(spec));
+        var exception = Assert.Throws<ArgumentException>(() => ProcessUtil.Run(spec));
 
-        Assert.Equal("Specify either Arguments or ArgumentList, not both.", exception.Message);
+        Assert.StartsWith("Specify either Arguments or ArgumentList, not both.", exception.Message);
+        Assert.Equal("processSpec", exception.ParamName);
     }
 
     [Fact]

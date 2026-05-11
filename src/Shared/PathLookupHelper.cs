@@ -14,7 +14,8 @@ internal static class PathLookupHelper
     /// </summary>
     /// <param name="executablePath">The executable path or command name to resolve.</param>
     /// <param name="environmentVariables">Optional environment variable overrides to use for lookup.</param>
-    /// <returns>The resolved executable path if found; otherwise, <paramref name="executablePath"/>.</returns>
+    /// <returns>The resolved executable path if found; otherwise, <paramref name="executablePath"/> when it is an explicit path.</returns>
+    /// <exception cref="FileNotFoundException">Thrown when <paramref name="executablePath"/> is a command name that is not found on PATH.</exception>
     public static string ResolveExecutablePath(string executablePath, IDictionary<string, string>? environmentVariables = null)
     {
         Debug.Assert(!string.IsNullOrWhiteSpace(executablePath));
@@ -35,8 +36,12 @@ internal static class PathLookupHelper
             ? (pathExtensionsOverride ?? Environment.GetEnvironmentVariable("PATHEXT"))?.Split(';', StringSplitOptions.RemoveEmptyEntries) ?? []
             : null;
 
-        return FindFullPathFromPath(executablePath, path, Path.PathSeparator, File.Exists, pathExtensions)
-            ?? executablePath;
+        // Non-explicit command names must resolve through the effective PATH before Process.Start sees them. On Windows,
+        // CreateProcessW also searches the AppHost executable directory and current directory for bare names, which would
+        // bypass the intended PATH-only lookup if we returned the original name on miss.
+        // See https://learn.microsoft.com/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw
+        return FindFullPathFromPath(executablePath, path, Path.PathSeparator, FileExistsAndIsExecutable, pathExtensions)
+            ?? throw new FileNotFoundException($"Executable '{executablePath}' was not found on PATH.", executablePath);
     }
 
     /// <summary>
@@ -51,7 +56,7 @@ internal static class PathLookupHelper
             ? Environment.GetEnvironmentVariable("PATHEXT")?.Split(';', StringSplitOptions.RemoveEmptyEntries) ?? []
             : null;
 
-        return FindFullPathFromPath(command, Environment.GetEnvironmentVariable("PATH"), Path.PathSeparator, File.Exists, pathExtensions);
+        return FindFullPathFromPath(command, Environment.GetEnvironmentVariable("PATH"), Path.PathSeparator, FileExistsAndIsExecutable, pathExtensions);
     }
 
     /// <summary>
@@ -109,6 +114,35 @@ internal static class PathLookupHelper
     {
         return !string.Equals(Path.GetFileName(executablePath), executablePath, StringComparison.Ordinal)
             || Path.IsPathRooted(executablePath);
+    }
+
+    private static bool FileExistsAndIsExecutable(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return false;
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            return true;
+        }
+
+        try
+        {
+            // Match Unix command lookup behavior by skipping PATH entries that exist but have no execute bit set.
+            const UnixFileMode ExecuteBits = UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute;
+
+            return (File.GetUnixFileMode(path) & ExecuteBits) != 0;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     private static (string? Path, string? PathExtensions) GetPathLookupEnvironmentVariables(IDictionary<string, string>? environmentVariables)

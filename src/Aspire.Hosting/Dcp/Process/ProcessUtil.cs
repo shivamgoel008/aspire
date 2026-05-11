@@ -3,6 +3,7 @@
 
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
 using Aspire.Hosting.Utils;
 
 namespace Aspire.Hosting.Dcp.Process;
@@ -22,7 +23,7 @@ internal static partial class ProcessUtil
     {
         if (processSpec.Arguments is not null && processSpec.ArgumentList is not null)
         {
-            throw new InvalidOperationException($"Specify either {nameof(ProcessSpec.Arguments)} or {nameof(ProcessSpec.ArgumentList)}, not both.");
+            throw new ArgumentException($"Specify either {nameof(ProcessSpec.Arguments)} or {nameof(ProcessSpec.ArgumentList)}, not both.", nameof(processSpec));
         }
 
         var retainedOutputLineCount = processSpec.RetainedOutputLineCount ?? (processSpec.ThrowOnNonZeroReturnCode ? ProcessSpec.DefaultRetainedOutputLineCount : 0);
@@ -125,7 +126,7 @@ internal static partial class ProcessUtil
         try
         {
 #if ASPIRE_EVENTSOURCE
-            AspireEventSource.Instance.ProcessLaunchStart(processSpec.ExecutablePath, FormatProcessArguments(processSpec));
+            AspireEventSource.Instance.ProcessLaunchStart(processSpec.ExecutablePath, FormatProcessArgumentsForDisplay(processSpec));
 #endif
 
             process.Start();
@@ -156,7 +157,7 @@ internal static partial class ProcessUtil
 
                     if (processSpec.ThrowOnNonZeroReturnCode && process.ExitCode != 0)
                     {
-                        var message = $"Command {processSpec.ExecutablePath} {FormatProcessArguments(processSpec)} returned non-zero exit code {process.ExitCode}";
+                        var message = $"Command {processSpec.ExecutablePath} {FormatProcessArgumentsForDisplay(processSpec)} returned non-zero exit code {process.ExitCode}";
 
                         if (outputCapture?.TotalLineCount > 0)
                         {
@@ -180,16 +181,59 @@ internal static partial class ProcessUtil
         {
             startupComplete.Set(); // Allow output/error/exit handlers to start processing data.
 #if ASPIRE_EVENTSOURCE
-            AspireEventSource.Instance.ProcessLaunchStop(processSpec.ExecutablePath, FormatProcessArguments(processSpec));
+            AspireEventSource.Instance.ProcessLaunchStop(processSpec.ExecutablePath, FormatProcessArgumentsForDisplay(processSpec));
 #endif
         }
 
         return (processLifetimeTcs.Task, new ProcessDisposable(process, processLifetimeTcs.Task, processSpec.KillEntireProcessTree));
     }
 
-    private static string FormatProcessArguments(ProcessSpec processSpec)
+    private static string FormatProcessArgumentsForDisplay(ProcessSpec processSpec)
     {
-        return processSpec.Arguments ?? string.Join(" ", processSpec.ArgumentList ?? []);
+        return processSpec.Arguments ?? string.Join(" ", processSpec.ArgumentList?.Select(FormatProcessArgumentForDisplay) ?? []);
+    }
+
+    private static string FormatProcessArgumentForDisplay(string argument)
+    {
+        // This string is only for diagnostics and EventSource payloads; ProcessStartInfo.ArgumentList is still what
+        // supplies argv to the child process. Quote values using the same escaping shape expected by Windows command
+        // lines so spaces, quotes, and empty strings are readable instead of ambiguous.
+        // See https://learn.microsoft.com/cpp/c-language/parsing-c-command-line-arguments
+        if (argument.Length > 0 && !argument.Any(static c => char.IsWhiteSpace(c) || c == '"'))
+        {
+            return argument;
+        }
+
+        var builder = new StringBuilder(argument.Length + 2);
+        builder.Append('"');
+
+        var backslashCount = 0;
+        foreach (var c in argument)
+        {
+            if (c == '\\')
+            {
+                backslashCount++;
+                continue;
+            }
+
+            if (c == '"')
+            {
+                builder.Append('\\', backslashCount * 2 + 1);
+                builder.Append('"');
+            }
+            else
+            {
+                builder.Append('\\', backslashCount);
+                builder.Append(c);
+            }
+
+            backslashCount = 0;
+        }
+
+        builder.Append('\\', backslashCount * 2);
+        builder.Append('"');
+
+        return builder.ToString();
     }
 
     private static ProcessResult CreateProcessResult(int exitCode, ProcessOutputCapture? outputCapture)
