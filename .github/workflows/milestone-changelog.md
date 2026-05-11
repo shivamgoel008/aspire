@@ -186,17 +186,28 @@ jobs:
             echo '[]' > "$DATA_DIR/backport-prs.json"
           fi
 
-          # 2a. Enrich batch PRs with author_association, comments, and files.
-          #     Two API calls per PR:
-          #       1. gh pr view --json files,comments  (files + comments in one call)
-          #       2. gh api .../pulls/$NUM              (author_association, not in gh pr view)
+          # 2a. Enrich batch PRs with comments, files, and authorAssociation.
+          #     The per-PR author_association from the REST API is unreliable
+          #     with GITHUB_TOKEN: org members show as CONTRIBUTOR because the
+          #     token lacks org-level read scope. Instead, we check each author
+          #     via the per-user collaborator/permission endpoint (only needs
+          #     metadata-read scope). Authors with write/maintain/admin are
+          #     MEMBER; others are CONTRIBUTOR.
           if [ "$BATCH_COUNT" -gt 0 ]; then
-            echo "Enriching batch PRs with author_association, comments, and files..."
+            echo "Enriching batch PRs with authorAssociation, comments, and files..."
             : > "$DATA_DIR/enrichment.jsonl"
             for NUM in $(jq -r '.[].number' "$DATA_DIR/batch-prs.json"); do
               VIEW=$(gh pr view "$NUM" --repo "$REPO" --json files,comments 2>/dev/null) \
                 || VIEW='{"files":[],"comments":[]}'
-              ASSOC=$(gh api "repos/$REPO/pulls/$NUM" --jq '.author_association' 2>/dev/null || echo "UNKNOWN")
+              # Determine authorAssociation via per-user permission endpoint.
+              # This endpoint only requires metadata-read scope, unlike the
+              # bulk collaborators list which requires push/admin access.
+              AUTHOR=$(jq -r --argjson n "$NUM" '.[] | select(.number == $n) | .author.login' "$DATA_DIR/batch-prs.json")
+              PERM=$(gh api "repos/$REPO/collaborators/$AUTHOR/permission" --jq '.permission' 2>/dev/null) || PERM=""
+              case "$PERM" in
+                write|maintain|admin) ASSOC="MEMBER" ;;
+                *) ASSOC="CONTRIBUTOR" ;;
+              esac
               echo "$VIEW" | jq --arg n "$NUM" --arg a "$ASSOC" '{($n): {
                 authorAssociation: $a,
                 comments: [(.comments // [])[] | {author: .author.login, body: .body, createdAt: .createdAt}],
@@ -211,7 +222,7 @@ jobs:
                 )' > "$DATA_DIR/batch-prs-tmp.json" \
               && mv "$DATA_DIR/batch-prs-tmp.json" "$DATA_DIR/batch-prs.json"
             rm -f "$DATA_DIR/enrichment.jsonl"
-            echo "Enriched $BATCH_COUNT batch PRs with author_association, comments, and files"
+            echo "Enriched $BATCH_COUNT batch PRs with authorAssociation, comments, and files"
           fi
 
           # 2b. Fetch docs PRs from DOCS_REPO merged after milestone start date
@@ -609,13 +620,16 @@ or partially filled. To process them:
 4. **Use the backport PR's number** (not the original) in the `Changes:` line
    and in `prs` arrays, since the backport is the PR that was merged into the
    milestone.
-5. **Use the original PR author's `author_association`** for the community
-   contribution flag (Step 5b), since the backport bot is not a meaningful author.
-   Set the `author` field in the PR tracker to the original PR's author, not the
-   bot. When evaluating Step 5b's "Community contribution" flag for a backport PR,
-   use the **original author's** `author_association` and treat `author.is_bot` as
-   `false` (since the original author — not the backport bot — is the meaningful
-   contributor).
+5. **Use the original PR author** for the community contribution flag
+   (Step 5b), since the backport bot is not a meaningful author. Set the
+   `author` field in the PR tracker to the original PR's author, not the bot.
+   To determine whether the original author is a team member, query:
+   ```bash
+   gh api "repos/${REPO}/collaborators/<AUTHOR>/permission" --jq '.permission'
+   ```
+   If the result is `write`, `maintain`, or `admin`, they are `MEMBER`;
+   otherwise `CONTRIBUTOR`. Treat `author.is_bot` as `false` (since the
+   original author — not the backport bot — is the meaningful contributor).
 6. **Set `backport: true`** in the change file for this entry (see Step 6a schema).
    If the backport PR is grouped with an existing entry that was not a backport,
    keep `backport: false` (the entry is not purely backport-derived).
@@ -721,15 +735,16 @@ Then determine whether either of these optional flags applies:
 
 The `authorAssociation` field is pre-populated in the batch data by the fetch-data
 job. Use it directly — no additional API calls are needed. For **backport PRs**,
-the original PR's `author_association` is not in the batch; fetch it via:
+the original PR's author is not in the batch; query:
 ```bash
-gh api "repos/${REPO}/pulls/<ORIGINAL_NUMBER>" --jq '.author_association'
+gh api "repos/${REPO}/collaborators/<AUTHOR>/permission" --jq '.permission'
 ```
+If the result is `write`, `maintain`, or `admin`, they are `MEMBER`; otherwise
+`CONTRIBUTOR`.
 
 > **Never infer community-contributor status from fork origin, username, or any
-> other heuristic.** Only the `author_association` / `authorAssociation` field
-> from the GitHub API is authoritative. Team members frequently submit PRs from
-> personal forks.
+> other heuristic.** Only the collaborator list and `authorAssociation` field are
+> authoritative. Team members frequently submit PRs from personal forks.
 
 A change can have zero or more flags. When present, show each flag on its own
 indented line below the Changes line:
