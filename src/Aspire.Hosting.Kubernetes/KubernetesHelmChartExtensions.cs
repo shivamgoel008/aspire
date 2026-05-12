@@ -210,6 +210,58 @@ public static partial class KubernetesHelmChartExtensions
         return builder;
     }
 
+    /// <summary>
+    /// Opts the Helm chart in to <c>helm upgrade --install --force</c>. When set, Helm will
+    /// recreate (delete + create) any resources that cannot be patched in place during an
+    /// upgrade, instead of failing with a conflict.
+    /// </summary>
+    /// <param name="builder">The Helm chart resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// This is most commonly needed for charts whose templates ship admission webhooks
+    /// (cert-manager, kyverno, gatekeeper, opa-gatekeeper, etc.) on clusters where another
+    /// admission controller — such as the AKS <c>admissionsenforcer</c> field manager
+    /// installed by the Azure Policy add-on or Deployment Safeguards — mutates the webhook
+    /// configuration after install. Helm 3.18 uses Server-Side Apply for charts that opt in,
+    /// and SSA refuses to overwrite fields owned by another field manager. Without
+    /// <c>--force</c>, the next <c>helm upgrade</c> fails with a "conflict with
+    /// admissionsenforcer" error on the webhook's <c>namespaceSelector</c> (or similar).
+    /// See
+    /// <see href="https://learn.microsoft.com/azure/aks/deployment-safeguards">Deployment Safeguards in AKS</see>
+    /// and
+    /// <see href="https://kubernetes.io/docs/reference/using-api/server-side-apply/#conflicts">Server-Side Apply conflicts</see>
+    /// for background.
+    /// </para>
+    /// <para>
+    /// <c>--force</c> works by replacing the conflicting object (delete + create) rather than
+    /// patching it. For most chart resources this is safe — Deployments, ConfigMaps, Services,
+    /// and admission webhooks are recreated within seconds and do not affect data planes that
+    /// live outside the chart (for example, an Azure Application Gateway for Containers
+    /// frontend keeps serving traffic while the cert-manager webhook is briefly recreated).
+    /// Avoid this flag for charts that own stateful resources you care about preserving across
+    /// an upgrade (PersistentVolumeClaims, StatefulSets with stable identities, etc.) since
+    /// <c>--force</c> applies to <em>every</em> object in the release manifest.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // cert-manager on AKS clusters with Azure Policy / Deployment Safeguards enabled.
+    /// k8s.AddHelmChart("cert-manager", "oci://quay.io/jetstack/charts/cert-manager", "v1.18.2")
+    ///     .WithHelmValue("crds.enabled", "true")
+    ///     .WithForceUpgrade();
+    /// </code>
+    /// </example>
+    [AspireExport("withHelmChartForceUpgrade", Description = "Passes --force to helm upgrade --install for this chart")]
+    public static IResourceBuilder<KubernetesHelmChartResource> WithForceUpgrade(
+        this IResourceBuilder<KubernetesHelmChartResource> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.Resource.ForceUpgrade = true;
+        return builder;
+    }
+
     private static async Task InstallHelmChartAsync(
         PipelineStepContext context,
         KubernetesEnvironmentResource environment,
@@ -231,6 +283,16 @@ public static partial class KubernetesHelmChartExtensions
         arguments.Append(" --wait");
 
         arguments.Append(CultureInfo.InvariantCulture, $" --version {chart.ChartVersion}");
+
+        if (chart.ForceUpgrade)
+        {
+            // --force replaces (delete + create) any object Helm cannot patch in place.
+            // Required for charts whose admission webhooks are mutated by an AKS
+            // admissionsenforcer / Azure Policy add-on after install, otherwise
+            // helm 3.18+ SSA fails with a conflict on .webhooks[*].namespaceSelector.
+            // See KubernetesHelmChartExtensions.WithForceUpgrade for the full rationale.
+            arguments.Append(" --force");
+        }
 
         if (environment.KubeConfigPath is not null)
         {

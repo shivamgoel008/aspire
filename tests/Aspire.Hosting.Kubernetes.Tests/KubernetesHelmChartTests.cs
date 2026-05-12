@@ -347,6 +347,48 @@ public class KubernetesHelmChartTests
     }
 
     [Fact]
+    public void WithForceUpgrade_DefaultsToFalse()
+    {
+        var builder = TestDistributedApplicationBuilder.Create(DistributedApplicationOperation.Publish);
+        var k8s = builder.AddKubernetesEnvironment("env");
+
+        var chart = k8s.AddHelmChart("test", "oci://example.com/chart", "1.0.0");
+
+        Assert.False(chart.Resource.ForceUpgrade);
+    }
+
+    [Fact]
+    public void WithForceUpgrade_OptsIn()
+    {
+        var builder = TestDistributedApplicationBuilder.Create(DistributedApplicationOperation.Publish);
+        var k8s = builder.AddKubernetesEnvironment("env");
+
+        var chart = k8s.AddHelmChart("test", "oci://example.com/chart", "1.0.0")
+            .WithForceUpgrade();
+
+        Assert.True(chart.Resource.ForceUpgrade);
+    }
+
+    [Fact]
+    public void WithForceUpgrade_ReturnsBuilderForChaining()
+    {
+        var builder = TestDistributedApplicationBuilder.Create(DistributedApplicationOperation.Publish);
+        var k8s = builder.AddKubernetesEnvironment("env");
+
+        var chart = k8s.AddHelmChart("test", "oci://example.com/chart", "1.0.0");
+        var returned = chart.WithForceUpgrade();
+
+        Assert.Same(chart, returned);
+    }
+
+    [Fact]
+    public void WithForceUpgrade_ThrowsOnNullBuilder()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            ((IResourceBuilder<KubernetesHelmChartResource>)null!).WithForceUpgrade());
+    }
+
+    [Fact]
     public async Task PipelineStepFactory_WithoutDestroy_ProducesOnlyInstallStep()
     {
         var builder = TestDistributedApplicationBuilder.Create(DistributedApplicationOperation.Publish);
