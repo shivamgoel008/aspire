@@ -320,7 +320,6 @@ internal sealed partial class DcpExecutor : IDcpExecutor, IDcpObjectFactory, IAs
         {
             ar.Dispose();
         }
-        _containerCreator.Dispose();
     }
 
     /// <summary>
