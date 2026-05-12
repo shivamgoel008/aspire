@@ -20,7 +20,12 @@ var publicSubnet = vnet.AddSubnet("alb-public", "10.0.4.0/24");
 var adminSubnet = vnet.AddSubnet("alb-admin", "10.0.5.0/24");
 
 var aks = builder.AddAzureKubernetesEnvironment("aks")
-                 .WithSubnet(aksSubnet);
+                 .WithSubnet(aksSubnet)
+                 // Use the same AMD-based SKU as our AKS deployment E2E tests so this
+                 // playground deploys consistently across regions and quotas.
+                 .WithSystemNodePool("Standard_D2as_v5");
+
+aks.AddNodePool("workload", "Standard_D2as_v5", minCount: 1, maxCount: 3);
 
 // Two AGC ApplicationLoadBalancers. Each AGC ALB caps at 5 frontends, so production apps
 // often need to spread Gateways/Ingresses across multiple LBs. This playground uses two
