@@ -39,9 +39,18 @@ var api = builder.AddProject<Projects.AksDemo_ApiService>("api")
 // Public gateway: serves /api -> the api service, attached to the public AGC ALB.
 // WithLoadBalancer attaches the alb.networking.azure.io association annotations and
 // defaults the gatewayClassName to "azure-alb-external".
+//
+// WithTls() (no hostname) creates an HTTPS listener that gets its hostname patched in
+// by Aspire's tls-fqdn-discovery pipeline step once AGC assigns the gateway its
+// <random>.fz<n>.alb.azure.com FQDN. The cert-manager.io/cluster-issuer annotation
+// then triggers cert-manager to issue a real Let's Encrypt cert via HTTP-01 against
+// that FQDN — see playground/AksDemo/k8s/README.md for the one ClusterIssuer apply
+// step that's still needed by hand.
 aks.AddGateway("storefront-gw")
    .WithLoadBalancer(publicLb)
-   .WithRoute("/api", api.GetEndpoint("http"));
+   .WithRoute("/api", api.GetEndpoint("http"))
+   .WithTls()
+   .WithGatewayAnnotation("cert-manager.io/cluster-issuer", "letsencrypt-staging");
 
 // Admin gateway: serves the same backend but on a separate AGC ALB so a different set of
 // network policies, frontends, or DNS names can hang off it.

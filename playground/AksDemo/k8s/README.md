@@ -1,86 +1,68 @@
-# cert-manager + AGC HTTP-01 TLS (manual step)
+# cert-manager + AGC HTTP-01 TLS
 
-The AppHost installs cert-manager into the cluster via `aks.AddHelmChart(...)`,
-but the ClusterIssuer and the TLS listener on `storefront-gw` are not yet
-expressible in the Aspire app model — this folder holds the manifests you apply
-by hand after `aspire deploy`.
+The AppHost wires this up almost end-to-end:
 
-## What `aspire deploy` already does
+- `aks.AddHelmChart("cert-manager", ...)` installs cert-manager `v1.18.2` with
+  Gateway API support enabled.
+- `storefront-gw.WithTls().WithGatewayAnnotation("cert-manager.io/cluster-issuer", "letsencrypt-staging")`
+  emits an HTTPS listener on the gateway with no hostname plus the cert-manager
+  annotation. After Helm deploys it, Aspire's `tls-fqdn-discovery` pipeline step:
 
-- Installs cert-manager `v1.18.2` from `oci://quay.io/jetstack/charts/cert-manager`.
-- Enables the Gateway API integration (`config.enableGatewayAPI=true`), which is
-  what lets cert-manager react to Gateway listeners with TLS configuration.
-- Creates the `storefront-gw` Gateway with a port 80 HTTP listener — required
-  for HTTP-01 challenges to succeed.
+  1. Polls the Gateway's `status.addresses` for the AGC-assigned FQDN
+     (`<random>.fz<n>.alb.azure.com`).
+  2. JSON-patches the listener `hostname` field with that FQDN.
+  3. Creates a self-signed bootstrap TLS Secret so the listener is functional.
+  4. Transfers field ownership back to Helm via server-side apply.
 
-## Post-deploy steps
+  Once cert-manager observes the Gateway listener with TLS configuration and the
+  `cert-manager.io/cluster-issuer` annotation, it auto-creates a `Certificate`,
+  runs the HTTP-01 challenge against the AGC FQDN, and replaces the bootstrap
+  Secret with a real Let's Encrypt certificate.
 
-1. Point a DNS record at the storefront frontend FQDN. The FQDN shows up on the
-   Gateway once AGC programs it:
+The only thing the AppHost can't do is create the `ClusterIssuer` itself
+(cert-manager doesn't ship with one — they're per-environment).
 
-   ```bash
-   kubectl get gateway storefront-gw \
-     -o jsonpath='{.status.addresses[0].value}'
-   ```
+## One-time post-deploy step
 
-   Then create a CNAME like `storefront.example.com -> <fqdn>.alb.azure.com`.
+Edit `cluster-issuer.yaml` and replace `REPLACE_ME@example.com` with a real
+contact email, then apply:
 
-2. Edit `cluster-issuer.yaml` and replace `REPLACE_ME@example.com` with a real
-   contact email. Apply both issuers:
+```bash
+kubectl apply -f playground/AksDemo/k8s/cluster-issuer.yaml
+```
 
-   ```bash
-   kubectl apply -f cluster-issuer.yaml
-   ```
+It defines two ClusterIssuers — `letsencrypt-staging` (the one the AppHost
+references by default) and `letsencrypt-prod` (swap the annotation in the
+AppHost when you're ready to issue a trusted cert).
 
-3. Edit `gateway-tls.patch.yaml` and replace `REPLACE_ME.example.com` with the
-   hostname you just created. Patch the gateway:
+## Verifying
 
-   ```bash
-   kubectl patch gateway storefront-gw \
-     --type=merge \
-     --patch-file=gateway-tls.patch.yaml
-   ```
+After `aspire deploy` finishes the `tls-fqdn-discovery` step:
 
-4. Watch cert-manager issue the certificate. The Certificate resource is
-   auto-created by cert-manager's Gateway API integration once the patched
-   Gateway is observed:
+```bash
+# The patched hostname on the gateway listener
+kubectl get gateway storefront-gw -o jsonpath='{.spec.listeners[?(@.name=="https")].hostname}'
 
-   ```bash
-   kubectl get certificate,certificaterequest,order,challenge -A -w
-   ```
+# cert-manager objects working through the HTTP-01 flow
+kubectl get certificate,certificaterequest,order,challenge -A
 
-   First time around it usually takes 1–3 minutes. The `Challenge` resource
-   creates a transient HTTPRoute on `storefront-gw` so the ACME server can hit
-   `http://<hostname>/.well-known/acme-challenge/<token>`.
+# Once the certificate is Ready, hit it
+HOST=$(kubectl get gateway storefront-gw -o jsonpath='{.status.addresses[0].value}')
+curl -v "https://$HOST/api"
+```
 
-5. Verify TLS:
-
-   ```bash
-   curl -v https://storefront.example.com/api
-   ```
-
-   Initially the cert will be from Let's Encrypt **staging**, so `curl` will
-   complain about the issuer — pass `--insecure` or import the staging root to
-   trust it. Once everything works, switch the annotation in
-   `gateway-tls.patch.yaml` from `letsencrypt-staging` to `letsencrypt-prod`,
-   reapply the patch, and delete the staging Certificate + Secret so a fresh
-   prod one is issued:
-
-   ```bash
-   kubectl patch gateway storefront-gw --type=merge --patch-file=gateway-tls.patch.yaml
-   kubectl delete certificate storefront-tls
-   kubectl delete secret storefront-tls
-   ```
+The very first request will use the LE **staging** issuer, so `curl` will
+report an untrusted issuer — pass `--insecure` (or import the staging root)
+until you flip the AppHost annotation to `letsencrypt-prod` and redeploy.
 
 ## Cleanup
 
-`aspire destroy` will uninstall cert-manager (`WithDestroy()` is set in the
-AppHost). The ClusterIssuer + Certificate + Secret resources do not survive
-that uninstall because cert-manager deletes its CRDs. If you only ran
-`aspire deploy` against a single environment, the cluster itself comes down
-with the rest of the Bicep destroy.
+`aspire destroy` uninstalls cert-manager (`WithDestroy()` is set on the helm
+chart). The `ClusterIssuer` resources are removed when cert-manager's CRDs are
+deleted; the Certificate / Secret / bootstrap Secret follow with the rest of
+the cluster when the underlying AKS resource group is destroyed.
 
-## Why this isn't an Aspire API yet
+## Why this isn't a one-call API yet
 
 The next iteration would be something like:
 
@@ -89,7 +71,7 @@ aks.AddCertManager()
    .AddAcmeIssuer("letsencrypt", email: "...", server: AcmeServer.LetsEncryptStaging);
 
 aks.AddGateway("storefront-gw")
-   .WithTls("storefront.example.com", issuer: "letsencrypt");
+   .WithTls(issuer: "letsencrypt");
 ```
 
 …but we want to validate the underlying Helm + manifest flow on a real cluster

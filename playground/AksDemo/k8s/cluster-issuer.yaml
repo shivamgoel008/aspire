@@ -1,11 +1,15 @@
-# Let's Encrypt ClusterIssuers using the HTTP-01 challenge through the
-# storefront-gw Gateway. cert-manager will create a temporary HTTPRoute on the
-# referenced gateway when it needs to satisfy a challenge, so the gateway must
-# already have a port 80 listener (which the AppHost configures).
+# Let's Encrypt ClusterIssuers using the HTTP-01 challenge.
+#
+# The Aspire AppHost emits an HTTPS listener on storefront-gw and Aspire's
+# tls-fqdn-discovery pipeline step patches it with the AGC-assigned FQDN
+# (e.g. <random>.fz<n>.alb.azure.com) after deploy. cert-manager then issues
+# the certificate against that FQDN using the HTTP-01 challenge through a
+# transient HTTPRoute attached to the same gateway.
 #
 # Replace REPLACE_ME@example.com with a real contact email before applying.
-# Start with the staging issuer; switch to the prod issuer only once everything
-# works end-to-end so you don't burn through Let's Encrypt's prod rate limits.
+# Start with the staging issuer (referenced by the AppHost by default); once
+# everything works, flip the AppHost annotation to `letsencrypt-prod` so the
+# next deploy issues a trusted cert.
 #
 # Apply:
 #   kubectl apply -f cluster-issuer.yaml
@@ -16,7 +20,7 @@ metadata:
   name: letsencrypt-staging
 spec:
   acme:
-    email: REPLACE_ME@example.com
+    email: midenn@microsoft.com
     server: https://acme-staging-v02.api.letsencrypt.org/directory
     privateKeySecretRef:
       name: letsencrypt-staging-account-key
@@ -34,7 +38,7 @@ metadata:
   name: letsencrypt-prod
 spec:
   acme:
-    email: REPLACE_ME@example.com
+    email: midenn@microsofts.com
     server: https://acme-v02.api.letsencrypt.org/directory
     privateKeySecretRef:
       name: letsencrypt-prod-account-key
