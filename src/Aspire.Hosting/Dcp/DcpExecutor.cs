@@ -178,10 +178,8 @@ internal sealed partial class DcpExecutor : IDcpExecutor, IDcpObjectFactory, IAs
             {
                 await getProxyAddresses.ConfigureAwait(false);
 
-                DcpModelUtilities.AddAllocatedEndpointInfo(
+                DcpModelUtilities.AddWorkloadAllocatedEndpoints(
                     executables,
-                    AllocatedEndpointsMode.Workload,
-                    _appResources.Get(),
                     _options.Value.EnableAspireContainerTunnel,
                     ContainerHostName);
                 await PublishEndpointsAllocatedEventAsync(executables, ct).ConfigureAwait(false);
@@ -203,10 +201,8 @@ internal sealed partial class DcpExecutor : IDcpExecutor, IDcpObjectFactory, IAs
                 await Task.WhenAll([getProxyAddresses, createContainerNetworks]).WaitAsync(ct).ConfigureAwait(false);
 
                 // Allocate container workload endpoints, then publish endpoint-allocated events.
-                DcpModelUtilities.AddAllocatedEndpointInfo(
+                DcpModelUtilities.AddWorkloadAllocatedEndpoints(
                     containers,
-                    AllocatedEndpointsMode.Workload,
-                    _appResources.Get(),
                     _options.Value.EnableAspireContainerTunnel,
                     ContainerHostName);
                 await PublishEndpointsAllocatedEventAsync(containers, ct).ConfigureAwait(false);
@@ -295,6 +291,7 @@ internal sealed partial class DcpExecutor : IDcpExecutor, IDcpObjectFactory, IAs
         {
             ar.Dispose();
         }
+        _containerCreator.Dispose();
     }
 
     /// <summary>
