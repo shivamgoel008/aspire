@@ -245,6 +245,115 @@ public class InstallPathResolverTests
         Assert.Equal(prefixDir, prefix);
     }
 
+    // Producer↔reader compatibility — shapes each packager actually emits on disk.
+    //
+    // The branch-level tests above exercise the resolver's logic in isolation. The tests
+    // below construct the EXACT on-disk layout that each of the five shipping distribution
+    // shapes produces and assert the resolver classifies it correctly. They are the test
+    // that fails first if a packager moves the sidecar (e.g. into a tools/ subdir) without
+    // updating the resolver — closing the feedback loop between producers and reader so
+    // the slicing across PRs stays safe.
+
+    [Fact]
+    public void Resolve_ScriptStableArchiveLayout_ReturnsPayloadInSubdirectoriesAtPrefix()
+    {
+        // Stable archive extracted by the install script: sidecar at <prefix>/.aspire-install.json,
+        // binary one level down at <prefix>/bin/aspire.
+        using var temp = new TestTempDirectory();
+        var prefixDir = Path.Combine(temp.Path, "aspire");
+        var binDir = Path.Combine(prefixDir, "bin");
+        Directory.CreateDirectory(binDir);
+
+        var binaryPath = Path.Combine(binDir, ExeName("aspire"));
+        File.WriteAllText(binaryPath, string.Empty);
+        File.WriteAllText(Path.Combine(prefixDir, SidecarFileName), "{\"route\":\"script\"}");
+
+        var (mode, prefix) = new InstallPathResolver().Resolve(binaryPath);
+
+        Assert.Equal(InstallMode.PayloadInSubdirectories, mode);
+        Assert.Equal(prefixDir, prefix);
+    }
+
+    [Fact]
+    public void Resolve_ScriptPRArchiveLayout_ReturnsPayloadInSubdirectoriesAtPRSubprefix()
+    {
+        // PR archive extracted by the install script: sidecar lives inside the
+        // dogfood/pr-NNNNN subdirectory next to a bin/ that holds the binary. The
+        // resolver must return the PR subdirectory (not the outer install root) as
+        // the prefix so callers see the channel-isolated install location.
+        using var temp = new TestTempDirectory();
+        var prDir = Path.Combine(temp.Path, "dogfood", "pr-99999");
+        var binDir = Path.Combine(prDir, "bin");
+        Directory.CreateDirectory(binDir);
+
+        var binaryPath = Path.Combine(binDir, ExeName("aspire"));
+        File.WriteAllText(binaryPath, string.Empty);
+        File.WriteAllText(Path.Combine(prDir, SidecarFileName), "{\"route\":\"script\"}");
+
+        var (mode, prefix) = new InstallPathResolver().Resolve(binaryPath);
+
+        Assert.Equal(InstallMode.PayloadInSubdirectories, mode);
+        Assert.Equal(prDir, prefix);
+    }
+
+    [Fact]
+    public void Resolve_WingetExtractedLayout_ReturnsPayloadColocatedAtPrefix()
+    {
+        // Winget zip: flat layout — aspire.exe and the sidecar sit side-by-side
+        // directly under the install prefix that winget manages.
+        using var temp = new TestTempDirectory();
+        var prefixDir = Path.Combine(temp.Path, "aspire");
+        Directory.CreateDirectory(prefixDir);
+
+        var binaryPath = Path.Combine(prefixDir, "aspire.exe");
+        File.WriteAllText(binaryPath, string.Empty);
+        File.WriteAllText(Path.Combine(prefixDir, SidecarFileName), "{\"route\":\"winget\"}");
+
+        var (mode, prefix) = new InstallPathResolver().Resolve(binaryPath);
+
+        Assert.Equal(InstallMode.PayloadColocated, mode);
+        Assert.Equal(prefixDir, prefix);
+    }
+
+    [Fact]
+    public void Resolve_BrewExtractedLayout_ReturnsPayloadColocatedAtPrefix()
+    {
+        // Brew tarball: flat layout under the Cellar-managed prefix — the aspire
+        // binary and the sidecar are siblings, no bin/ subdirectory.
+        using var temp = new TestTempDirectory();
+        var prefixDir = Path.Combine(temp.Path, "aspire");
+        Directory.CreateDirectory(prefixDir);
+
+        var binaryPath = Path.Combine(prefixDir, "aspire");
+        File.WriteAllText(binaryPath, string.Empty);
+        File.WriteAllText(Path.Combine(prefixDir, SidecarFileName), "{\"route\":\"brew\"}");
+
+        var (mode, prefix) = new InstallPathResolver().Resolve(binaryPath);
+
+        Assert.Equal(InstallMode.PayloadColocated, mode);
+        Assert.Equal(prefixDir, prefix);
+    }
+
+    [Fact]
+    public void Resolve_DotnetToolRidLayout_ReturnsPayloadColocatedAtRidSubdirectory()
+    {
+        // RID-specific dotnet-tool nupkg extracted by the global-tool runtime: the
+        // binary and sidecar live together under tools/any/<rid>/. The resolver must
+        // return that RID subdirectory as the prefix, not the outer package root.
+        using var temp = new TestTempDirectory();
+        var ridDir = Path.Combine(temp.Path, "tools", "any", "linux-x64");
+        Directory.CreateDirectory(ridDir);
+
+        var binaryPath = Path.Combine(ridDir, "aspire");
+        File.WriteAllText(binaryPath, string.Empty);
+        File.WriteAllText(Path.Combine(ridDir, SidecarFileName), "{\"route\":\"dotnet-tool\"}");
+
+        var (mode, prefix) = new InstallPathResolver().Resolve(binaryPath);
+
+        Assert.Equal(InstallMode.PayloadColocated, mode);
+        Assert.Equal(ridDir, prefix);
+    }
+
     private static string ExeName(string baseName)
         => OperatingSystem.IsWindows() ? baseName + ".exe" : baseName;
 }
