@@ -1,0 +1,9 @@
+{
+  "author": "IEvangelist",
+  "comment": "Engineering improvement: deterministic signal catalog for pr-docs-check workflow",
+  "mergedAt": "2026-05-13T17:23:48Z",
+  "number": 16983,
+  "runDate": "2026-05-13T18:38:39Z",
+  "status": "included",
+  "title": "pr-docs-check: replace prompt-judged docs gating with a deterministic signal catalog"
+}

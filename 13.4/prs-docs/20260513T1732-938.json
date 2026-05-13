@@ -1,0 +1,9 @@
+{
+  "author": "IEvangelist",
+  "comment": "Updates AKS deployment guide tab components to OsAwareTabs; does not document a new product feature",
+  "mergedAt": "2026-05-13T17:32:06Z",
+  "number": 938,
+  "runDate": "2026-05-13T18:38:39Z",
+  "status": "excluded",
+  "title": "Use OsAwareTabs for Bash/PowerShell pairs in AKS deployment guides"
+}

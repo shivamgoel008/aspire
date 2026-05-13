@@ -1,0 +1,19 @@
+{
+  "area": "Engineering",
+  "areaEmoji": "\ud83d\udd27",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Improvements",
+  "communityContributors": [],
+  "description": "The pr-docs-check workflow now uses a deterministic signal catalog \u2014 32 boolean signals computed from changed file paths, diff content, PR body, and labels \u2014 to decide whether documentation is required. This replaces the previous AI-judged approach that was inconsistent and missed user-facing changes.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "\ud83c\udfaf",
+  "firstMergedAt": "2026-05-13T17:23:48Z",
+  "lastMergedAt": "2026-05-13T17:23:48Z",
+  "name": "Deterministic docs-check signal catalog",
+  "owner": "IEvangelist",
+  "prs": [
+    16983
+  ]
+}

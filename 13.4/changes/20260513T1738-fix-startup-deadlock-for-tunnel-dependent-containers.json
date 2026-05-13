@@ -1,0 +1,19 @@
+{
+  "area": "AppHost",
+  "areaEmoji": "\ud83c\udfe0",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "Fixed a startup deadlock that occurred when containers using the container tunnel also waited on other resources. The tunnel startup is now decoupled from the container startup sequence, allowing tunnel-dependent containers to start at any point during the application lifecycle.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "\ud83d\udd13",
+  "firstMergedAt": "2026-05-13T17:38:36Z",
+  "lastMergedAt": "2026-05-13T17:38:36Z",
+  "name": "Fix startup deadlock for tunnel-dependent containers",
+  "owner": "karolz-ms",
+  "prs": [
+    16988
+  ]
+}

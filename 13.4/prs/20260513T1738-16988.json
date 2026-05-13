@@ -1,0 +1,9 @@
+{
+  "author": "karolz-ms",
+  "comment": "Bug fix: startup deadlock when tunnel-dependent containers wait on other resources",
+  "mergedAt": "2026-05-13T17:38:36Z",
+  "number": 16988,
+  "runDate": "2026-05-13T18:38:39Z",
+  "status": "included",
+  "title": "Fix tunnel-dependent containers that wait on other resources"
+}
