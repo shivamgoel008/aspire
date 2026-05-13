@@ -258,16 +258,16 @@ public static partial class KubernetesHelmChartExtensions
     /// // cert-manager on AKS clusters with Azure Policy / Deployment Safeguards enabled.
     /// k8s.AddHelmChart("cert-manager", "oci://quay.io/jetstack/charts/cert-manager", "v1.18.2")
     ///     .WithHelmValue("crds.enabled", "true")
-    ///     .WithForceUpgrade();
+    ///     .WithForceConflicts();
     /// </code>
     /// </example>
-    [AspireExport("withHelmChartForceUpgrade", Description = "Passes --force-conflicts to helm upgrade --install for this chart")]
-    public static IResourceBuilder<KubernetesHelmChartResource> WithForceUpgrade(
+    [AspireExport("withHelmChartForceConflicts", Description = "Passes --force-conflicts to helm upgrade --install for this chart")]
+    public static IResourceBuilder<KubernetesHelmChartResource> WithForceConflicts(
         this IResourceBuilder<KubernetesHelmChartResource> builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        builder.Resource.ForceUpgrade = true;
+        builder.Resource.ForceConflicts = true;
         return builder;
     }
 
@@ -293,7 +293,7 @@ public static partial class KubernetesHelmChartExtensions
 
         arguments.Append(CultureInfo.InvariantCulture, $" --version {chart.ChartVersion}");
 
-        if (chart.ForceUpgrade)
+        if (chart.ForceConflicts)
         {
             // --force-conflicts tells helm's server-side apply to forcibly take over fields
             // owned by other field managers instead of failing with a conflict. Required
@@ -304,7 +304,7 @@ public static partial class KubernetesHelmChartExtensions
             // --take-ownership (which transfers helm release ownership) and the
             // deprecated --force / --force-replace (which delete + recreate resources
             // and are incompatible with SSA).
-            // See KubernetesHelmChartExtensions.WithForceUpgrade for the full rationale.
+            // See KubernetesHelmChartExtensions.WithForceConflicts for the full rationale.
             arguments.Append(" --force-conflicts");
         }
 

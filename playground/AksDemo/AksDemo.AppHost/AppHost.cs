@@ -61,18 +61,18 @@ aks.AddGateway("admin-gw")
 // gateways via the HTTP-01 challenge. Gateway API support is enabled so cert-manager will
 // watch Gateway listeners for TLS configuration and auto-issue Certificates.
 //
-// WithForceUpgrade is needed because AKS clusters with the Azure Policy add-on (or
+// WithForceConflicts is needed because AKS clusters with the Azure Policy add-on (or
 // Deployment Safeguards) install an `admissionsenforcer` field manager that mutates the
 // cert-manager ValidatingWebhookConfiguration after the first install. Helm's SSA then
 // fails the next upgrade with a conflict on .webhooks[*].namespaceSelector.
-// WithForceUpgrade adds --force-conflicts which tells SSA to take over the conflicting
+// WithForceConflicts adds --force-conflicts which tells SSA to take over the conflicting
 // field non-destructively (no resources recreated).
 aks.AddHelmChart("cert-manager", "oci://quay.io/jetstack/charts/cert-manager", "v1.18.2")
    .WithHelmValue("crds.enabled", "true")
    .WithHelmValue("config.apiVersion", "controller.config.cert-manager.io/v1alpha1")
    .WithHelmValue("config.kind", "ControllerConfiguration")
    .WithHelmValue("config.enableGatewayAPI", "true")
-   .WithForceUpgrade()
+   .WithForceConflicts()
    .WithDestroy();
 
 builder.Build().Run();

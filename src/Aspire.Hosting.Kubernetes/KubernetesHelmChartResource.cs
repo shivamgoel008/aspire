@@ -109,9 +109,9 @@ public class KubernetesHelmChartResource : Resource, IResourceWithParent<Kuberne
 
     /// <summary>
     /// Gets a value indicating whether <c>helm upgrade --install</c> should be invoked with
-    /// the <c>--force</c> flag. Set via
-    /// <see cref="KubernetesHelmChartExtensions.WithForceUpgrade(IResourceBuilder{KubernetesHelmChartResource})"/>.
+    /// the <c>--force-conflicts</c> flag. Set via
+    /// <see cref="KubernetesHelmChartExtensions.WithForceConflicts(IResourceBuilder{KubernetesHelmChartResource})"/>.
     /// Defaults to <see langword="false"/>.
     /// </summary>
-    internal bool ForceUpgrade { get; set; }
+    internal bool ForceConflicts { get; set; }
 }

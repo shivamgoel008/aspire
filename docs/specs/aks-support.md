@@ -591,7 +591,7 @@ var aks = builder.AddAzureKubernetesService("aks")
 #### Ingress controller
 - ✅ Azure Application Gateway for Containers (AGC) via `AddLoadBalancer()` + `WithLoadBalancer()` (see below)
 - ✅ Cert-manager auto-TLS via `WithTls(issuer)` on Gateway resources (bootstrap secret + post-FQDN cert-manager swap)
-- ✅ Helm `WithForceUpgrade()` (`--force-conflicts --take-ownership`) for cert-manager / AGC controller SSA field-manager conflicts
+- ✅ Helm `WithForceConflicts()` (`--force-conflicts`) for cert-manager / AGC controller SSA field-manager conflicts
 - ✅ AGC controller identity auto-granted `Network Contributor` on each ALB subnet
 - ✅ `AddHelmChart` / `AddLoadBalancer` skip model registration in run mode (matches `AddIngress` / `AddGateway`)
 - 🔲 Cluster-level no-arg `AddLoadBalancer()` (auto VNet + delegated subnet) — left as future work
@@ -680,8 +680,8 @@ aks.AddGateway("storefront")
   this chicken-and-egg deadlock. Once the FQDN is known, the existing patch logic adds
   the discovered hostname so cert-manager can swap in the real cert.
 
-Force-upgrade for SSA conflicts: helm chart resources support `WithForceUpgrade()` which
-adds `--force-conflicts --take-ownership` to `helm upgrade`. Required because cert-manager
+Force-conflicts for SSA conflicts: helm chart resources support `WithForceConflicts()` which
+adds `--force-conflicts` to `helm upgrade`. Required because cert-manager
 and AGC controllers patch fields on the same Gateway/secret resources, producing
 server-side-apply field-manager conflicts that would otherwise fail subsequent helm
 upgrades.

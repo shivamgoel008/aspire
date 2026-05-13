@@ -347,45 +347,45 @@ public class KubernetesHelmChartTests
     }
 
     [Fact]
-    public void WithForceUpgrade_DefaultsToFalse()
+    public void WithForceConflicts_DefaultsToFalse()
     {
         var builder = TestDistributedApplicationBuilder.Create(DistributedApplicationOperation.Publish);
         var k8s = builder.AddKubernetesEnvironment("env");
 
         var chart = k8s.AddHelmChart("test", "oci://example.com/chart", "1.0.0");
 
-        Assert.False(chart.Resource.ForceUpgrade);
+        Assert.False(chart.Resource.ForceConflicts);
     }
 
     [Fact]
-    public void WithForceUpgrade_OptsIn()
+    public void WithForceConflicts_OptsIn()
     {
         var builder = TestDistributedApplicationBuilder.Create(DistributedApplicationOperation.Publish);
         var k8s = builder.AddKubernetesEnvironment("env");
 
         var chart = k8s.AddHelmChart("test", "oci://example.com/chart", "1.0.0")
-            .WithForceUpgrade();
+            .WithForceConflicts();
 
-        Assert.True(chart.Resource.ForceUpgrade);
+        Assert.True(chart.Resource.ForceConflicts);
     }
 
     [Fact]
-    public void WithForceUpgrade_ReturnsBuilderForChaining()
+    public void WithForceConflicts_ReturnsBuilderForChaining()
     {
         var builder = TestDistributedApplicationBuilder.Create(DistributedApplicationOperation.Publish);
         var k8s = builder.AddKubernetesEnvironment("env");
 
         var chart = k8s.AddHelmChart("test", "oci://example.com/chart", "1.0.0");
-        var returned = chart.WithForceUpgrade();
+        var returned = chart.WithForceConflicts();
 
         Assert.Same(chart, returned);
     }
 
     [Fact]
-    public void WithForceUpgrade_ThrowsOnNullBuilder()
+    public void WithForceConflicts_ThrowsOnNullBuilder()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            ((IResourceBuilder<KubernetesHelmChartResource>)null!).WithForceUpgrade());
+            ((IResourceBuilder<KubernetesHelmChartResource>)null!).WithForceConflicts());
     }
 
     [Fact]
