@@ -91,17 +91,13 @@ internal static class OutputPathHelper
     /// </summary>
     internal static string? ValidateOutputPath(string path, string workingDirectory, bool isExplicitOutput = true)
     {
-        var fullPath = Path.GetFullPath(path, workingDirectory);
-        return ValidateOutputPath(fullPath, isExplicitOutput);
-    }
-
-    internal static string? ValidateOutputPath(string fullPath, bool isExplicitOutput = true)
-    {
-        if (ContainsInvalidPathChars(fullPath))
+        // Validate the path before calling Path.GetFullPath to avoid exceptions from invalid characters.
+        if (ContainsInvalidPathChars(path))
         {
-            return string.Format(CultureInfo.CurrentCulture, NewCommandStrings.OutputPathContainsInvalidCharacters, fullPath);
+            return string.Format(CultureInfo.CurrentCulture, NewCommandStrings.OutputPathContainsInvalidCharacters, path);
         }
 
+        var fullPath = Path.GetFullPath(path, workingDirectory);
         if (IsNonEmptyDirectory(fullPath))
         {
             var format = isExplicitOutput ? NewCommandStrings.OutputDirectoryNotEmptyNonInteractive : NewCommandStrings.OutputDirectoryNotEmptyInteractive;

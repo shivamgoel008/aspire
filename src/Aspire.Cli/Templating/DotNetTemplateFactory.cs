@@ -605,7 +605,7 @@ internal class DotNetTemplateFactory(
 
             // Re-validate the adjusted path for non-empty directory since appending the
             // project name may target a different directory than the one already validated.
-            var validationError = OutputPathHelper.ValidateOutputPath(outputPath, isExplicitOutput: inputs.Output is not null);
+            var validationError = OutputPathHelper.ValidateOutputPath(outputPath, executionContext.WorkingDirectory.FullName, isExplicitOutput: inputs.Output is not null);
             if (validationError is not null)
             {
                 interactionService.DisplayError(validationError);
