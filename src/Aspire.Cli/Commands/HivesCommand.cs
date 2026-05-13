@@ -137,6 +137,8 @@ internal sealed class HivesCommand : BaseCommand
 
         private static bool IsValidHiveName(string name)
         {
+            // Path.GetInvalidFileNameChars is platform-specific. Reject both separators explicitly
+            // so a hive name can never traverse outside the hives directory on any OS.
             return name is not "." and not ".."
                 && name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0
                 && !name.Contains('/', StringComparison.Ordinal)

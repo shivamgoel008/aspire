@@ -953,9 +953,12 @@ function Remove-AspireCliScriptInstall {
 
     if (Test-Path $cliPath -PathType Leaf) {
         if ($PSCmdlet.ShouldProcess("global Aspire configuration", "Delete channel setting")) {
-            & $cliPath config delete channel -g *> $null
+            $configDeleteOutput = (& $cliPath config delete channel -g 2>&1 | Out-String).Trim()
             if ($LASTEXITCODE -eq 0) {
                 Write-Message "Removed global channel setting" -Level Success
+            }
+            elseif (-not [string]::IsNullOrWhiteSpace($configDeleteOutput)) {
+                Write-Message "Could not remove global channel setting: $configDeleteOutput" -Level Warning
             }
         }
     }
