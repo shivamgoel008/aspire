@@ -24,6 +24,8 @@ internal sealed class TestLanguageDiscovery : ILanguageDiscovery
 
     private readonly LanguageInfo[] _allLanguages;
 
+    public Func<DirectoryInfo, CancellationToken, Task<LanguageId?>>? DetectLanguageRecursiveAsyncCallback { get; set; }
+
     public TestLanguageDiscovery(params LanguageInfo[] additionalLanguages)
     {
         _allLanguages = [.. s_defaultLanguages, .. additionalLanguages];
@@ -60,6 +62,11 @@ internal sealed class TestLanguageDiscovery : ILanguageDiscovery
 
     public Task<LanguageId?> DetectLanguageRecursiveAsync(DirectoryInfo directory, CancellationToken cancellationToken = default)
     {
+        if (DetectLanguageRecursiveAsyncCallback is not null)
+        {
+            return DetectLanguageRecursiveAsyncCallback(directory, cancellationToken);
+        }
+
         foreach (var language in _allLanguages)
         {
             if (language.FindInDirectory(directory.FullName) is not null)

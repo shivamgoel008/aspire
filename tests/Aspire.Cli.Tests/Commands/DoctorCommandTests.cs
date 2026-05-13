@@ -249,7 +249,7 @@ public class DoctorCommandTests(ITestOutputHelper outputHelper)
     }
 
     [Fact]
-    public async Task DoctorCommand_Json_ContinuesSearchingAfterNonAppHostProject()
+    public async Task DoctorCommand_Json_DoesNotContinueSearchingAfterFirstNonAppHostProject()
     {
         using var workspace = TemporaryWorkspace.Create(outputHelper);
         var projectFile = new FileInfo(Path.Combine(workspace.WorkspaceRoot.FullName, "Normal.csproj"));
@@ -281,15 +281,8 @@ public class DoctorCommandTests(ITestOutputHelper outputHelper)
 
         var (json, _) = Assert.Single(interactionService.DisplayedRawText);
         using var document = JsonDocument.Parse(json);
-        var appHostVersionCheck = document.RootElement.GetProperty("checks").EnumerateArray()
-            .Single(check => check.GetProperty("name").GetString() == "apphost-version");
-
-        Assert.Equal("pass", appHostVersionCheck.GetProperty("status").GetString());
-        var appHostVersionMetadata = appHostVersionCheck.GetProperty("metadata");
-        Assert.Equal("13.2.0", appHostVersionMetadata.GetProperty("version").GetString());
-        Assert.Equal(
-            Path.Combine("app", "AppHost.csproj"),
-            appHostVersionMetadata.GetProperty("appHostPath").GetString());
+        Assert.DoesNotContain(document.RootElement.GetProperty("checks").EnumerateArray(),
+            check => check.GetProperty("name").GetString() == "apphost-version");
     }
 
     [Fact]
@@ -333,6 +326,44 @@ public class DoctorCommandTests(ITestOutputHelper outputHelper)
         Assert.Equal(
             "apphost.ts",
             appHostVersionCheck.GetProperty("metadata").GetProperty("appHostPath").GetString());
+    }
+
+    [Fact]
+    public async Task DoctorCommand_Json_PreservesCliVersionWhenAppHostDiscoveryFails()
+    {
+        using var workspace = TemporaryWorkspace.Create(outputHelper);
+
+        var interactionService = new TestInteractionService();
+        var services = CreateDoctorVersionServiceCollection(workspace, outputHelper, options =>
+        {
+            options.InteractionServiceFactory = _ => interactionService;
+            options.CliUpdateNotifierFactory = _ => new TestCliUpdateNotifier();
+        });
+        services.RemoveAll<ILanguageDiscovery>();
+        services.AddSingleton<ILanguageDiscovery>(new TestLanguageDiscovery
+        {
+            DetectLanguageRecursiveAsyncCallback = (_, _) =>
+                throw new IOException("language discovery failed")
+        });
+        using var provider = services.BuildServiceProvider();
+
+        var command = provider.GetRequiredService<Aspire.Cli.Commands.RootCommand>();
+        var result = command.Parse("doctor --format json");
+
+        var exitCode = await result.InvokeAsync().DefaultTimeout();
+
+        Assert.Equal(ExitCodeConstants.Success, exitCode);
+
+        var (json, _) = Assert.Single(interactionService.DisplayedRawText);
+        using var document = JsonDocument.Parse(json);
+        var cliVersionCheck = document.RootElement.GetProperty("checks").EnumerateArray()
+            .Single(check => check.GetProperty("name").GetString() == "cli-version");
+        var appHostVersionCheck = document.RootElement.GetProperty("checks").EnumerateArray()
+            .Single(check => check.GetProperty("name").GetString() == "apphost-version");
+
+        Assert.Equal("pass", cliVersionCheck.GetProperty("status").GetString());
+        Assert.Equal("warning", appHostVersionCheck.GetProperty("status").GetString());
+        Assert.Equal("language discovery failed", appHostVersionCheck.GetProperty("details").GetString());
     }
 
     [Fact]

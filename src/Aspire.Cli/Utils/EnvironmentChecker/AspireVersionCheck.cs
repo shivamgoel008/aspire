@@ -32,7 +32,29 @@ internal sealed class AspireVersionCheck(
             await GetCliVersionCheckAsync(cancellationToken)
         };
 
-        var appHostVersionCheck = await GetAppHostVersionCheckAsync(cancellationToken);
+        EnvironmentCheckResult? appHostVersionCheck;
+        try
+        {
+            appHostVersionCheck = await GetAppHostVersionCheckAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to resolve AppHost version.");
+
+            appHostVersionCheck = new EnvironmentCheckResult
+            {
+                Category = "apphost",
+                Name = "apphost-version",
+                Status = EnvironmentCheckStatus.Warning,
+                Message = DoctorCommandStrings.AppHostVersionCheckFailedMessage,
+                Details = ex.Message
+            };
+        }
+
         if (appHostVersionCheck is not null)
         {
             results.Add(appHostVersionCheck);
@@ -133,6 +155,19 @@ internal sealed class AspireVersionCheck(
                 Details = ex.Message
             };
         }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to find Aspire AppHost for version check.");
+
+            return new EnvironmentCheckResult
+            {
+                Category = "apphost",
+                Name = "apphost-version",
+                Status = EnvironmentCheckStatus.Warning,
+                Message = DoctorCommandStrings.AppHostVersionCheckFailedMessage,
+                Details = ex.Message
+            };
+        }
 
         foreach (var appHostFile in appHostFiles)
         {
@@ -192,17 +227,15 @@ internal sealed class AspireVersionCheck(
     private async Task<IReadOnlyList<FileInfo>> ResolveAppHostFilesAsync(CancellationToken cancellationToken)
     {
         // Match the other doctor checks: honor a configured AppHost first without
-        // scanning, then use bounded language detection. Avoid the full project locator
-        // walk here because the AppHost version is informational and doctor should stay
-        // fast in large repositories that do not contain an AppHost.
+        // scanning, then use bounded language detection. Avoid the full project
+        // locator walk here because the AppHost version is informational and doctor
+        // should stay fast in large repositories that do not contain an AppHost.
         var configuredAppHost = await projectLocator.GetAppHostFromSettingsAsync(cancellationToken);
         if (configuredAppHost is not null)
         {
             return [configuredAppHost];
         }
 
-        // Detect only which AppHost language appears to be present within the bounded
-        // search depth, then validate matching candidates until an AppHost is found.
         var detectedLanguageId = await languageDiscovery.DetectLanguageRecursiveAsync(executionContext.WorkingDirectory, cancellationToken);
         if (detectedLanguageId is null)
         {
@@ -210,68 +243,8 @@ internal sealed class AspireVersionCheck(
         }
 
         var detectedLanguage = languageDiscovery.GetLanguageById(detectedLanguageId.Value);
-        return detectedLanguage is not null
-            ? FindAppHostCandidates(detectedLanguage, cancellationToken).ToArray()
-            : [];
-    }
-
-    private IEnumerable<FileInfo> FindAppHostCandidates(LanguageInfo language, CancellationToken cancellationToken)
-    {
-        var root = executionContext.WorkingDirectory.FullName;
-        if (!Directory.Exists(root))
-        {
-            yield break;
-        }
-
-        var dirs = new Stack<(string Path, int Depth)>();
-        dirs.Push((root, 0));
-
-        while (dirs.Count > 0)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var (dir, depth) = dirs.Pop();
-
-            IEnumerable<string> files;
-            try
-            {
-                files = Directory.EnumerateFiles(dir).ToArray();
-            }
-            catch (Exception ex) when (ex is DirectoryNotFoundException or IOException or UnauthorizedAccessException)
-            {
-                logger.LogDebug(ex, "Skipping directory {Directory} while finding AppHost candidates.", dir);
-                continue;
-            }
-
-            foreach (var file in files)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (language.MatchesFile(Path.GetFileName(file)))
-                {
-                    yield return new FileInfo(file);
-                }
-            }
-
-            if (depth >= LanguageInfo.DetectionRecurseLimit)
-            {
-                continue;
-            }
-
-            IEnumerable<string> subdirectories;
-            try
-            {
-                subdirectories = Directory.EnumerateDirectories(dir).ToArray();
-            }
-            catch (Exception ex) when (ex is DirectoryNotFoundException or IOException or UnauthorizedAccessException)
-            {
-                logger.LogDebug(ex, "Skipping subdirectories of {Directory} while finding AppHost candidates.", dir);
-                continue;
-            }
-
-            foreach (var subdirectory in subdirectories)
-            {
-                dirs.Push((subdirectory, depth + 1));
-            }
-        }
+        var discoveredPath = detectedLanguage?.FindInDirectory(executionContext.WorkingDirectory.FullName);
+        return discoveredPath is not null ? [new FileInfo(discoveredPath)] : [];
     }
 
     private async Task<(bool IsAppHost, string? Version)> ResolveAppHostVersionAsync(FileInfo appHostFile, CancellationToken cancellationToken)
