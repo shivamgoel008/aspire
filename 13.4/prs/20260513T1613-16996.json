@@ -1,0 +1,9 @@
+{
+  "author": "JamesNK",
+  "comment": "CLI UX improvement: echoes prompt and chosen value(s) as plain text after interactive selection completes",
+  "mergedAt": "2026-05-13T16:13:01Z",
+  "number": 16996,
+  "runDate": "2026-05-13T16:47:22Z",
+  "status": "included",
+  "title": "Echo selection prompt result after interactive selection"
+}

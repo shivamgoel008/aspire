@@ -1,0 +1,19 @@
+{
+  "area": "CLI",
+  "areaEmoji": "💻",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Improvements",
+  "communityContributors": [],
+  "description": "After an interactive selection prompt completes, the CLI now echoes the prompt text and chosen value(s) as plain text. This makes it easy to see what was selected, especially when subsequent output follows quickly.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🗣️",
+  "firstMergedAt": "2026-05-13T16:13:01Z",
+  "lastMergedAt": "2026-05-13T16:13:01Z",
+  "name": "Echo selection result after interactive prompts",
+  "owner": "JamesNK",
+  "prs": [
+    16996
+  ]
+}
