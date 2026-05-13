@@ -172,7 +172,7 @@ public class DoctorCommandTests(ITestOutputHelper outputHelper)
     }
 
     [Fact]
-    public async Task DoctorCommand_Json_DoesNotScanBeyondLanguageDetectionLimitForAppHostVersion()
+    public async Task DoctorCommand_Json_DoesNotDiscoverNestedAppHostWithoutConfig()
     {
         using var workspace = TemporaryWorkspace.Create(outputHelper);
         var appHostFile = CreateDeepAppHostFile(workspace, depth: LanguageInfo.DetectionRecurseLimit + 1);
@@ -249,7 +249,7 @@ public class DoctorCommandTests(ITestOutputHelper outputHelper)
     }
 
     [Fact]
-    public async Task DoctorCommand_Json_DoesNotContinueSearchingAfterFirstNonAppHostProject()
+    public async Task DoctorCommand_Json_DoesNotDiscoverNestedAppHostWhenAnotherProjectExists()
     {
         using var workspace = TemporaryWorkspace.Create(outputHelper);
         var projectFile = new FileInfo(Path.Combine(workspace.WorkspaceRoot.FullName, "Normal.csproj"));
@@ -278,6 +278,44 @@ public class DoctorCommandTests(ITestOutputHelper outputHelper)
         var exitCode = await result.InvokeAsync().DefaultTimeout();
 
         Assert.Equal(ExitCodeConstants.Success, exitCode);
+
+        var (json, _) = Assert.Single(interactionService.DisplayedRawText);
+        using var document = JsonDocument.Parse(json);
+        Assert.DoesNotContain(document.RootElement.GetProperty("checks").EnumerateArray(),
+            check => check.GetProperty("name").GetString() == "apphost-version");
+    }
+
+    [Fact]
+    public async Task DoctorCommand_Json_DoesNotChooseBetweenMultipleDirectAppHostsWithoutConfig()
+    {
+        using var workspace = TemporaryWorkspace.Create(outputHelper);
+        await File.WriteAllTextAsync(Path.Combine(workspace.WorkspaceRoot.FullName, "AppHost.csproj"), "<Project />");
+        await File.WriteAllTextAsync(Path.Combine(workspace.WorkspaceRoot.FullName, "AppHost.fsproj"), "<Project />");
+
+        var interactionService = new TestInteractionService();
+        var versionLookupCalled = false;
+        var services = CreateDoctorVersionServiceCollection(workspace, outputHelper, options =>
+        {
+            options.InteractionServiceFactory = _ => interactionService;
+            options.CliUpdateNotifierFactory = _ => new TestCliUpdateNotifier();
+            options.AppHostProjectFactory = _ => new TestAppHostProjectFactory
+            {
+                GetAspireHostingVersionAsyncCallback = (_, _) =>
+                {
+                    versionLookupCalled = true;
+                    return Task.FromResult<string?>("unexpected");
+                }
+            };
+        });
+        using var provider = services.BuildServiceProvider();
+
+        var command = provider.GetRequiredService<Aspire.Cli.Commands.RootCommand>();
+        var result = command.Parse("doctor --format json");
+
+        var exitCode = await result.InvokeAsync().DefaultTimeout();
+
+        Assert.Equal(ExitCodeConstants.Success, exitCode);
+        Assert.False(versionLookupCalled);
 
         var (json, _) = Assert.Single(interactionService.DisplayedRawText);
         using var document = JsonDocument.Parse(json);
@@ -332,18 +370,21 @@ public class DoctorCommandTests(ITestOutputHelper outputHelper)
     public async Task DoctorCommand_Json_PreservesCliVersionWhenAppHostDiscoveryFails()
     {
         using var workspace = TemporaryWorkspace.Create(outputHelper);
+        await File.WriteAllTextAsync(
+            Path.Combine(workspace.WorkspaceRoot.FullName, "aspire.config.json"),
+            """
+            {
+              "appHost": {
+                "path": "missing/AppHost.csproj"
+              }
+            }
+            """);
 
         var interactionService = new TestInteractionService();
         var services = CreateDoctorVersionServiceCollection(workspace, outputHelper, options =>
         {
             options.InteractionServiceFactory = _ => interactionService;
             options.CliUpdateNotifierFactory = _ => new TestCliUpdateNotifier();
-        });
-        services.RemoveAll<ILanguageDiscovery>();
-        services.AddSingleton<ILanguageDiscovery>(new TestLanguageDiscovery
-        {
-            DetectLanguageRecursiveAsyncCallback = (_, _) =>
-                throw new IOException("language discovery failed")
         });
         using var provider = services.BuildServiceProvider();
 
@@ -363,7 +404,7 @@ public class DoctorCommandTests(ITestOutputHelper outputHelper)
 
         Assert.Equal("pass", cliVersionCheck.GetProperty("status").GetString());
         Assert.Equal("warning", appHostVersionCheck.GetProperty("status").GetString());
-        Assert.Equal("language discovery failed", appHostVersionCheck.GetProperty("details").GetString());
+        Assert.Contains("missing/AppHost.csproj", appHostVersionCheck.GetProperty("details").GetString());
     }
 
     [Fact]
@@ -372,16 +413,21 @@ public class DoctorCommandTests(ITestOutputHelper outputHelper)
         using var workspace = TemporaryWorkspace.Create(outputHelper);
         var appHostFile = CreateDeepAppHostFile(workspace, depth: LanguageInfo.DetectionRecurseLimit + 1);
         await File.WriteAllTextAsync(appHostFile.FullName, "<Project />");
+        await File.WriteAllTextAsync(
+            Path.Combine(workspace.WorkspaceRoot.FullName, "aspire.config.json"),
+            $$"""
+            {
+              "appHost": {
+                "path": "{{Path.GetRelativePath(workspace.WorkspaceRoot.FullName, appHostFile.FullName).Replace('\\', '/')}}"
+              }
+            }
+            """);
 
         var interactionService = new TestInteractionService();
         var services = CreateDoctorVersionServiceCollection(workspace, outputHelper, options =>
         {
             options.InteractionServiceFactory = _ => interactionService;
             options.CliUpdateNotifierFactory = _ => new TestCliUpdateNotifier();
-            options.ProjectLocatorFactory = _ => new TestProjectLocator
-            {
-                GetAppHostFromSettingsAsyncCallback = _ => Task.FromResult<FileInfo?>(appHostFile)
-            };
             options.AppHostProjectFactory = _ => new TestAppHostProjectFactory
             {
                 GetAspireHostingVersionAsyncCallback = (_, _) => Task.FromResult<string?>("13.2.0")
