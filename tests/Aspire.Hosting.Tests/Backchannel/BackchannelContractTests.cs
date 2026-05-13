@@ -3,6 +3,8 @@
 
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Aspire.Hosting.Backchannel;
 
@@ -162,6 +164,68 @@ public class BackchannelContractTests
         Assert.True(errors.Length == 0, $"Contract violations found:\n{errors}");
     }
 
+    [Fact]
+    public void RequestWithProfilingContext_PreservesRequestProperties()
+    {
+        var errors = new StringBuilder();
+        var profilingContext = new BackchannelProfilingContext
+        {
+            ProfilingSessionId = "new-session",
+            TraceParent = "00-11111111111111111111111111111111-2222222222222222-01",
+            TraceState = "new-state"
+        };
+
+        foreach (var requestType in s_requestTypes)
+        {
+            var request = (BackchannelRequest)Activator.CreateInstance(requestType)!;
+            var defaultRequest = (BackchannelRequest)Activator.CreateInstance(requestType)!;
+            var expectedValues = new Dictionary<PropertyInfo, object?>();
+
+            foreach (var property in requestType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (property.GetSetMethod() is null)
+                {
+                    continue;
+                }
+
+                var value = property.Name == nameof(BackchannelRequest.ProfilingContext)
+                    ? new BackchannelProfilingContext
+                    {
+                        ProfilingSessionId = "original-session",
+                        TraceParent = "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01",
+                        TraceState = "original-state"
+                    }
+                    : CreateNonDefaultValue(requestType, property, property.GetValue(defaultRequest));
+
+                property.SetValue(request, value);
+                expectedValues.Add(property, value);
+            }
+
+            var copy = request.WithProfilingContext(profilingContext);
+
+            if (copy.GetType() != requestType)
+            {
+                errors.AppendLine($"ERROR {requestType.Name}: {nameof(BackchannelRequest.WithProfilingContext)} returned {copy.GetType().Name}");
+                continue;
+            }
+
+            foreach (var (property, originalValue) in expectedValues)
+            {
+                var expectedValue = property.Name == nameof(BackchannelRequest.ProfilingContext)
+                    ? profilingContext
+                    : originalValue;
+                var actualValue = property.GetValue(copy);
+
+                if (!PropertyValuesEqual(expectedValue, actualValue))
+                {
+                    errors.AppendLine($"ERROR {requestType.Name}.{property.Name}: Expected {FormatValue(expectedValue)}, actual {FormatValue(actualValue)}");
+                }
+            }
+        }
+
+        Assert.True(errors.Length == 0, $"Profiling copy violations found:\n{errors}");
+    }
+
     private static bool IsAllowedCollectionType(Type type)
     {
         var genericDef = type.GetGenericTypeDefinition();
@@ -170,4 +234,64 @@ public class BackchannelContractTests
                genericDef == typeof(IReadOnlyList<>) ||
                genericDef == typeof(IReadOnlyDictionary<,>);
     }
+
+    private static object CreateNonDefaultValue(Type requestType, PropertyInfo property, object? defaultValue)
+    {
+        var propertyType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+        var propertyName = $"{requestType.Name}.{property.Name}";
+
+        if (propertyType == typeof(string))
+        {
+            return propertyName;
+        }
+
+        if (propertyType == typeof(bool))
+        {
+            return defaultValue is bool value ? !value : true;
+        }
+
+        if (propertyType == typeof(int))
+        {
+            return defaultValue is 42 ? 43 : 42;
+        }
+
+        if (propertyType == typeof(JsonElement))
+        {
+            using var document = JsonDocument.Parse($$"""{ "property": "{{propertyName}}" }""");
+            return document.RootElement.Clone();
+        }
+
+        if (propertyType == typeof(JsonNode))
+        {
+            return JsonNode.Parse($$"""{ "property": "{{propertyName}}" }""")!;
+        }
+
+        throw new NotSupportedException($"{requestType.Name}.{property.Name} has unsupported test value type {property.PropertyType}.");
+    }
+
+    private static bool PropertyValuesEqual(object? expected, object? actual)
+    {
+        if (expected is JsonElement expectedJson && actual is JsonElement actualJson)
+        {
+            return expectedJson.ValueKind == actualJson.ValueKind &&
+                   expectedJson.GetRawText() == actualJson.GetRawText();
+        }
+
+        if (expected is JsonNode expectedNode && actual is JsonNode actualNode)
+        {
+            return expectedNode.ToJsonString() == actualNode.ToJsonString();
+        }
+
+        return Equals(expected, actual);
+    }
+
+    private static string FormatValue(object? value) =>
+        value switch
+        {
+            null => "<null>",
+            JsonElement json => json.GetRawText(),
+            JsonNode node => node.ToJsonString(),
+            BackchannelProfilingContext context => $"{nameof(BackchannelProfilingContext)}({context.ProfilingSessionId})",
+            _ => value.ToString() ?? string.Empty
+        };
 }

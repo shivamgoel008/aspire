@@ -683,6 +683,48 @@ public class AuxiliaryBackchannelRpcTargetTests(ITestOutputHelper outputHelper)
     }
 
     [Fact]
+    public async Task GetConsoleLogsAsync_AppliesSearchAfterStrippingAnsiControlSequences()
+    {
+        using var builder = TestDistributedApplicationBuilder.Create(outputHelper);
+
+        builder.AddResource(new CustomResource("myresource"));
+
+        using var app = builder.Build();
+
+        var resourceLoggerService = app.Services.GetRequiredService<ResourceLoggerService>();
+        resourceLoggerService.TimeProvider = new FixedTimeProvider();
+
+        await app.StartAsync().DefaultTimeout();
+
+        var logger = resourceLoggerService.GetLogger("myresource");
+        logger.LogInformation("Re\u001b[31mady");
+        logger.LogInformation("haystack");
+        resourceLoggerService.Complete("myresource");
+
+        var target = new AuxiliaryBackchannelRpcTarget(
+            NullLogger<AuxiliaryBackchannelRpcTarget>.Instance,
+            app.Services.GetRequiredService<IConfiguration>(),
+            app.Services.GetRequiredService<ProfilingTelemetry>(),
+            app.Services);
+
+        var logs = new List<ResourceLogLine>();
+        await foreach (var logLine in target.GetConsoleLogsAsync(new GetConsoleLogsRequest
+        {
+            ResourceName = "myresource",
+            Search = "Ready",
+            IncludeHidden = true
+        }))
+        {
+            logs.Add(logLine);
+        }
+
+        var log = Assert.Single(logs);
+        Assert.Equal($"{TestTimestamp} Re\u001b[31mady", log.Content);
+
+        await app.StopAsync().DefaultTimeout(TestConstants.LongTimeoutTimeSpan);
+    }
+
+    [Fact]
     public async Task GetConsoleLogBatchesAsync_AppliesSearchAndTailForSingleResource()
     {
         using var builder = TestDistributedApplicationBuilder.Create(outputHelper);

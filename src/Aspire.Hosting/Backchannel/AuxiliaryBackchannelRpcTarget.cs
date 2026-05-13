@@ -9,6 +9,7 @@ using System.Text.Json.Nodes;
 using System.Threading.Channels;
 using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Diagnostics;
+using Aspire.Shared.ConsoleLogs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -1108,9 +1109,9 @@ internal sealed class AuxiliaryBackchannelRpcTarget(
                                     IsError = logLine.IsErrorMessage
                                 };
 
-                                // Search against the raw resource log line here as a transport
-                                // optimization. The CLI applies its parsed-log filter again so
-                                // older AppHosts and display-name edge cases keep the same output.
+                                // Search on the server as a transport optimization. The CLI applies
+                                // its parsed-log filter again so older AppHosts and display-name edge
+                                // cases keep the same output.
                                 if (!MatchesSearch(resourceLogLine, search))
                                 {
                                     continue;
@@ -1194,9 +1195,24 @@ internal sealed class AuxiliaryBackchannelRpcTarget(
 
     private static bool MatchesSearch(ResourceLogLine logLine, string? search)
     {
-        return string.IsNullOrEmpty(search) ||
-            logLine.Content.Contains(search, StringComparisons.FullTextSearch) ||
-            logLine.ResourceName.Contains(search, StringComparisons.FullTextSearch);
+        if (string.IsNullOrEmpty(search))
+        {
+            return true;
+        }
+
+        if (logLine.Content.Contains(search, StringComparisons.FullTextSearch) ||
+            logLine.ResourceName.Contains(search, StringComparisons.FullTextSearch))
+        {
+            return true;
+        }
+
+        // ResourceLoggerService stores raw lines like:
+        //   2000-12-29T20:59:59.0000000Z Re\u001b[31mady
+        // Strip ANSI control sequences for the server-side pre-filter so a
+        // visible-text search for "Ready" does not drop the line before the CLI
+        // can apply its parsed-log search semantics.
+        return AnsiParser.StripControlSequences(logLine.Content)
+            .Contains(search, StringComparisons.FullTextSearch);
     }
 
     /// <summary>

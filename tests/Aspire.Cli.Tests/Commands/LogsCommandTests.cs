@@ -1064,6 +1064,36 @@ public class LogsCommandTests(ITestOutputHelper outputHelper)
     }
 
     [Fact]
+    public async Task LogsCommand_WithSearchOption_MatchesAnsiStrippedContent()
+    {
+        using var workspace = TemporaryWorkspace.Create(outputHelper);
+        var outputWriter = new TestOutputTextWriter(outputHelper);
+
+        using var provider = CreateLogsTestServices(workspace, outputWriter, disableAnsi: true,
+            logLines:
+            [
+                new ResourceLogLine { ResourceName = "redis", LineNumber = 1, Content = "Re\u001b[31mady", IsError = false },
+                new ResourceLogLine { ResourceName = "redis", LineNumber = 2, Content = "haystack", IsError = false }
+            ]);
+
+        var command = provider.GetRequiredService<RootCommand>();
+        var result = command.Parse("logs redis --search Ready --format json");
+
+        var exitCode = await result.InvokeAsync().DefaultTimeout();
+
+        Assert.Equal(ExitCodeConstants.Success, exitCode);
+
+        var jsonOutput = outputWriter.Logs.FirstOrDefault(l => l.Contains("\"logs\""));
+        Assert.NotNull(jsonOutput);
+
+        var logsOutput = JsonSerializer.Deserialize(jsonOutput, LogsCommandJsonContext.Snapshot.LogsOutput);
+        Assert.NotNull(logsOutput);
+
+        var log = Assert.Single(logsOutput.Logs);
+        Assert.Equal("Re\u001b[31mady", log.Content);
+    }
+
+    [Fact]
     public async Task LogsCommand_WithSearchOption_NoMatch_ReturnsEmptyLogs()
     {
         using var workspace = TemporaryWorkspace.Create(outputHelper);

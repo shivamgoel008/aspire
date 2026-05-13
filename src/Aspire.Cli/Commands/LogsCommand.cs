@@ -253,7 +253,7 @@ internal sealed class LogsCommand : BaseCommand
 
         // Keep the client-side search and tail passes even when a v2 AppHost already applied
         // them. Older AppHosts fall back to the legacy log stream, and this also preserves the
-        // CLI's parsed-log search semantics for any edge cases the server-side raw search misses.
+        // CLI's parsed-log search semantics for any edge cases the server-side pre-filter misses.
         if (!string.IsNullOrEmpty(search))
         {
             entries = entries.Where(e => MatchesSearch(e, search)).ToList();
@@ -479,7 +479,8 @@ internal sealed class LogsCommand : BaseCommand
         var content = entry.RawContent ?? entry.Content ?? string.Empty;
         var prefix = entry.ResourcePrefix ?? string.Empty;
         return content.Contains(search, StringComparisons.FullTextSearch) ||
-               prefix.Contains(search, StringComparisons.FullTextSearch);
+               prefix.Contains(search, StringComparisons.FullTextSearch) ||
+               AnsiParser.StripControlSequences(content).Contains(search, StringComparisons.FullTextSearch);
     }
 
     private static string ResolveResourceName(string resourceName, IEnumerable<ResourceSnapshot> snapshots)
