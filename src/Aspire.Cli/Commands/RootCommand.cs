@@ -124,6 +124,7 @@ internal sealed class RootCommand : BaseRootCommand
         DestroyCommand destroyCommand,
         DoCommand doCommand,
         ConfigCommand configCommand,
+        HivesCommand hivesCommand,
         CacheCommand cacheCommand,
         CertificatesCommand certificatesCommand,
         DoctorCommand doctorCommand,
@@ -213,6 +214,7 @@ internal sealed class RootCommand : BaseRootCommand
         Subcommands.Add(addCommand);
         Subcommands.Add(publishCommand);
         Subcommands.Add(configCommand);
+        Subcommands.Add(hivesCommand);
         Subcommands.Add(cacheCommand);
         Subcommands.Add(certificatesCommand);
         Subcommands.Add(doctorCommand);

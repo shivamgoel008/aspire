@@ -499,6 +499,7 @@ public class Program
         builder.Services.AddTransient<AddCommand>();
         builder.Services.AddTransient<PublishCommand>();
         builder.Services.AddTransient<ConfigCommand>();
+        builder.Services.AddTransient<HivesCommand>();
         builder.Services.AddTransient<CacheCommand>();
         builder.Services.AddTransient<CertificatesCommand>();
         builder.Services.AddTransient<CertificatesCleanCommand>();
