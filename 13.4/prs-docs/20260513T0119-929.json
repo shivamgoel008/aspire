@@ -1,0 +1,9 @@
+{
+  "author": "takashiuesaka",
+  "comment": "Japanese translation of existing launch-profiles doc page - no new feature documentation, no matching changelog entry",
+  "mergedAt": "2026-05-13T01:19:25Z",
+  "number": 929,
+  "runDate": "2026-05-13T03:06:00Z",
+  "status": "excluded",
+  "title": "Translate \"integrations/dotnet/launch-profiles\" doc to Japanese"
+}
