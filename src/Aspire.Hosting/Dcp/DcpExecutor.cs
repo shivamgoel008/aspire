@@ -22,6 +22,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Polly;
+using Polly.Timeout;
 
 namespace Aspire.Hosting.Dcp;
 
@@ -110,7 +111,7 @@ internal sealed partial class DcpExecutor : IDcpExecutor, IDcpObjectFactory, IAs
         _executionContext = executionContext;
         _appResources = appResources;
 
-        _resourceWatcher = new DcpResourceWatcher(logger, kubernetesService, loggerService, executorEvents, model, _appResources, _shutdownCancellation.Token);
+         _resourceWatcher = new DcpResourceWatcher(logger, kubernetesService, loggerService, executorEvents, model, _appResources, _shutdownCancellation.Token);
 
         DeleteResourceRetryPipeline = DcpPipelineBuilder.BuildDeleteRetryPipeline(logger);
 
@@ -215,7 +216,7 @@ internal sealed partial class DcpExecutor : IDcpExecutor, IDcpObjectFactory, IAs
 
             await _executorEvents.PublishAsync(new OnEndpointsAllocatedContext(ct)).ConfigureAwait(false);
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             _shutdownCancellation.Cancel();
             _containerContextSource.TrySetException(ex);
@@ -347,28 +348,39 @@ internal sealed partial class DcpExecutor : IDcpExecutor, IDcpObjectFactory, IAs
     Task IDcpObjectFactory.UpdateWithEffectiveAddressInfo(IEnumerable<Service> services, CancellationToken cancellationToken, TimeSpan? timeout)
         => UpdateWithEffectiveAddressInfo(services, cancellationToken, timeout);
 
-    // Waits till provided set of Services have their addresses allocated by the orchestrator
-    // and updates them with the allocated address information.
-    private async Task UpdateWithEffectiveAddressInfo(IEnumerable<Service> services, CancellationToken cancellationToken, TimeSpan? timeout = null)
+    // Watches DCP object updates via a Kubernetes watch wrapped in the supplied retry pipeline, 
+    // till all objects reach desired state or a timeout occurs.
+    // Returns names of objects that did not reach the desired state.
+    private async Task<HashSet<string>> WatchUntilDesiredStateAsync<TDcpResource>(
+        IEnumerable<TDcpResource> objects,
+        Func<TDcpResource, TDcpResource, bool> isInDesiredState,
+        ResiliencePipeline pipeline,
+        CancellationToken cancellationToken)
+        where TDcpResource : CustomResource, IKubernetesStaticMetadata
     {
-        List<Service> needAddressAllocated = new(services.Where(s => !s.HasCompleteAddress));
-        if (needAddressAllocated.Count == 0)
+        var objectsByName = new Dictionary<string, TDcpResource>(StringComparer.Ordinal);
+        var pending = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var o in objects)
         {
-            return;
+            var name = o.Metadata.Name;
+            objectsByName[name] = o;
+            pending.Add(name);
         }
 
-        var createServicePipeline = DcpPipelineBuilder.BuildCreateServiceRetryPipeline(_options.Value, _logger, timeout);
-        var initialServiceCount = needAddressAllocated.Count;
+        if (pending.Count == 0)
+        {
+            return pending;
+        }
 
         try
         {
-            AspireEventSource.Instance.DcpServiceAddressAllocationStart(initialServiceCount);
-
-            await createServicePipeline.ExecuteAsync(async (attemptCancellationToken) =>
+            await pipeline.ExecuteAsync(async (attemptCancellationToken) =>
             {
-                // Note: a Kubernetes watch, when started, will return at least one event per existing object, so we won't miss any service state.
-                var serviceChangeEnumerator = _kubernetesService.WatchAsync<Service>(cancellationToken: attemptCancellationToken);
-                await foreach (var (evt, updated) in serviceChangeEnumerator.ConfigureAwait(false))
+                // Note: a Kubernetes watch, when started, will return at least one event per existing object,
+                // so we won't miss any state already present at the time the watch starts.
+                var changeEnumerator = _kubernetesService.WatchAsync<TDcpResource>(cancellationToken: attemptCancellationToken);
+                await foreach (var (evt, observed) in changeEnumerator.ConfigureAwait(false))
                 {
                     if (evt == WatchEventType.Bookmark)
                     {
@@ -376,36 +388,85 @@ internal sealed partial class DcpExecutor : IDcpExecutor, IDcpObjectFactory, IAs
                         continue;
                     }
 
-                    var srvResource = needAddressAllocated.FirstOrDefault(sr => sr.Metadata.Name == updated.Metadata.Name);
-                    if (srvResource == null)
+                    if (!objectsByName.TryGetValue(observed.Metadata.Name, out var original))
                     {
-                        // This service most likely already has full address information, so it is not on needAddressAllocated list.
+                        // Not one of the objects we are tracking.
                         continue;
                     }
 
-                    if (updated.HasCompleteAddress)
+                    if (pending.Contains(observed.Metadata.Name) && isInDesiredState(original, observed))
                     {
-                        srvResource.ApplyAddressInfoFrom(updated);
-                        needAddressAllocated.Remove(srvResource);
-                        AspireEventSource.Instance.DcpServiceAddressAllocated(srvResource.Metadata.Name);
+                        pending.Remove(observed.Metadata.Name);
                     }
 
-                    if (needAddressAllocated.Count == 0)
+                    if (pending.Count == 0)
                     {
-                        return; // We are done
+                        return; // We are done.
                     }
                 }
             }, cancellationToken).ConfigureAwait(false);
+        }
+        catch (TimeoutRejectedException) { }
 
-            // If there are still services that need address allocated, try a final direct query in case the watch missed some updates.
+        // Best-effort final direct query for any still-pending objects in case the watch missed updates.
+        foreach (var name in pending.ToArray())
+        {
+            var original = objectsByName[name];
+            try
+            {
+                var fetched = await _kubernetesService.GetAsync<TDcpResource>(name, cancellationToken: cancellationToken).ConfigureAwait(false);
+                if (isInDesiredState(original, fetched))
+                {
+                    pending.Remove(name);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogDebug(ex, "Failed to fetch latest state for {Kind} '{Name}' during DCP watch fallback.", original.Kind, name);
+            }
+        }
+
+        return pending;
+    }
+
+    // Waits till provided set of Services have their addresses allocated by the orchestrator
+    // and updates them with the allocated address information.
+    private async Task UpdateWithEffectiveAddressInfo(IEnumerable<Service> services, CancellationToken cancellationToken, TimeSpan? timeout = null)
+    {
+        var needAddressAllocated = services.Where(s => !s.HasCompleteAddress).ToArray();
+        if (needAddressAllocated.Length == 0)
+        {
+            return;
+        }
+
+        var createServicePipeline = DcpPipelineBuilder.BuildObjectWatchRetryPipeline(_options.Value, _logger, timeout);
+        var initialServiceCount = needAddressAllocated.Length;
+        HashSet<string> stillPending = [.. needAddressAllocated.Select(s => s.Metadata.Name)];
+
+        try
+        {
+            AspireEventSource.Instance.DcpServiceAddressAllocationStart(initialServiceCount);
+
+            stillPending = await WatchUntilDesiredStateAsync(
+                needAddressAllocated,
+                isInDesiredState: (original, observed) =>
+                {
+                    if (!observed.HasCompleteAddress)
+                    {
+                        return false;
+                    }
+
+                    original.ApplyAddressInfoFrom(observed);
+                    AspireEventSource.Instance.DcpServiceAddressAllocated(original.Metadata.Name);
+                    return true;
+                },
+                createServicePipeline,
+                cancellationToken).ConfigureAwait(false);
+
+            // For services that still don't have an address, log a warning and emit a failure event.
             foreach (var sar in needAddressAllocated)
             {
-                var dcpSvc = await _kubernetesService.GetAsync<Service>(sar.Metadata.Name, cancellationToken: cancellationToken).ConfigureAwait(false);
-                if (dcpSvc.HasCompleteAddress)
-                {
-                    sar.ApplyAddressInfoFrom(dcpSvc);
-                }
-                else
+                if (stillPending.Contains(sar.Metadata.Name))
                 {
                     _distributedApplicationLogger.LogWarning("Unable to allocate a network port for service '{ServiceName}'; service may be unreachable and its clients may not work properly.", sar.Metadata.Name);
                     AspireEventSource.Instance.DcpServiceAddressAllocationFailed(sar.Metadata.Name);
@@ -437,7 +498,55 @@ internal sealed partial class DcpExecutor : IDcpExecutor, IDcpObjectFactory, IAs
         }
         finally
         {
-            AspireEventSource.Instance.DcpServiceAddressAllocationStop(initialServiceCount - needAddressAllocated.Count);
+            AspireEventSource.Instance.DcpServiceAddressAllocationStop(initialServiceCount - stillPending.Count);
+        }
+    }
+
+    // Waits until each provided object reports a state that is in finalStates, or until timeout elapses.
+    // Returns the latest observed instance for each input object so callers can inspect Status.
+    public async Task<IReadOnlyList<TDcpResource>> WaitForStateAsync<TDcpResource>(
+        IEnumerable<TDcpResource> objects,
+        Func<TDcpResource, string?> stateSelector,
+        IReadOnlyCollection<string> finalStates,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+        where TDcpResource : CustomResource, IKubernetesStaticMetadata
+    {
+        // Latest observed instance per object name. Seeded with the inputs so that if no events arrive
+        // we still return something meaningful (with whatever Status was on the input).
+        var allItems = objects.ToArray();
+        var latest = new Dictionary<string, TDcpResource>(StringComparer.Ordinal);
+        foreach (var obj in allItems)
+        {
+            latest[obj.Metadata.Name] = obj;
+        }
+
+        var pending = allItems.Where(o => !IsInFinalState(stateSelector(o), finalStates)).ToArray();
+        if (pending.Length > 0)
+        {
+            var pipeline = DcpPipelineBuilder.BuildObjectWatchRetryPipeline(_options.Value, _logger, timeout);
+
+            await WatchUntilDesiredStateAsync(
+                pending,
+                isInDesiredState: (_, observed) =>
+                {
+                    latest[observed.Metadata.Name] = observed;
+                    return IsInFinalState(stateSelector(observed), finalStates);
+                },
+                pipeline,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        return latest.Values.ToArray();
+
+        static bool IsInFinalState(string? state, IReadOnlyCollection<string> finalStates)
+        {
+            if (state is null)
+            {
+                return false;
+            }
+
+            return finalStates.Any(fs => string.Equals(state, fs, StringComparison.Ordinal));
         }
     }
 
@@ -621,7 +730,6 @@ internal sealed partial class DcpExecutor : IDcpExecutor, IDcpObjectFactory, IAs
 
         var resourceKind = allResourceKinds.First();
         var tasks = new List<Task>();
-
         try
         {
             AspireEventSource.Instance.DcpObjectSetCreationStart(resourceKind, allResources.Length);
@@ -656,7 +764,6 @@ internal sealed partial class DcpExecutor : IDcpExecutor, IDcpObjectFactory, IAs
         var resourceType = GetResourceType(replicaResources.First().DcpResource, modelResource);
         Debug.Assert(replicaResources.Any());
         var replicas = replicaResources.ToArray();
-
         try
         {
             // No concurrent start/stop operations on the same resource.
@@ -689,8 +796,9 @@ internal sealed partial class DcpExecutor : IDcpExecutor, IDcpObjectFactory, IAs
                         cancellationToken, resourceType, modelResource,
                         r.DcpResource.Metadata.Name,
                         new ResourceStatus(KnownResourceStates.NotStarted, null, null),
-                        s => s with { 
-                            State = new ResourceStateSnapshot(KnownResourceStates.NotStarted, null) 
+                        s => s with
+                        {
+                            State = new ResourceStateSnapshot(KnownResourceStates.NotStarted, null)
                         })
                     ).ConfigureAwait(false);
                 }
@@ -740,7 +848,7 @@ internal sealed partial class DcpExecutor : IDcpExecutor, IDcpObjectFactory, IAs
         }
         finally
         {
-            foreach(var r in replicas)
+            foreach (var r in replicas)
             {
                 r.MarkInitialized();
             }
