@@ -89,6 +89,12 @@ internal sealed class InstallationDiscovery : IInstallationDiscovery
         cancellationToken.ThrowIfCancellationRequested();
 
         var self = DescribeSelf();
+        _logger.LogDebug(
+            "Discovery: starting walk. self.Path='{SelfPath}', self.Canonical='{SelfCanonical}', HOME='{Home}'.",
+            self.Path,
+            self.CanonicalPath ?? "(null)",
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+
         var results = new List<InstallationInfo> { self };
         // Deduplicate by canonical path (case-insensitive on Windows). The
         // running CLI is always the first row, so peers that resolve to
@@ -98,9 +104,26 @@ internal sealed class InstallationDiscovery : IInstallationDiscovery
             OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
 
         var pathHit = FindFirstAspireOnPath();
+        if (pathHit is null)
+        {
+            _logger.LogDebug("Discovery: no 'aspire' binary found on $PATH.");
+        }
+        else
+        {
+            _logger.LogDebug(
+                "Discovery: $PATH first match: '{Path}' (canonical: '{Canonical}').",
+                pathHit.OriginalPath, pathHit.CanonicalPath);
+        }
+
+        var candidateCount = 0;
         foreach (var candidate in EnumerateDiscoveryCandidates(pathHit))
         {
             cancellationToken.ThrowIfCancellationRequested();
+            candidateCount++;
+
+            _logger.LogDebug(
+                "Discovery: considering candidate #{Index} '{Path}' (origin: {Origin}).",
+                candidateCount, candidate.BinaryPath, candidate.Origin);
 
             var canonical = ResolveCanonicalPath(candidate.BinaryPath);
             if (string.IsNullOrEmpty(canonical))
@@ -200,6 +223,10 @@ internal sealed class InstallationDiscovery : IInstallationDiscovery
                     break;
             }
         }
+
+        _logger.LogDebug(
+            "Discovery: walk complete. Considered {Considered} candidate(s); produced {Total} row(s) total (including self).",
+            candidateCount, results.Count);
 
         return results;
     }
@@ -387,6 +414,7 @@ internal sealed class InstallationDiscovery : IInstallationDiscovery
         var releaseBinary = Path.Combine(releaseDir, OperatingSystem.IsWindows() ? "aspire.exe" : "aspire");
         if (File.Exists(releaseBinary))
         {
+            _logger.LogDebug("Discovery: release prefix walk yielded '{Binary}'.", releaseBinary);
             yield return new DiscoveryCandidate(releaseBinary, "well-known release prefix");
         }
         else if (Directory.Exists(releaseDir))
@@ -399,17 +427,24 @@ internal sealed class InstallationDiscovery : IInstallationDiscovery
                 "Discovery: release prefix directory '{ReleaseDir}' exists but does not contain an 'aspire' binary — not classifying as a real install.",
                 releaseDir);
         }
+        else
+        {
+            _logger.LogDebug("Discovery: release prefix '{ReleaseDir}' does not exist; skipping.", releaseDir);
+        }
 
         // PR-script default: ~/.aspire/dogfood/pr-*/bin/aspire[.exe].
         var dogfoodRoot = Path.Combine(home, ".aspire", "dogfood");
         if (Directory.Exists(dogfoodRoot))
         {
+            var subdirCount = 0;
             foreach (var prDir in EnumerateDirectoriesSafe(dogfoodRoot))
             {
+                subdirCount++;
                 var binDir = Path.Combine(prDir, "bin");
                 var binary = Path.Combine(binDir, OperatingSystem.IsWindows() ? "aspire.exe" : "aspire");
                 if (File.Exists(binary))
                 {
+                    _logger.LogDebug("Discovery: dogfood walk yielded '{Binary}'.", binary);
                     yield return new DiscoveryCandidate(binary, "dogfood prefix");
                 }
                 else
@@ -423,6 +458,14 @@ internal sealed class InstallationDiscovery : IInstallationDiscovery
                         prDir, "bin");
                 }
             }
+            if (subdirCount == 0)
+            {
+                _logger.LogDebug("Discovery: dogfood root '{DogfoodRoot}' exists but contains no subdirectories.", dogfoodRoot);
+            }
+        }
+        else
+        {
+            _logger.LogDebug("Discovery: dogfood root '{DogfoodRoot}' does not exist; skipping.", dogfoodRoot);
         }
 
         // Dotnet-tool store probe (RD-11 reuse). The shape is
@@ -451,6 +494,7 @@ internal sealed class InstallationDiscovery : IInstallationDiscovery
             foreach (var match in matches)
             {
                 anyMatch = true;
+                _logger.LogDebug("Discovery: dotnet-tool store walk yielded '{Binary}'.", match);
                 yield return new DiscoveryCandidate(match, "dotnet-tool store");
             }
             if (!anyMatch)
@@ -459,6 +503,10 @@ internal sealed class InstallationDiscovery : IInstallationDiscovery
                     "Discovery: dotnet-tool store '{ToolStore}' exists but contains no '{BinaryName}' binary — not classifying as a real install.",
                     toolStore, binaryName);
             }
+        }
+        else
+        {
+            _logger.LogDebug("Discovery: dotnet-tool store '{ToolStore}' does not exist; skipping.", toolStore);
         }
     }
 
