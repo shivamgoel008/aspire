@@ -215,7 +215,7 @@ public static class BrowserLogsBuilderExtensions
                     Description = BrowserCommandStrings.ConfigureTrackedBrowserDescription,
                     IconName = "Settings",
                     IconVariant = IconVariant.Regular,
-                    Arguments = BrowserLogsConfigurationManager.CreateArgumentDefinitions(browserLogsResource),
+                    Arguments = BrowserLogsConfigurationManager.CreateArgumentDefinitions(browserLogsResource, builder.ApplicationBuilder.UserSecretsManager.IsAvailable),
                     ValidateArguments = context =>
                     {
                         var configurationManager = context.Services.GetRequiredService<BrowserLogsConfigurationManager>();

@@ -261,14 +261,28 @@ public sealed class LoadInputContext
 [DebuggerDisplay("Name = {Name}, InputType = {InputType}, Required = {Required}, Value = {Value}")]
 public sealed class InteractionInput
 {
+    private string _name = null!;
+    private bool _required;
+
     internal string EffectiveLabel => string.IsNullOrWhiteSpace(Label) ? Name : Label;
     internal InputLoadingState? DynamicLoadingState { get; set; }
     internal List<string> ValidationErrors { get; } = [];
+    internal void SetName(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        _name = name;
+    }
+
+    internal void SetRequired(bool required) => _required = required;
 
     /// <summary>
     /// Gets or sets the name for the input. Used for accessing inputs by name from a keyed collection.
     /// </summary>
-    public required string Name { get; init; }
+    public required string Name
+    {
+        get => _name;
+        init => _name = value;
+    }
 
     /// <summary>
     /// Gets or sets the label for the input. If not specified, the name will be used as the label.
@@ -294,7 +308,11 @@ public sealed class InteractionInput
     /// <summary>
     /// Gets or sets a value indicating whether the input is required.
     /// </summary>
-    public bool Required { get; init; }
+    public bool Required
+    {
+        get => _required;
+        init => _required = value;
+    }
 
     /// <summary>
     /// Gets or sets the options for the input. Only used by <see cref="InputType.Choice"/> inputs.

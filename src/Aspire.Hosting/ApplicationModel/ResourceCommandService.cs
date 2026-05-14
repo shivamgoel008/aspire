@@ -221,6 +221,15 @@ public class ResourceCommandService
 
         if (argumentValues is { Count: > 0 })
         {
+            var disabledArgumentNames = annotation.Arguments
+                .Where(argument => argument.Disabled && argumentValues.ContainsKey(argument.Name))
+                .Select(argument => argument.Name)
+                .ToArray();
+            if (disabledArgumentNames.Length > 0)
+            {
+                return (CreateArguments(annotation.Arguments, argumentValues), CreateDisabledArgumentMessage(resolvedCommandName, disabledArgumentNames));
+            }
+
             var argumentNames = new HashSet<string>(
                 annotation.Arguments.Select(argument => argument.Name),
                 StringComparers.InteractionInputName);
@@ -254,6 +263,19 @@ public class ResourceCommandService
         if (orderedArgumentValues is { Count: var argumentCount } && argumentCount > annotation.Arguments.Count)
         {
             return (CreateArguments(annotation.Arguments, orderedArgumentValues: null), $"Command '{resolvedCommandName}' accepts {annotation.Arguments.Count} argument(s), but {argumentCount} were provided.");
+        }
+
+        if (orderedArgumentValues is { Count: > 0 })
+        {
+            var disabledArgumentNames = annotation.Arguments
+                .Take(orderedArgumentValues.Count)
+                .Where(static argument => argument.Disabled)
+                .Select(static argument => argument.Name)
+                .ToArray();
+            if (disabledArgumentNames.Length > 0)
+            {
+                return (CreateArguments(annotation.Arguments, orderedArgumentValues), CreateDisabledArgumentMessage(resolvedCommandName, disabledArgumentNames));
+            }
         }
 
         return (CreateArguments(annotation.Arguments, orderedArgumentValues), null);
@@ -436,6 +458,13 @@ public class ResourceCommandService
         return unknownArgumentNames.Length == 1
             ? $"Unknown argument '{unknownArgumentNames[0]}' for command '{commandName}'."
             : $"Unknown arguments for command '{commandName}': {string.Join(", ", unknownArgumentNames.Select(argumentName => $"'{argumentName}'"))}.";
+    }
+
+    private static string CreateDisabledArgumentMessage(string commandName, string[] disabledArgumentNames)
+    {
+        return disabledArgumentNames.Length == 1
+            ? $"Argument '{disabledArgumentNames[0]}' for command '{commandName}' is disabled."
+            : $"Arguments for command '{commandName}' are disabled: {string.Join(", ", disabledArgumentNames.Select(argumentName => $"'{argumentName}'"))}.";
     }
 
     private async Task<bool> ValidateArgumentsAsync(ResourceCommandAnnotation annotation, InteractionInputCollection arguments, CancellationToken cancellationToken)

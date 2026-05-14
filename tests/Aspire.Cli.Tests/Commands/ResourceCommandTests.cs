@@ -1010,6 +1010,34 @@ public class ResourceCommandTests(ITestOutputHelper outputHelper)
     }
 
     [Fact]
+    public async Task ResourceCommand_ReturnsInvalidCommandForDisabledCommandOption()
+    {
+        using var workspace = TemporaryWorkspace.Create(outputHelper);
+        var interactionService = new TestInteractionService();
+
+        var backchannel = new TestAppHostAuxiliaryBackchannel
+        {
+            ExecuteResourceCommandResult = new ExecuteResourceCommandResponse { Success = true },
+            ResourceSnapshots =
+            [
+                CreateResourceSnapshot(
+                    "web-browser-automation",
+                    CreateCommand("configure", CreateArgument("saveToUserSecrets", inputType: "Boolean", disabled: true)))
+            ]
+        };
+        await using var provider = CreateServiceProvider(workspace, outputHelper, backchannel, interactionService);
+
+        var command = provider.GetRequiredService<RootCommand>();
+        var result = command.Parse("""resource web-browser-automation configure --save-to-user-secrets true""");
+
+        var exitCode = await result.InvokeAsync().DefaultTimeout();
+
+        Assert.Equal(ExitCodeConstants.InvalidCommand, exitCode);
+        Assert.Equal(0, backchannel.ExecuteResourceCommandCallCount);
+        Assert.Equal("Option '--save-to-user-secrets' is disabled.", Assert.Single(interactionService.DisplayedErrors));
+    }
+
+    [Fact]
     public async Task ResourceCommand_DisplaysValidationErrorArgumentNamesAsCliOptions()
     {
         using var workspace = TemporaryWorkspace.Create(outputHelper);
@@ -1972,7 +2000,8 @@ public class ResourceCommandTests(ITestOutputHelper outputHelper)
         bool required = false,
         string? value = null,
         Dictionary<string, string?>? options = null,
-        bool allowCustomChoice = false)
+        bool allowCustomChoice = false,
+        bool disabled = false)
     {
         return new ResourceSnapshotCommandArgument
         {
@@ -1982,7 +2011,8 @@ public class ResourceCommandTests(ITestOutputHelper outputHelper)
             Required = required,
             Value = value,
             Options = options,
-            AllowCustomChoice = allowCustomChoice
+            AllowCustomChoice = allowCustomChoice,
+            Disabled = disabled
         };
     }
 }

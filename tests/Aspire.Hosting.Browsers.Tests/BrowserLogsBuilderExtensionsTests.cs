@@ -134,6 +134,34 @@ public class BrowserLogsBuilderExtensionsTests(ITestOutputHelper testOutputHelpe
     }
 
     [Fact]
+    public void WithBrowserLogs_ConfigureCommandSaveInputDescribesUnavailableUserSecrets()
+    {
+        using var builder = TestDistributedApplicationBuilder.Create(DistributedApplicationOperation.Run);
+
+        var web = builder.AddResource(new TestHttpResource("web"))
+            .WithHttpEndpoint(targetPort: 8080)
+            .WithEndpoint("http", endpoint => endpoint.AllocatedEndpoint = new AllocatedEndpoint(endpoint, "localhost", 8080))
+            .WithInitialState(new CustomResourceSnapshot
+            {
+                ResourceType = "TestHttp",
+                State = new ResourceStateSnapshot(KnownResourceStates.Running, KnownResourceStateStyles.Success),
+                Properties = []
+            });
+
+        web.WithBrowserLogs();
+
+        using var app = builder.Build();
+        var browserLogsResource = Assert.Single(app.Services.GetRequiredService<DistributedApplicationModel>().Resources.OfType<BrowserLogsResource>());
+        var configureCommand = Assert.Single(browserLogsResource.Annotations.OfType<ResourceCommandAnnotation>(), annotation => annotation.Name == BrowserLogsBuilderExtensions.ConfigureTrackedBrowserCommandName);
+        var arguments = configureCommand.Arguments;
+        var saveInput = arguments.Single(input => input.Name == BrowserLogsConfigurationManager.SaveToUserSecretsInputName);
+
+        Assert.True(saveInput.Disabled);
+        Assert.Null(saveInput.Value);
+        Assert.Equal(BrowserCommandStrings.ConfigureTrackedBrowserSaveToUserSecretsDescriptionNotConfigured, saveInput.Description);
+    }
+
+    [Fact]
     public void WithBrowserLogs_UsesResourceSpecificConfigurationWhenArgumentsAreOmitted()
     {
         using var builder = TestDistributedApplicationBuilder.Create(DistributedApplicationOperation.Run);

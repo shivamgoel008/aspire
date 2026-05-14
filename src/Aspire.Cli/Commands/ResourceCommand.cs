@@ -366,6 +366,17 @@ internal sealed class ResourceCommand : BaseCommand
             });
         }
 
+        if (argument.Disabled)
+        {
+            option.Validators.Add(result =>
+            {
+                if (result is { Implicit: false })
+                {
+                    result.AddError($"Option '--{optionName}' is disabled.");
+                }
+            });
+        }
+
         var exactName = $"--{argument.Name}";
         if (!string.Equals(exactName, $"--{optionName}", StringComparison.Ordinal))
         {

@@ -891,8 +891,41 @@ public class ParameterProcessorTests
                 Assert.Equal(ParameterProcessor.SetParameterValueName, valueInput.Name);
                 Assert.Equal("testParam", valueInput.Label);
                 Assert.Equal("testValue", valueInput.Value);
+                Assert.True(valueInput.Required);
             },
             saveInput => Assert.Equal(ParameterProcessor.SaveToUserSecretsName, saveInput.Name));
+    }
+
+    [Fact]
+    public async Task ProcessParameterAsync_WithSavedState_DefaultsSaveArgumentToTrue()
+    {
+        var testInteractionService = new TestInteractionService { IsAvailable = true };
+        var deploymentStateManager = new CapturingMockDeploymentStateManager();
+        var parameter = CreateParameterResource("testParam", "testValue");
+        var section = await deploymentStateManager.AcquireSectionAsync(parameter.ConfigurationKey).DefaultTimeout();
+        section.SetValue("testValue");
+        await deploymentStateManager.SaveSectionAsync(section).DefaultTimeout();
+
+        var parameterProcessor = CreateParameterProcessor(
+            interactionService: testInteractionService,
+            deploymentStateManager: deploymentStateManager);
+
+        await parameterProcessor.InitializeParametersAsync([parameter]).DefaultTimeout();
+
+        var setValueCommand = parameter.Annotations.OfType<ResourceCommandAnnotation>()
+            .Single(a => a.Name == KnownResourceCommands.SetParameterCommand);
+        var arguments = new InteractionInputCollection(setValueCommand.Arguments);
+        var saveInput = arguments[ParameterProcessor.SaveToUserSecretsName];
+
+        await saveInput.DynamicLoading!.LoadCallback(new LoadInputContext
+        {
+            Input = saveInput,
+            AllInputs = arguments,
+            Services = new ServiceCollection().BuildServiceProvider(),
+            CancellationToken = CancellationToken.None
+        }).DefaultTimeout();
+
+        Assert.Equal("true", saveInput.Value);
     }
 
     [Fact]

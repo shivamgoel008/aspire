@@ -195,7 +195,7 @@ public sealed class ParameterProcessor(
 
     private void AddSetParameterCommand(ParameterResource parameterResource)
     {
-        var valueInput = parameterResource.CreateInput(SetParameterValueName);
+        var valueInput = parameterResource.CreateInput(SetParameterValueName, required: true);
 
         // Pre-populate input with existing value if the parameter has one
         try
@@ -220,7 +220,22 @@ public sealed class ParameterProcessor(
                 ? InteractionStrings.ParametersInputsRememberDescriptionNotConfigured
                 : InteractionStrings.ParametersInputsRememberDescriptionConfigured,
             EnableDescriptionMarkdown = true,
-            Disabled = !userSecretsManager.IsAvailable
+            Disabled = !userSecretsManager.IsAvailable,
+            DynamicLoading = new InputLoadOptions
+            {
+                AlwaysLoadOnStart = true,
+                LoadCallback = async context =>
+                {
+                    if (context.Input.Value is null)
+                    {
+                        var parameterSection = await deploymentStateManager.AcquireSectionAsync(parameterResource.ConfigurationKey, context.CancellationToken).ConfigureAwait(false);
+                        if (parameterSection.Data.Count > 0 && !string.IsNullOrEmpty(context.AllInputs[SetParameterValueName].Value))
+                        {
+                            context.Input.Value = "true";
+                        }
+                    }
+                }
+            }
         };
 
         parameterResource.Annotations.Add(new ResourceCommandAnnotation(

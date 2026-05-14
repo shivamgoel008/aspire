@@ -35,7 +35,7 @@ internal sealed class BrowserLogsConfigurationManager(
     /// Creates the static argument definitions for the configure-tracked-browser command.
     /// Called at command registration time (before services are available).
     /// </summary>
-    internal static IReadOnlyList<InteractionInput> CreateArgumentDefinitions(BrowserLogsResource resource)
+    internal static IReadOnlyList<InteractionInput> CreateArgumentDefinitions(BrowserLogsResource resource, bool userSecretsAvailable)
     {
         var parentResourceName = resource.ParentResource.Name;
         var scopeInput = new InteractionInput
@@ -121,21 +121,13 @@ internal sealed class BrowserLogsConfigurationManager(
         {
             Name = SaveToUserSecretsInputName,
             Label = BrowserCommandStrings.ConfigureTrackedBrowserSaveToUserSecretsLabel,
-            Description = BrowserCommandStrings.ConfigureTrackedBrowserSaveToUserSecretsDescriptionConfigured,
+            Description = userSecretsAvailable
+                ? BrowserCommandStrings.ConfigureTrackedBrowserSaveToUserSecretsDescriptionConfigured
+                : BrowserCommandStrings.ConfigureTrackedBrowserSaveToUserSecretsDescriptionNotConfigured,
             EnableDescriptionMarkdown = true,
             InputType = InputType.Boolean,
-            // Dynamic loading populates the default value and disabled state based on
-            // whether user secrets are available at prompt time.
-            DynamicLoading = new InputLoadOptions
-            {
-                AlwaysLoadOnStart = true,
-                LoadCallback = context =>
-                {
-                    var configurationManager = context.Services.GetRequiredService<BrowserLogsConfigurationManager>();
-                    configurationManager.LoadSaveToUserSecretsOptions(context);
-                    return Task.CompletedTask;
-                }
-            }
+            Value = userSecretsAvailable ? "true" : null,
+            Disabled = !userSecretsAvailable
         };
 
         return [scopeInput, browserInput, userDataModeInput, profileInput, saveInput];
@@ -208,12 +200,6 @@ internal sealed class BrowserLogsConfigurationManager(
             var currentConfiguration = resource.ResolveCurrentConfiguration(configuration, configurationStore);
             context.Input.Value = currentConfiguration.UserDataMode.ToString();
         }
-    }
-
-    private void LoadSaveToUserSecretsOptions(LoadInputContext context)
-    {
-        context.Input.Value ??= userSecretsManager.IsAvailable ? "true" : null;
-        context.Input.Disabled = !userSecretsManager.IsAvailable;
     }
 
     private void LoadProfileOptions(BrowserLogsResource resource, LoadInputContext context)
