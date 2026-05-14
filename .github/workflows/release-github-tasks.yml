@@ -8,6 +8,14 @@
 #
 # Designed for idempotency - safe to re-run after partial failures.
 #
+# Invocation paths:
+# - Manual: triggered by a release manager via the Actions UI. The `authorize`
+#   job gates on admin/maintain permission for the dispatching user.
+# - Chained: dispatched automatically by the AzDO release-publish-nuget
+#   pipeline running as the aspire-repo-bot GitHub App. The authorize job
+#   recognizes this actor and bypasses the human permission check because
+#   the AzDO pipeline itself gates on AzDO release-publish permissions.
+#
 # For full documentation, see: docs/release-process.md
 
 name: Release GitHub Tasks
@@ -77,22 +85,32 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          echo "Checking if ${{ github.actor }} is authorized to run releases..."
-          
+          ACTOR="${{ github.actor }}"
+          echo "Checking if $ACTOR is authorized to run releases..."
+
+          # When the AzDO release pipeline dispatches this workflow, the actor
+          # is the aspire-repo-bot GitHub App (login: aspire-repo-bot[bot]).
+          # That path is already gated on AzDO release-publish permissions, so
+          # we skip the human admin/maintain check for the bot.
+          if [[ "$ACTOR" == "aspire-repo-bot[bot]" ]]; then
+            echo "✓ Dispatched by aspire-repo-bot via the AzDO release pipeline — skipping human permission check."
+            exit 0
+          fi
+
           # Get the user's permission level for this repo
-          PERMISSION=$(gh api repos/${{ github.repository }}/collaborators/${{ github.actor }}/permission --jq '.permission')
+          PERMISSION=$(gh api repos/${{ github.repository }}/collaborators/$ACTOR/permission --jq '.permission')
           
           echo "User permission level: $PERMISSION"
           
           # Only allow admin or maintain permission levels
           if [[ "$PERMISSION" != "admin" && "$PERMISSION" != "maintain" ]]; then
-            echo "❌ ERROR: User ${{ github.actor }} does not have sufficient permissions."
+            echo "❌ ERROR: User $ACTOR does not have sufficient permissions."
             echo "Required: 'admin' or 'maintain' permission level."
             echo "Current: '$PERMISSION'"
             exit 1
           fi
           
-          echo "✓ User ${{ github.actor }} is authorized (permission: $PERMISSION)"
+          echo "✓ User $ACTOR is authorized (permission: $PERMISSION)"
 
   validate:
     name: Validate Inputs
