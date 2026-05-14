@@ -1,0 +1,97 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.2" xsi:schemaLocation="urn:oasis:names:tc:xliff:document:1.2 xliff-core-1.2-transitional.xsd">
+  <file datatype="xml" source-language="en" target-language="ja" original="../UninstallCommandStrings.resx">
+    <body>
+      <trans-unit id="CompletedMessage">
+        <source>Uninstall complete.</source>
+        <target state="new">Uninstall complete.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ConfirmPrompt">
+        <source>Proceed with removal?</source>
+        <target state="new">Proceed with removal?</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ConflictingTargetsError">
+        <source>--pr and an explicit prefix path are mutually exclusive. Specify only one.</source>
+        <target state="new">--pr and an explicit prefix path are mutually exclusive. Specify only one.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="Description">
+        <source>Uninstall an Aspire CLI installation</source>
+        <target state="new">Uninstall an Aspire CLI installation</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="DryRunFooter">
+        <source>(dry run — nothing was removed)</source>
+        <target state="new">(dry run — nothing was removed)</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="DryRunOptionDescription">
+        <source>Print the actions that would be performed without modifying anything</source>
+        <target state="new">Print the actions that would be performed without modifying anything</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ManualStepsHeader">
+        <source>Not removed by `aspire uninstall` — handle manually:</source>
+        <target state="new">Not removed by `aspire uninstall` — handle manually:</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="MissingTargetError">
+        <source>Specify what to uninstall: either --pr &lt;N&gt; or an explicit install prefix path.</source>
+        <target state="new">Specify what to uninstall: either --pr &lt;N&gt; or an explicit install prefix path.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="NothingToDoMessage">
+        <source>Nothing to uninstall: {0}</source>
+        <target state="new">Nothing to uninstall: {0}</target>
+        <note>{0} is a short explanation produced by the planner.</note>
+      </trans-unit>
+      <trans-unit id="PartialFailureMessage">
+        <source>Uninstall failed partway through: {0}</source>
+        <target state="new">Uninstall failed partway through: {0}</target>
+        <note>{0} is the exception message from the first removal that failed.</note>
+      </trans-unit>
+      <trans-unit id="PlannedRemovalsHeader">
+        <source>The following will be removed:</source>
+        <target state="new">The following will be removed:</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="PrOptionDescription">
+        <source>Uninstall the PR / dogfood install at the default location (~/.aspire/dogfood/pr-&lt;N&gt;)</source>
+        <target state="new">Uninstall the PR / dogfood install at the default location (~/.aspire/dogfood/pr-&lt;N&gt;)</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="PrefixArgumentDescription">
+        <source>Absolute path of the install prefix to uninstall</source>
+        <target state="new">Absolute path of the install prefix to uninstall</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="PrefixHeader">
+        <source>Install prefix: {0}</source>
+        <target state="new">Install prefix: {0}</target>
+        <note>{0} is the absolute path of the install prefix being uninstalled.</note>
+      </trans-unit>
+      <trans-unit id="RefusalMessage">
+        <source>Refusing to uninstall: {0}</source>
+        <target state="new">Refusing to uninstall: {0}</target>
+        <note>{0} is a short explanation produced by the planner.</note>
+      </trans-unit>
+      <trans-unit id="RouteHeader">
+        <source>Detected route: {0}</source>
+        <target state="new">Detected route: {0}</target>
+        <note>{0} is the install route wire string (script / pr / winget / brew / dotnet-tool).</note>
+      </trans-unit>
+      <trans-unit id="UserDeclinedMessage">
+        <source>Aborted by user. Nothing was removed.</source>
+        <target state="new">Aborted by user. Nothing was removed.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="YesOptionDescription">
+        <source>Skip the confirmation prompt and proceed with removal</source>
+        <target state="new">Skip the confirmation prompt and proceed with removal</target>
+        <note />
+      </trans-unit>
+    </body>
+  </file>
+</xliff>

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" msdata:Ordinal="5" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Description" xml:space="preserve">
+    <value>Uninstall an Aspire CLI installation</value>
+  </data>
+  <data name="PrOptionDescription" xml:space="preserve">
+    <value>Uninstall the PR / dogfood install at the default location (~/.aspire/dogfood/pr-&lt;N&gt;)</value>
+  </data>
+  <data name="PrefixArgumentDescription" xml:space="preserve">
+    <value>Absolute path of the install prefix to uninstall</value>
+  </data>
+  <data name="YesOptionDescription" xml:space="preserve">
+    <value>Skip the confirmation prompt and proceed with removal</value>
+  </data>
+  <data name="DryRunOptionDescription" xml:space="preserve">
+    <value>Print the actions that would be performed without modifying anything</value>
+  </data>
+  <data name="MissingTargetError" xml:space="preserve">
+    <value>Specify what to uninstall: either --pr &lt;N&gt; or an explicit install prefix path.</value>
+  </data>
+  <data name="ConflictingTargetsError" xml:space="preserve">
+    <value>--pr and an explicit prefix path are mutually exclusive. Specify only one.</value>
+  </data>
+  <data name="PrefixHeader" xml:space="preserve">
+    <value>Install prefix: {0}</value>
+    <comment>{0} is the absolute path of the install prefix being uninstalled.</comment>
+  </data>
+  <data name="RouteHeader" xml:space="preserve">
+    <value>Detected route: {0}</value>
+    <comment>{0} is the install route wire string (script / pr / winget / brew / dotnet-tool).</comment>
+  </data>
+  <data name="PlannedRemovalsHeader" xml:space="preserve">
+    <value>The following will be removed:</value>
+  </data>
+  <data name="ManualStepsHeader" xml:space="preserve">
+    <value>Not removed by `aspire uninstall` — handle manually:</value>
+  </data>
+  <data name="DryRunFooter" xml:space="preserve">
+    <value>(dry run — nothing was removed)</value>
+  </data>
+  <data name="ConfirmPrompt" xml:space="preserve">
+    <value>Proceed with removal?</value>
+  </data>
+  <data name="UserDeclinedMessage" xml:space="preserve">
+    <value>Aborted by user. Nothing was removed.</value>
+  </data>
+  <data name="NothingToDoMessage" xml:space="preserve">
+    <value>Nothing to uninstall: {0}</value>
+    <comment>{0} is a short explanation produced by the planner.</comment>
+  </data>
+  <data name="RefusalMessage" xml:space="preserve">
+    <value>Refusing to uninstall: {0}</value>
+    <comment>{0} is a short explanation produced by the planner.</comment>
+  </data>
+  <data name="CompletedMessage" xml:space="preserve">
+    <value>Uninstall complete.</value>
+  </data>
+  <data name="PartialFailureMessage" xml:space="preserve">
+    <value>Uninstall failed partway through: {0}</value>
+    <comment>{0} is the exception message from the first removal that failed.</comment>
+  </data>
+</root>

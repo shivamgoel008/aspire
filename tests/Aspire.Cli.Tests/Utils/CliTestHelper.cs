@@ -157,6 +157,7 @@ internal static class CliTestHelper
         services.AddSingleton<BundleNuGetService>();
         services.AddSingleton<IInstallSidecarReader, InstallSidecarReader>();
         services.AddSingleton<IInstallationDiscovery, InstallationDiscovery>();
+        services.AddSingleton<IInstallationUninstaller, InstallationUninstaller>();
         services.AddSingleton<WingetFirstRunProbe>();
         if (OperatingSystem.IsWindows())
         {
@@ -229,6 +230,7 @@ internal static class CliTestHelper
         services.AddTransient<CertificatesTrustCommand>();
         services.AddTransient<DoctorCommand>();
         services.AddTransient<InfoCommand>();
+        services.AddTransient<UninstallCommand>();
         services.AddTransient<DashboardCommand>();
         services.AddTransient<DashboardRunCommand>();
         services.AddTransient<UpdateCommand>();
