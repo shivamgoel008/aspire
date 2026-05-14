@@ -6,7 +6,6 @@ using System.Formats.Tar;
 using System.IO.Compression;
 using System.IO.Hashing;
 using System.Text;
-using System.Text.Json;
 using Aspire.Cli.Acquisition;
 using Aspire.Cli.Layout;
 using Aspire.Cli.Utils;
@@ -342,47 +341,22 @@ internal sealed class BundleService(
             return null;
         }
 
-        var sidecarPath = Path.Combine(binaryDir, SidecarFileName);
-        var source = ReadSidecarSource(sidecarPath);
+        // Sidecar parsing is shared with InstallSidecarReader; the layout
+        // mapping below intentionally uses the raw wire string so the
+        // mapping remains a static, dependency-free function callable from
+        // any context (including code paths that run before DI is wired).
+        var sidecarPath = Path.Combine(binaryDir, InstallSidecarReader.SidecarFileName);
+        var source = InstallSidecarReader.ReadSourceField(sidecarPath);
 
         return source switch
         {
-            "winget" or "brew" or "dotnet-tool" => binaryDir,
-            "script" or "pr" => Path.GetDirectoryName(binaryDir) ?? binaryDir,
+            InstallSourceExtensions.WingetWire
+                or InstallSourceExtensions.BrewWire
+                or InstallSourceExtensions.DotnetToolWire => binaryDir,
+            InstallSourceExtensions.ScriptWire
+                or InstallSourceExtensions.PrWire => Path.GetDirectoryName(binaryDir) ?? binaryDir,
             _ => Path.GetDirectoryName(binaryDir) ?? binaryDir,
         };
-    }
-
-    private const string SidecarFileName = ".aspire-install.json";
-
-    private static string? ReadSidecarSource(string sidecarPath)
-    {
-        if (!File.Exists(sidecarPath))
-        {
-            return null;
-        }
-
-        try
-        {
-            using var stream = File.OpenRead(sidecarPath);
-            using var doc = JsonDocument.Parse(stream);
-            if (doc.RootElement.ValueKind == JsonValueKind.Object &&
-                doc.RootElement.TryGetProperty("source", out var sourceElement) &&
-                sourceElement.ValueKind == JsonValueKind.String)
-            {
-                return sourceElement.GetString();
-            }
-        }
-        catch (IOException)
-        {
-            // File disappeared between File.Exists and File.OpenRead, or read failed.
-        }
-        catch (JsonException)
-        {
-            // Sidecar exists but contains invalid JSON.
-        }
-
-        return null;
     }
 
     private static string ResolveSymlinks(string path)
