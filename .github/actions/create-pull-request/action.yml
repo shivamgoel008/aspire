@@ -107,8 +107,11 @@ runs:
           # the maintainer can fix the workflow input on their own schedule.
           LABEL_ARGS=()
           if [ -n "$LABELS" ]; then
-            # Fetch all label names in the repo once (paginated automatically by gh).
-            EXISTING_LABELS=$(gh label list --limit 200 --json name --jq '.[].name' 2>/dev/null || echo '')
+            # Fetch every label name in the repo. We use `--paginate` (and a
+            # generous --limit per page) so this stays correct even if the repo
+            # ever grows past a few hundred labels — `--limit` alone is an upper
+            # bound, not automatic pagination.
+            EXISTING_LABELS=$(gh label list --paginate --limit 500 --json name --jq '.[].name' 2>/dev/null || echo '')
             while IFS= read -r label; do
               label=$(echo "$label" | xargs)  # trim whitespace
               if [ -z "$label" ]; then

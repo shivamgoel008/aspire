@@ -115,9 +115,13 @@ while ([DateTime]::UtcNow -lt $resolveDeadline -and -not $runId) {
     }
 
     if ($runs.workflow_runs -and $runs.workflow_runs.Count -gt 0) {
-        # The list endpoint returns runs newest first. Pick the oldest one created
-        # after our dispatch timestamp — that's the run we just queued.
-        $candidate = $runs.workflow_runs | Sort-Object -Property created_at | Select-Object -First 1
+        # The list endpoint returns runs newest first. We pick the newest run
+        # that satisfies the created>=dispatchedAt-30s filter — the dispatch we
+        # just issued is by definition the most recent qualifying run on this
+        # branch+workflow. Picking the oldest qualifying run would attach us
+        # to an earlier dispatch within the clock-skew window (e.g. a quick
+        # re-run of this AzDO stage).
+        $candidate = $runs.workflow_runs | Sort-Object -Property created_at -Descending | Select-Object -First 1
         $runId = $candidate.id
         $runHtmlUrl = $candidate.html_url
         Write-Host "✓ Resolved dispatched run: $runHtmlUrl (id=$runId)"

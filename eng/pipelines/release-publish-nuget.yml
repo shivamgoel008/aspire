@@ -684,7 +684,11 @@ extends:
                   Write-Host "##vso[task.setvariable variable=CommitShaDerived]$commitSha"
                 displayName: 'Derive workflow inputs from source build'
 
-              - powershell: |
+              # pwsh (not powershell): Get-AspireBotInstallationToken.ps1 uses
+              # RSA.ImportFromPem, which is only available in .NET Core 3.0+ / .NET 5+.
+              # The legacy `powershell:` shorthand runs Windows PowerShell 5.1 on
+              # .NET Framework, which doesn't have that API and would fail at runtime.
+              - pwsh: |
                   $inputs = @{
                     release_version     = "${{ parameters.ReleaseVersion }}"
                     commit_sha          = "$(CommitShaDerived)"
@@ -758,7 +762,11 @@ extends:
                 artifact: BlobArtifacts
                 patterns: 'aspire-cli-*'
 
-              - powershell: |
+              # pwsh (not powershell): publish-release-cli-assets.ps1 calls
+              # Get-AspireBotInstallationToken.ps1, which uses RSA.ImportFromPem
+              # — only available in .NET Core 3.0+ / .NET 5+, not in the .NET
+              # Framework runtime backing the legacy `powershell:` shorthand.
+              - pwsh: |
                   $dryRun = [System.Convert]::ToBoolean("${{ parameters.DryRun }}")
                   $tag    = "v${{ parameters.ReleaseVersion }}"
 
