@@ -375,7 +375,7 @@ jobs:
           echo "   Title: Merge ${{ inputs.release_branch }} to main after v${{ inputs.release_version }} release"
           echo "   Head branch: ${{ inputs.release_branch }}"
           echo "   Base branch: main"
-          echo "   Labels: area-infrastructure, release-automation"
+          echo "   Labels: area-engineering-systems"
           echo ""
           echo "   PR body:"
           echo "   ─────────────────────────────────────"
@@ -407,8 +407,7 @@ jobs:
           base: main
           branch-already-exists: 'true'
           labels: |
-            area-infrastructure
-            release-automation
+            area-engineering-systems
 
   create-baseline-pr:
     name: Create Baseline Version PR
@@ -483,7 +482,7 @@ jobs:
           echo "   Title: Update PackageValidationBaselineVersion to $VERSION"
           echo "   Branch: $BRANCH_NAME"
           echo "   Base: main"
-          echo "   Labels: area-infrastructure, release-automation"
+          echo "   Labels: area-engineering-systems"
           echo ""
           echo "   File changes (src/Directory.Build.props):"
           echo "   ─────────────────────────────────────"
@@ -528,8 +527,7 @@ jobs:
           base: main
           branch-already-exists: 'true'
           labels: |
-            area-infrastructure
-            release-automation
+            area-engineering-systems
 
   summary:
     name: Release Summary
