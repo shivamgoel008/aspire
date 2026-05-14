@@ -61,7 +61,6 @@ await ingress.withTls('ingress-tls');
 // addCertManager / addIssuer / withLetsEncrypt* / withAcmeServer / withHttp01Solver /
 // gateway.withGatewayTlsIssuer.
 const acmeEmail = await builder.addParameter('acme-email');
-const acmeServer = await builder.addParameter('acme-server');
 
 const certManager = await kubernetes.addCertManager('cert-manager');
 
@@ -86,7 +85,7 @@ await customIssuer.withAcmeServer('https://acme.example.com/directory', 'admin@e
 await customIssuer.withHttp01Solver();
 
 const customIssuerParam = await certManager.addIssuer('custom-acme-param');
-await customIssuerParam.withAcmeServerParam(acmeServer, acmeEmail);
+await customIssuerParam.withAcmeServerParam('https://acme.example.com/directory', acmeEmail);
 await customIssuerParam.withHttp01Solver();
 
 // Wire the staging issuer onto the gateway via the typed cert-manager overload.
