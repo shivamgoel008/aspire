@@ -700,23 +700,10 @@ internal sealed class AppHostAuxiliaryBackchannel : IAppHostAuxiliaryBackchannel
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var maxBatchSize = follow ? 1 : 256;
-        List<ResourceLogLine>? batch = null;
 
-        await foreach (var logLine in logLines.WithCancellation(cancellationToken).ConfigureAwait(false))
+        await foreach (var batch in logLines.GetBatchesAsync(maxBatchSize, cancellationToken).ConfigureAwait(false))
         {
-            batch ??= new List<ResourceLogLine>(maxBatchSize);
-            batch.Add(logLine);
-
-            if (batch.Count == maxBatchSize)
-            {
-                yield return new ResourceLogBatch { Lines = batch.ToArray() };
-                batch.Clear();
-            }
-        }
-
-        if (batch is { Count: > 0 })
-        {
-            yield return new ResourceLogBatch { Lines = batch.ToArray() };
+            yield return new ResourceLogBatch { Lines = batch };
         }
     }
 
