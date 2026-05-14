@@ -4,6 +4,7 @@
 using Aspire.Cli.Acquisition;
 using Aspire.Cli.Tests.TestServices;
 using Aspire.Cli.Tests.Utils;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Aspire.Cli.Tests.Acquisition;
@@ -236,6 +237,65 @@ public class InstallationDiscoveryDiscoverAllTests(ITestOutputHelper outputHelpe
     }
 
     [Fact]
+    public async Task DiscoverAllAsync_LogsTrustGateRejection_AtDebugLevel()
+    {
+        // When the trust gate rejects a candidate (no sidecar), the user
+        // should see WHY in --log-level debug output. Without this, an
+        // install that "doesn't show up correctly" in `aspire info --all`
+        // is hard to diagnose.
+        using var workspace = TemporaryWorkspace.Create(outputHelper);
+        var pathDir = Path.Combine(workspace.WorkspaceRoot.FullName, "untrusted-bin");
+        Directory.CreateDirectory(pathDir);
+        var untrustedBinary = WriteFakeBinary(pathDir);
+
+        using var _ = new EnvVarOverride("PATH", pathDir + Path.PathSeparator + (Environment.GetEnvironmentVariable("PATH") ?? string.Empty));
+        using var __ = new EnvVarOverride("HOME", workspace.WorkspaceRoot.FullName);
+        using var ___ = new EnvVarOverride("USERPROFILE", workspace.WorkspaceRoot.FullName);
+
+        var capturedLog = new CapturingLogger<InstallationDiscovery>();
+        var discovery = new InstallationDiscovery(
+            channelReader: new FakeIdentityChannelReader("local"),
+            sidecarReader: new InstallSidecarReader(),
+            peerProbe: new FakePeerInstallProbe(),
+            logger: capturedLog);
+
+        await discovery.DiscoverAllAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains(capturedLog.Entries, e =>
+            e.Level == LogLevel.Debug &&
+            e.Message.Contains("no .aspire-install.json sidecar", StringComparison.Ordinal) &&
+            e.Message.Contains("trust gate", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DiscoverAllAsync_LogsDogfoodDirectoryWithoutBinary_AtDebugLevel()
+    {
+        // A stale ~/.aspire/dogfood/pr-N directory without a bin/aspire
+        // inside (failed install, partial uninstall, manual mucking) is
+        // worth flagging in debug output so the user can correlate.
+        using var workspace = TemporaryWorkspace.Create(outputHelper);
+        var staleDogfoodDir = Path.Combine(workspace.WorkspaceRoot.FullName, ".aspire", "dogfood", "pr-9999");
+        Directory.CreateDirectory(staleDogfoodDir); // exists, but no bin/aspire inside
+
+        using var _ = new EnvVarOverride("HOME", workspace.WorkspaceRoot.FullName);
+        using var __ = new EnvVarOverride("USERPROFILE", workspace.WorkspaceRoot.FullName);
+
+        var capturedLog = new CapturingLogger<InstallationDiscovery>();
+        var discovery = new InstallationDiscovery(
+            channelReader: new FakeIdentityChannelReader("local"),
+            sidecarReader: new InstallSidecarReader(),
+            peerProbe: new FakePeerInstallProbe(),
+            logger: capturedLog);
+
+        await discovery.DiscoverAllAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains(capturedLog.Entries, e =>
+            e.Level == LogLevel.Debug &&
+            e.Message.Contains(staleDogfoodDir, StringComparison.Ordinal) &&
+            e.Message.Contains("not classifying as a real install", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task DiscoverAllAsync_RunningCliIsAlwaysFirst()
     {
         // Self must appear first regardless of what walks find — both for
@@ -288,6 +348,28 @@ public class InstallationDiscoveryDiscoverAllTests(ITestOutputHelper outputHelpe
         var path = Path.Combine(dir, name);
         File.WriteAllBytes(path, [0x00]); // existence is what matters
         return path;
+    }
+}
+
+/// <summary>
+/// In-memory logger that records every log call so tests can assert
+/// on the structured rejection messages emitted by InstallationDiscovery.
+/// </summary>
+internal sealed class CapturingLogger<T> : ILogger<T>
+{
+    public List<(LogLevel Level, string Message)> Entries { get; } = new();
+
+    public IDisposable BeginScope<TState>(TState state) where TState : notnull => NullScope.Instance;
+    public bool IsEnabled(LogLevel logLevel) => true;
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    {
+        Entries.Add((logLevel, formatter(state, exception)));
+    }
+
+    private sealed class NullScope : IDisposable
+    {
+        public static readonly NullScope Instance = new();
+        public void Dispose() { }
     }
 }
 

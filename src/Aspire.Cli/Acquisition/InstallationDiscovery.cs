@@ -103,8 +103,18 @@ internal sealed class InstallationDiscovery : IInstallationDiscovery
             cancellationToken.ThrowIfCancellationRequested();
 
             var canonical = ResolveCanonicalPath(candidate.BinaryPath);
-            if (string.IsNullOrEmpty(canonical) || !seen.Add(canonical))
+            if (string.IsNullOrEmpty(canonical))
             {
+                _logger.LogDebug(
+                    "Discovery: skipping candidate '{Candidate}' (origin: {Origin}) — could not resolve a canonical path; treating as not a real install.",
+                    candidate.BinaryPath, candidate.Origin);
+                continue;
+            }
+            if (!seen.Add(canonical))
+            {
+                _logger.LogDebug(
+                    "Discovery: skipping duplicate of '{Canonical}' found via {Origin} at '{Candidate}'.",
+                    canonical, candidate.Origin, candidate.BinaryPath);
                 continue;
             }
 
@@ -114,17 +124,34 @@ internal sealed class InstallationDiscovery : IInstallationDiscovery
             // Trust gate (RD-2): we only spawn peers that carry a readable
             // install-route sidecar with a known source. Untrusted PATH
             // hits become notProbed rows so users still see they exist
-            // but we never execute them.
-            if (sidecar is null || sidecar.Source == InstallSource.Unknown)
+            // but we never execute them. Logged so a developer running
+            // with --log-level debug can see exactly why a candidate
+            // didn't get classified as a real install.
+            if (sidecar is null)
             {
+                _logger.LogDebug(
+                    "Discovery: candidate '{Canonical}' (origin: {Origin}) has no .aspire-install.json sidecar at '{BinaryDir}' — treating as not-probed (trust gate).",
+                    canonical, candidate.Origin, binaryDir);
                 results.Add(new InstallationInfo
                 {
                     Path = candidate.BinaryPath,
                     CanonicalPath = canonical,
                     Status = InstallationInfoStatus.NotProbed,
-                    StatusReason = sidecar is null
-                        ? "No install-route sidecar found (trust gate)."
-                        : $"Sidecar reports unknown source '{sidecar.RawSource ?? "(empty)"}' (trust gate).",
+                    StatusReason = "No install-route sidecar found (trust gate).",
+                });
+                continue;
+            }
+            if (sidecar.Source == InstallSource.Unknown)
+            {
+                _logger.LogDebug(
+                    "Discovery: candidate '{Canonical}' (origin: {Origin}) has sidecar at '{SidecarPath}' but its source value '{RawSource}' is not a known install route — treating as not-probed (trust gate).",
+                    canonical, candidate.Origin, sidecar.SidecarPath, sidecar.RawSource ?? "(empty)");
+                results.Add(new InstallationInfo
+                {
+                    Path = candidate.BinaryPath,
+                    CanonicalPath = canonical,
+                    Status = InstallationInfoStatus.NotProbed,
+                    StatusReason = $"Sidecar reports unknown source '{sidecar.RawSource ?? "(empty)"}' (trust gate).",
                 });
                 continue;
             }
@@ -159,6 +186,9 @@ internal sealed class InstallationDiscovery : IInstallationDiscovery
                     });
                     break;
                 case PeerProbeResult.Failed failed:
+                    _logger.LogDebug(
+                        "Discovery: candidate '{Canonical}' (origin: {Origin}, route: {Route}) failed peer probe: {Reason}.",
+                        canonical, candidate.Origin, sidecar.Source.ToWireString(), failed.Reason);
                     results.Add(new InstallationInfo
                     {
                         Path = candidate.BinaryPath,
@@ -331,25 +361,43 @@ internal sealed class InstallationDiscovery : IInstallationDiscovery
     /// <summary>
     /// Yields discovery candidates in priority order:
     /// <c>$PATH</c> hit (if any), well-known prefixes, dotnet-tool store.
+    /// Each candidate carries an <c>Origin</c> tag identifying which
+    /// discovery source produced it so the rejection logs can pinpoint
+    /// the responsible walk (e.g. "dogfood: directory exists but bin/aspire
+    /// is missing — was the install corrupted?").
     /// </summary>
-    private static IEnumerable<DiscoveryCandidate> EnumerateDiscoveryCandidates(PathHit? pathHit)
+    private IEnumerable<DiscoveryCandidate> EnumerateDiscoveryCandidates(PathHit? pathHit)
     {
         if (pathHit is not null)
         {
-            yield return new DiscoveryCandidate(pathHit.OriginalPath);
+            yield return new DiscoveryCandidate(pathHit.OriginalPath, "$PATH");
         }
 
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         if (string.IsNullOrEmpty(home))
         {
+            _logger.LogDebug("Discovery: no user home directory available; skipping well-known prefix walk and dotnet-tool store probe.");
             yield break;
         }
 
-        // Release-script default.
-        var releaseBinary = Path.Combine(home, ".aspire", "bin", OperatingSystem.IsWindows() ? "aspire.exe" : "aspire");
+        // Release-script default. We always check for the binary at the
+        // canonical location even when the parent dir is absent, because
+        // File.Exists short-circuits cleanly.
+        var releaseDir = Path.Combine(home, ".aspire", "bin");
+        var releaseBinary = Path.Combine(releaseDir, OperatingSystem.IsWindows() ? "aspire.exe" : "aspire");
         if (File.Exists(releaseBinary))
         {
-            yield return new DiscoveryCandidate(releaseBinary);
+            yield return new DiscoveryCandidate(releaseBinary, "well-known release prefix");
+        }
+        else if (Directory.Exists(releaseDir))
+        {
+            // Bin dir exists but no `aspire` inside it — likely a partially
+            // removed install or a third-party `~/.aspire/bin` use. Worth
+            // surfacing in debug logs so the user can correlate with their
+            // expectation.
+            _logger.LogDebug(
+                "Discovery: release prefix directory '{ReleaseDir}' exists but does not contain an 'aspire' binary — not classifying as a real install.",
+                releaseDir);
         }
 
         // PR-script default: ~/.aspire/dogfood/pr-*/bin/aspire[.exe].
@@ -358,10 +406,21 @@ internal sealed class InstallationDiscovery : IInstallationDiscovery
         {
             foreach (var prDir in EnumerateDirectoriesSafe(dogfoodRoot))
             {
-                var binary = Path.Combine(prDir, "bin", OperatingSystem.IsWindows() ? "aspire.exe" : "aspire");
+                var binDir = Path.Combine(prDir, "bin");
+                var binary = Path.Combine(binDir, OperatingSystem.IsWindows() ? "aspire.exe" : "aspire");
                 if (File.Exists(binary))
                 {
-                    yield return new DiscoveryCandidate(binary);
+                    yield return new DiscoveryCandidate(binary, "dogfood prefix");
+                }
+                else
+                {
+                    // A dogfood pr-N directory without bin/aspire is most
+                    // commonly a stale leftover from a failed install or a
+                    // partial uninstall. Log so the user can see exactly
+                    // which dir was expected to host an install but didn't.
+                    _logger.LogDebug(
+                        "Discovery: dogfood directory '{PrDir}' exists but does not contain a '{Bin}/aspire' binary — not classifying as a real install.",
+                        prDir, "bin");
                 }
             }
         }
@@ -385,17 +444,25 @@ internal sealed class InstallationDiscovery : IInstallationDiscovery
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
+                _logger.LogDebug(ex, "Discovery: failed to enumerate dotnet-tool store at '{ToolStore}'.", toolStore);
                 matches = [];
-                _ = ex;
             }
+            var anyMatch = false;
             foreach (var match in matches)
             {
-                yield return new DiscoveryCandidate(match);
+                anyMatch = true;
+                yield return new DiscoveryCandidate(match, "dotnet-tool store");
+            }
+            if (!anyMatch)
+            {
+                _logger.LogDebug(
+                    "Discovery: dotnet-tool store '{ToolStore}' exists but contains no '{BinaryName}' binary — not classifying as a real install.",
+                    toolStore, binaryName);
             }
         }
     }
 
-    private static IEnumerable<string> EnumerateDirectoriesSafe(string root)
+    private IEnumerable<string> EnumerateDirectoriesSafe(string root)
     {
         try
         {
@@ -403,13 +470,13 @@ internal sealed class InstallationDiscovery : IInstallationDiscovery
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _ = ex;
+            _logger.LogDebug(ex, "Discovery: failed to enumerate directories under '{Root}'.", root);
             return [];
         }
     }
 
     private sealed record PathHit(string OriginalPath, string CanonicalPath);
 
-    private sealed record DiscoveryCandidate(string BinaryPath);
+    private sealed record DiscoveryCandidate(string BinaryPath, string Origin);
 }
 
