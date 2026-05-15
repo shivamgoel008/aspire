@@ -199,8 +199,8 @@ public class InfoCommandTests(ITestOutputHelper outputHelper)
     public async Task InfoCommand_Json_AlwaysEmitsArray_EvenForSingleSelfRow()
     {
         // The array shape is part of the JSON contract — consumers must not
-        // need to special-case "self-only" vs "--all" results. Verifies the
-        // top-level is a JSON array even when discovery returns one row.
+        // need to special-case "self-only" vs full-discovery results. Use
+        // --self so the test never probes host PATH for peer installs.
         using var workspace = TemporaryWorkspace.Create(outputHelper);
         var interactionService = new TestInteractionService();
         var services = CliTestHelper.CreateServiceCollection(workspace, outputHelper, options =>
@@ -210,14 +210,14 @@ public class InfoCommandTests(ITestOutputHelper outputHelper)
         using var provider = services.BuildServiceProvider();
 
         var command = provider.GetRequiredService<Aspire.Cli.Commands.RootCommand>();
-        var result = command.Parse("info --format json");
+        var result = command.Parse("info --self --format json");
         var exitCode = await result.InvokeAsync().DefaultTimeout();
         Assert.Equal(ExitCodeConstants.Success, exitCode);
 
         var (json, _) = Assert.Single(interactionService.DisplayedRawText);
         using var doc = JsonDocument.Parse(json);
         Assert.Equal(JsonValueKind.Array, doc.RootElement.ValueKind);
-        Assert.True(doc.RootElement.GetArrayLength() >= 1);
+        Assert.Equal(1, doc.RootElement.GetArrayLength());
     }
 
     [Fact]
