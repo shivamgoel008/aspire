@@ -315,6 +315,92 @@ public sealed class ParameterProcessor(
         }
     }
 
+    /// <summary>
+    /// Prompts the user to set a value for a single parameter.
+    /// </summary>
+    /// <param name="parameterResource">The parameter resource to set the value for.</param>
+    /// <param name="cancellationToken">The cancellation token to observe while waiting for the interaction to complete.</param>
+    /// <returns>A task that completes when the user has set the value or canceled the interaction.</returns>
+    public async Task SetParameterAsync(ParameterResource parameterResource, CancellationToken cancellationToken = default)
+    {
+        var input = parameterResource.CreateInput(SetParameterValueName);
+
+        try
+        {
+            var existingValue = parameterResource.ValueInternal;
+            if (!string.IsNullOrEmpty(existingValue))
+            {
+                input.Value = existingValue;
+            }
+        }
+        catch (Exception)
+        {
+            // ValueInternal can throw when the parameter is unresolved; leave the input empty.
+        }
+
+        var parameterSection = await deploymentStateManager.AcquireSectionAsync(parameterResource.ConfigurationKey, cancellationToken).ConfigureAwait(false);
+        var hasSavedState = parameterSection.Data.Count > 0 && input.Value is not null;
+        var saveParameterInput = CreateSaveParameterInput(hasSavedState);
+
+        var result = await interactionService.PromptInputsAsync(
+            InteractionStrings.SetParameterTitle,
+            InteractionStrings.SetParameterMessage,
+            [input, saveParameterInput],
+            new InputsDialogInteractionOptions
+            {
+                PrimaryButtonText = InteractionStrings.ParametersInputsPrimaryButtonText,
+                ShowDismiss = true,
+                EnableMessageMarkdown = true,
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        if (!result.Canceled)
+        {
+            await SetParameterCoreAsync(parameterResource, result.Data, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Prompts the user to delete a parameter value.
+    /// </summary>
+    /// <param name="parameterResource">The parameter resource to delete the value for.</param>
+    /// <param name="cancellationToken">The cancellation token to observe while waiting for the interaction to complete.</param>
+    /// <returns>A task that completes when the user has deleted the value or canceled the interaction.</returns>
+    public async Task DeleteParameterAsync(ParameterResource parameterResource, CancellationToken cancellationToken = default)
+    {
+        var parameterSection = await deploymentStateManager.AcquireSectionAsync(parameterResource.ConfigurationKey, cancellationToken).ConfigureAwait(false);
+        var hasSavedState = parameterSection.Data.Count > 0;
+        var message = string.Format(CultureInfo.CurrentCulture, InteractionStrings.DeleteParameterMessage, parameterResource.Name);
+        var deleteFromUserSecretsInput = new InteractionInput
+        {
+            Name = DeleteFromUserSecretsName,
+            InputType = InputType.Boolean,
+            Label = InteractionStrings.ParametersInputsDeleteLabel,
+            Description = InteractionStrings.ParametersInputsDeleteDescription,
+            EnableDescriptionMarkdown = true
+        };
+        var inputs = hasSavedState ? [deleteFromUserSecretsInput] : Array.Empty<InteractionInput>();
+
+        var result = await interactionService.PromptInputsAsync(
+            InteractionStrings.DeleteParameterTitle,
+            message,
+            inputs,
+            new InputsDialogInteractionOptions
+            {
+                PrimaryButtonText = InteractionStrings.DeleteParameterPrimaryButtonText,
+                ShowDismiss = true,
+                EnableMessageMarkdown = true,
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        if (result.Canceled)
+        {
+            return;
+        }
+
+        await DeleteParameterCoreAsync(parameterResource, result.Data, cancellationToken).ConfigureAwait(false);
+    }
+
     private InteractionInput CreateSaveParameterInput(bool hasExistingValue)
     {
         return new InteractionInput
@@ -353,7 +439,8 @@ public sealed class ParameterProcessor(
     {
         try
         {
-            var deleteFromUserSecrets = arguments[DeleteFromUserSecretsName].Value is { Length: > 0 } deleteInputValue &&
+            var deleteFromUserSecrets = arguments.TryGetByName(DeleteFromUserSecretsName, out var deleteFromUserSecretsInput) &&
+                deleteFromUserSecretsInput.Value is { Length: > 0 } deleteInputValue &&
                 bool.TryParse(deleteInputValue, out var shouldDelete) && shouldDelete;
 
             if (deleteFromUserSecrets)
