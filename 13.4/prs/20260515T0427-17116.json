@@ -1,0 +1,9 @@
+{
+  "author": "davidfowl",
+  "comment": "Routine ADO pipeline warning noise reduction, no meaningful developer impact",
+  "mergedAt": "2026-05-15T04:27:49Z",
+  "number": 17116,
+  "runDate": "2026-05-15T05:20:55Z",
+  "status": "excluded",
+  "title": "Reduce ADO pipeline warning noise"
+}

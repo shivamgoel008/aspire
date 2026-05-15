@@ -1,0 +1,9 @@
+{
+  "author": "mitchdenny",
+  "comment": "Test-only fix updating container image tag in ACA deployment tests",
+  "mergedAt": "2026-05-15T05:07:10Z",
+  "number": 17014,
+  "runDate": "2026-05-15T05:20:55Z",
+  "status": "excluded",
+  "title": "Use aspnetapp-9.0 tag in ACA compact naming deployment tests"
+}

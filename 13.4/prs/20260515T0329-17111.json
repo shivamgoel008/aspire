@@ -1,0 +1,9 @@
+{
+  "author": "JamesNK",
+  "comment": "Test-only stabilization for replicated resource URL test",
+  "mergedAt": "2026-05-15T03:29:13Z",
+  "number": 17111,
+  "runDate": "2026-05-15T05:20:55Z",
+  "status": "excluded",
+  "title": "Stabilize replicated resource URL test"
+}

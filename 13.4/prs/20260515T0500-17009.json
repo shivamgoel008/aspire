@@ -1,0 +1,9 @@
+{
+  "author": "radical",
+  "comment": "Fix aspire init generating AppHost projects that fail to restore on non-stable channels; grouped with PR 16690",
+  "mergedAt": "2026-05-15T05:00:53Z",
+  "number": 17009,
+  "runDate": "2026-05-15T05:20:55Z",
+  "status": "included",
+  "title": "Fix `aspire init` producing AppHost projects that fail to restore on non-stable channels"
+}

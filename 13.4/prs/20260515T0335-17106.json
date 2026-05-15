@@ -1,0 +1,9 @@
+{
+  "author": "JamesNK",
+  "comment": "Adds debug-only render scenario for hidden aspire render command, not a user-facing change",
+  "mergedAt": "2026-05-15T03:35:24Z",
+  "number": 17106,
+  "runDate": "2026-05-15T05:20:55Z",
+  "status": "excluded",
+  "title": "Add render command link scenario"
+}

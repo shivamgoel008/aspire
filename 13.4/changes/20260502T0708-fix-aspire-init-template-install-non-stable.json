@@ -1,19 +1,20 @@
 {
   "area": "CLI",
-  "areaEmoji": "\ud83d\udcbb",
+  "areaEmoji": "💻",
   "backport": false,
   "breaking": false,
   "changeType": "Bug fixes",
   "communityContributors": [],
-  "description": "Fixed `aspire init` failing to install templates when using non-stable (preview or CI) CLI builds, ensuring template installation works correctly regardless of build channel.",
+  "description": "Fixed multiple `aspire init` failures on non-stable CLI builds: template installation now works on preview and CI channels, and generated AppHost projects no longer fail to restore because the workspace NuGet config correctly references the local package hive.",
   "docsPrs": [],
   "docsRequired": false,
-  "emoji": "\ud83d\udd29",
+  "emoji": "🔩",
   "firstMergedAt": "2026-05-02T07:08:36Z",
-  "lastMergedAt": "2026-05-02T07:08:36Z",
-  "name": "Fix aspire init template install for non-stable builds",
-  "owner": "mitchdenny",
+  "lastMergedAt": "2026-05-15T05:00:53Z",
+  "name": "Fix aspire init on non-stable channels",
+  "owner": "radical",
   "prs": [
-    16690
+    16690,
+    17009
   ]
 }
