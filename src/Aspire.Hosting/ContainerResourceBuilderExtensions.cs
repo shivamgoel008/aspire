@@ -535,6 +535,10 @@ public static class ContainerResourceBuilderExtensions
     /// <param name="lifetime">The lifetime behavior of the container resource. The default behavior is <see cref="ContainerLifetime.Session"/>.</param>
     /// <returns>The <see cref="IResourceBuilder{T}"/>.</returns>
     /// <remarks>
+    /// <para>
+    /// Prefer <see cref="ResourceBuilderExtensions.WithPersistentLifetime{T}(IResourceBuilder{T})"/> or
+    /// <see cref="ResourceBuilderExtensions.WithSessionLifetime{T}(IResourceBuilder{T})"/> for new code.
+    /// </para>
     /// <example>
     /// Marking a container resource to have a <see cref="ContainerLifetime.Persistent"/> lifetime.
     /// <code language="csharp">
@@ -547,7 +551,6 @@ public static class ContainerResourceBuilderExtensions
     /// </code>
     /// </example>
     /// </remarks>
-    [Obsolete("Use WithPersistentLifetime or WithSessionLifetime instead.")]
     [AspireExportIgnore(Reason = "Polyglot app hosts use WithPersistentLifetime or WithSessionLifetime instead.")]
     public static IResourceBuilder<T> WithLifetime<T>(this IResourceBuilder<T> builder, ContainerLifetime lifetime) where T : ContainerResource
     {
