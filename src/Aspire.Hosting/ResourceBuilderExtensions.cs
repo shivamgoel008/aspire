@@ -16,6 +16,7 @@ using Aspire.Hosting.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using SystemProcess = System.Diagnostics.Process;
 
 namespace Aspire.Hosting;
 
@@ -64,6 +65,43 @@ public static class ResourceBuilderExtensions
         }
 
         throw new InvalidOperationException($"Resource '{builder.Resource.Name}' does not support lifetime configuration.");
+    }
+
+    /// <summary>
+    /// Configures a resource to use a persistent lifetime that ends when a parent process exits.
+    /// </summary>
+    /// <typeparam name="T">The resource type.</typeparam>
+    /// <param name="builder">The resource builder.</param>
+    /// <param name="parentProcess">The parent process to monitor.</param>
+    /// <returns>The <see cref="IResourceBuilder{T}"/>.</returns>
+    /// <remarks>
+    /// This method also sets the resource lifetime to <see cref="Lifetime.Persistent"/>. The resource is tied to both
+    /// the configured process ID and the process identity timestamp to avoid accidentally matching a reused process ID.
+    /// <example>
+    /// Configure a resource to remain available across app host restarts, but clean it up when a parent process exits.
+    /// <code language="csharp">
+    /// var builder = DistributedApplication.CreateBuilder(args);
+    ///
+    /// using var parentProcess = Process.GetProcessById(1234);
+    /// builder.AddProject&lt;Projects.ApiService&gt;("api")
+    ///        .WithParentProcessLifetime(parentProcess);
+    ///
+    /// builder.Build().Run();
+    /// </code>
+    /// </example>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="parentProcess"/> is <see langword="null"/>.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the resource does not support lifetime configuration.</exception>
+    [AspireExportIgnore(Reason = "System.Diagnostics.Process is a .NET runtime type not usable from polyglot hosts.")]
+    public static IResourceBuilder<T> WithParentProcessLifetime<T>(this IResourceBuilder<T> builder, SystemProcess parentProcess)
+        where T : IResource
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(parentProcess);
+
+        return builder
+            .WithLifetime(Lifetime.Persistent)
+            .WithAnnotation(new ParentProcessLifetimeAnnotation(parentProcess), ResourceAnnotationMutationBehavior.Replace);
     }
 
     /// <summary>

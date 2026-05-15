@@ -177,7 +177,7 @@ internal sealed class ExecutableCreator : IObjectCreator<Executable, EmptyCreati
                 exe.Spec.Persistent = persistent;
                 if (persistent)
                 {
-                    ApplyMonitorProcess(exe.Spec);
+                    ApplyMonitorProcess(project, exe.Spec);
                 }
 
                 SupportsDebuggingAnnotation? supportsDebuggingAnnotation = null;
@@ -294,7 +294,7 @@ internal sealed class ExecutableCreator : IObjectCreator<Executable, EmptyCreati
             if (persistent)
             {
                 exe.Spec.Persistent = true;
-                ApplyMonitorProcess(exe.Spec);
+                ApplyMonitorProcess(executable, exe.Spec);
             }
 
             if (!persistent && executable.SupportsDebugging(_configuration, out _))
@@ -322,10 +322,11 @@ internal sealed class ExecutableCreator : IObjectCreator<Executable, EmptyCreati
         }
     }
 
-    private void ApplyMonitorProcess(ExecutableSpec spec)
+    private void ApplyMonitorProcess(IResource resource, ExecutableSpec spec)
     {
-        if (_processMonitor.GetMonitorProcess() is { } monitorProcess)
+        if (resource.TryGetLastAnnotation<ParentProcessLifetimeAnnotation>(out var annotation))
         {
+            var monitorProcess = _processMonitor.GetMonitorProcess(annotation.ParentProcess);
             spec.MonitorPid = monitorProcess.ProcessId;
             spec.MonitorTimestamp = monitorProcess.Timestamp;
         }

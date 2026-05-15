@@ -158,7 +158,7 @@ internal sealed class ContainerCreator : IObjectCreator<Container, ContainerCrea
             if (container.GetContainerLifetimeType() == ContainerLifetime.Persistent)
             {
                 ctr.Spec.Persistent = true;
-                ApplyMonitorProcess(ctr.Spec);
+                ApplyMonitorProcess(container, ctr.Spec);
             }
 
             if (container.TryGetContainerImagePullPolicy(out var pullPolicy))
@@ -210,10 +210,11 @@ internal sealed class ContainerCreator : IObjectCreator<Container, ContainerCrea
         return result;
     }
 
-    private void ApplyMonitorProcess(ContainerSpec spec)
+    private void ApplyMonitorProcess(IResource resource, ContainerSpec spec)
     {
-        if (_processMonitor.GetMonitorProcess() is { } monitorProcess)
+        if (resource.TryGetLastAnnotation<ParentProcessLifetimeAnnotation>(out var annotation))
         {
+            var monitorProcess = _processMonitor.GetMonitorProcess(annotation.ParentProcess);
             spec.MonitorPid = monitorProcess.ProcessId;
             spec.MonitorTimestamp = monitorProcess.Timestamp;
         }
