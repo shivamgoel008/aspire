@@ -78,7 +78,11 @@ public class RabbitMQFunctionalTests(ITestOutputHelper testOutputHelper)
 
         await using var channel = await connection.CreateChannelAsync();
         const string queueName = "hello";
-        await channel.QueueDeclareAsync(queueName, durable: false, exclusive: false, autoDelete: false, arguments: null);
+        // Declare as transient exclusive (queue auto-deleted when the connection closes).
+        // RabbitMQ 4.3+ disables the deprecated `transient_nonexcl_queues` feature by default,
+        // so non-durable + non-exclusive queues are rejected with AMQP error 541.
+        // See https://github.com/rabbitmq/rabbitmq-server/releases/tag/v4.3.0.
+        await channel.QueueDeclareAsync(queueName, durable: false, exclusive: true, autoDelete: false, arguments: null);
 
         const string message = "Hello World!";
         var body = Encoding.UTF8.GetBytes(message);
