@@ -129,7 +129,8 @@ public class BrowserLogsBuilderExtensionsTests(ITestOutputHelper testOutputHelpe
         Assert.Equal("custom-browser", browserInput.Value);
         Assert.Equal(nameof(BrowserUserDataMode.Shared), userDataModeInput.Value);
         Assert.Equal("Profile 1", profileInput.Value);
-        Assert.Contains(browserInput.Options!, option => option.Key == "custom-browser" && option.Value == "custom-browser");
+        var knownBrowserOptionKeys = new HashSet<string>(["msedge", "chrome", "chromium"], StringComparer.OrdinalIgnoreCase);
+        Assert.All(browserInput.Options!, option => Assert.Contains(option.Key, knownBrowserOptionKeys));
         Assert.Contains(profileInput.Options!, option => option.Key == "Profile 1" && option.Value == "Profile 1");
     }
 

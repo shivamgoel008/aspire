@@ -38,6 +38,11 @@ internal sealed class BrowserLogsConfigurationManager(
     internal static IReadOnlyList<InteractionInput> CreateArgumentDefinitions(BrowserLogsResource resource, bool userSecretsAvailable)
     {
         var parentResourceName = resource.ParentResource.Name;
+        var browserOptions = new List<KeyValuePair<string, string>>();
+        AddKnownBrowser("msedge", BrowserCommandStrings.ConfigureTrackedBrowserEdgeOption);
+        AddKnownBrowser("chrome", BrowserCommandStrings.ConfigureTrackedBrowserChromeOption);
+        AddKnownBrowser("chromium", BrowserCommandStrings.ConfigureTrackedBrowserChromiumOption);
+
         var scopeInput = new InteractionInput
         {
             Name = ScopeInputName,
@@ -60,14 +65,14 @@ internal sealed class BrowserLogsConfigurationManager(
             InputType = InputType.Choice,
             Required = true,
             AllowCustomChoice = true,
-            // DynamicLoading populates the current browser value and the list of available browsers at prompt time.
+            Options = browserOptions,
             DynamicLoading = new InputLoadOptions
             {
                 AlwaysLoadOnStart = true,
                 LoadCallback = context =>
                 {
                     var configurationManager = context.Services.GetRequiredService<BrowserLogsConfigurationManager>();
-                    configurationManager.LoadBrowserOptions(resource, context);
+                    configurationManager.LoadBrowserValue(resource, context);
                     return Task.CompletedTask;
                 }
             }
@@ -131,6 +136,14 @@ internal sealed class BrowserLogsConfigurationManager(
         };
 
         return [scopeInput, browserInput, userDataModeInput, profileInput, saveInput];
+
+        void AddKnownBrowser(string browser, string displayName)
+        {
+            if (ChromiumBrowserResolver.TryResolveExecutable(browser) is not null)
+            {
+                browserOptions.Add(new(browser, displayName));
+            }
+        }
     }
 
     public async Task<ExecuteCommandResult> ConfigureAsync(BrowserLogsResource resource, InteractionInputCollection arguments, CancellationToken _)
@@ -163,33 +176,12 @@ internal sealed class BrowserLogsConfigurationManager(
         };
     }
 
-    private void LoadBrowserOptions(BrowserLogsResource resource, LoadInputContext context)
+    private void LoadBrowserValue(BrowserLogsResource resource, LoadInputContext context)
     {
         if (context.Input.Value is null)
         {
             var currentConfiguration = resource.ResolveCurrentConfiguration(configuration, configurationStore);
             context.Input.Value = currentConfiguration.Browser;
-        }
-
-        var currentBrowser = context.Input.Value;
-        var options = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        AddKnownBrowser("msedge", BrowserCommandStrings.ConfigureTrackedBrowserEdgeOption);
-        AddKnownBrowser("chrome", BrowserCommandStrings.ConfigureTrackedBrowserChromeOption);
-        AddKnownBrowser("chromium", BrowserCommandStrings.ConfigureTrackedBrowserChromiumOption);
-
-        if (!string.IsNullOrEmpty(currentBrowser) && !options.ContainsKey(currentBrowser))
-        {
-            options[currentBrowser] = currentBrowser;
-        }
-
-        context.Input.Options = [.. options.Select(static pair => new KeyValuePair<string, string>(pair.Key, pair.Value))];
-
-        void AddKnownBrowser(string browser, string displayName)
-        {
-            if (ChromiumBrowserResolver.TryResolveExecutable(browser) is not null)
-            {
-                options[browser] = displayName;
-            }
         }
     }
 

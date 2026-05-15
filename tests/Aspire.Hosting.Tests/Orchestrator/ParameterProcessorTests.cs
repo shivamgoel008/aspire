@@ -896,6 +896,12 @@ public class ParameterProcessorTests
                 Assert.True(valueInput.Required);
             },
             saveInput => Assert.Equal(ParameterProcessor.SaveToUserSecretsName, saveInput.Name));
+
+        var saveToUserSecretsInput = setValueCommand.Arguments.Single(argument => argument.Name == ParameterProcessor.SaveToUserSecretsName);
+        Assert.NotNull(saveToUserSecretsInput.DynamicLoading);
+        var dependsOnInputs = saveToUserSecretsInput.DynamicLoading.DependsOnInputs;
+        Assert.NotNull(dependsOnInputs);
+        Assert.Equal(ParameterProcessor.SetParameterValueName, Assert.Single(dependsOnInputs));
     }
 
     [Fact]
@@ -1444,6 +1450,24 @@ public class ParameterProcessorTests
     }
 
     [Fact]
+    public async Task DeleteParameterCoreAsync_WhenDeploymentStateDeleteFails_ReturnsFailure()
+    {
+        var capturingStateManager = new CapturingMockDeploymentStateManager { ThrowOnDeleteSection = true };
+        var parameterProcessor = CreateParameterProcessor(deploymentStateManager: capturingStateManager);
+        var parameter = CreateParameterResource("testParam", "initialValue");
+
+        await parameterProcessor.InitializeParametersAsync([parameter]).DefaultTimeout();
+        await parameterProcessor.SetParameterCoreAsync(parameter, CreateSetParameterArguments("savedValue", saveToUserSecrets: "true"), CancellationToken.None).DefaultTimeout();
+
+        var result = await parameterProcessor.DeleteParameterCoreAsync(parameter, CreateDeleteParameterArguments(deleteFromUserSecrets: "true"), CancellationToken.None).DefaultTimeout();
+
+        Assert.False(result.Success);
+        Assert.Equal("Failed to delete parameter 'testParam'.", result.Message);
+        Assert.True(capturingStateManager.State.TryGetPropertyValue($"Parameters:{parameter.Name}", out var savedValueNode));
+        Assert.Equal("savedValue", savedValueNode?.GetValue<string>());
+    }
+
+    [Fact]
     public async Task DeleteParameterCoreAsync_AddsParameterBackToUnresolvedAndStartsResolutionTask()
     {
         var capturingStateManager = new CapturingMockDeploymentStateManager();
@@ -1482,6 +1506,7 @@ public class ParameterProcessorTests
         // Provides the flattened state for verification, matching what FileDeploymentStateManager saves to disk
         public JsonObject State => _flattenedState ?? [];
         public string? StateFilePath => null;
+        public bool ThrowOnDeleteSection { get; init; }
 
         public Task<DeploymentStateSection> AcquireSectionAsync(string sectionName, CancellationToken cancellationToken = default)
         {
@@ -1511,6 +1536,11 @@ public class ParameterProcessorTests
 
         public Task DeleteSectionAsync(DeploymentStateSection section, CancellationToken cancellationToken = default)
         {
+            if (ThrowOnDeleteSection)
+            {
+                throw new IOException("Failed to delete section.");
+            }
+
             // Increment version to allow multiple saves with the same instance (mimics FileDeploymentStateManager)
             section.Version++;
 

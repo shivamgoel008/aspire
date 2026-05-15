@@ -61,6 +61,14 @@ internal sealed class ResourceCommand : BaseCommand
         ["rebuild"] = ("Rebuilding", "rebuild", "rebuilt"),
         ["set-parameter"] = ("Setting parameter for", "set parameter for", "set"),
         ["delete-parameter"] = ("Deleting parameter for", "delete parameter for", "deleted"),
+        ["parameter-set"] = ("Setting parameter for", "set parameter for", "set"),
+        ["parameter-delete"] = ("Deleting parameter for", "delete parameter for", "deleted"),
+    };
+
+    private static readonly Dictionary<string, string> s_legacyCommandNameMap = new(StringComparers.CommandName)
+    {
+        ["parameter-set"] = "set-parameter",
+        ["parameter-delete"] = "delete-parameter",
     };
 
     public ResourceCommand(
@@ -164,10 +172,11 @@ internal sealed class ResourceCommand : BaseCommand
     {
         var snapshots = await connection.GetResourceSnapshotsAsync(includeHidden, cancellationToken).ConfigureAwait(false);
         var resources = ResourceSnapshotMapper.ResolveResources(resourceName, snapshots);
+        var lookupCommandName = s_legacyCommandNameMap.GetValueOrDefault(commandName, commandName);
 
         return resources
             .SelectMany(static resource => resource.Commands)
-            .FirstOrDefault(command => string.Equals(command.Name, commandName, StringComparisons.CommandName));
+            .FirstOrDefault(command => string.Equals(command.Name, lookupCommandName, StringComparisons.CommandName));
     }
 
     private static async Task<(string Name, string Description)[]> GetAvailableCommandMetadataAsync(IAppHostAuxiliaryBackchannel connection, string resourceName, bool includeHidden, CancellationToken cancellationToken)

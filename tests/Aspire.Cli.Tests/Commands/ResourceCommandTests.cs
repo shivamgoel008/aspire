@@ -371,6 +371,8 @@ public class ResourceCommandTests(ITestOutputHelper outputHelper)
     [InlineData("rebuild")]
     [InlineData("set-parameter")]
     [InlineData("delete-parameter")]
+    [InlineData("parameter-set")]
+    [InlineData("parameter-delete")]
     public async Task ResourceCommand_AcceptsWellKnownCommandNames(string commandName)
     {
         using var workspace = TemporaryWorkspace.Create(outputHelper);
@@ -392,6 +394,8 @@ public class ResourceCommandTests(ITestOutputHelper outputHelper)
     [InlineData("rebuild", "Rebuilding resource 'myresource'...", "Resource 'myresource' rebuilt successfully.")]
     [InlineData("set-parameter", "Setting parameter for resource 'myresource'...", "Resource 'myresource' set successfully.")]
     [InlineData("delete-parameter", "Deleting parameter for resource 'myresource'...", "Resource 'myresource' deleted successfully.")]
+    [InlineData("parameter-set", "Setting parameter for resource 'myresource'...", "Resource 'myresource' set successfully.")]
+    [InlineData("parameter-delete", "Deleting parameter for resource 'myresource'...", "Resource 'myresource' deleted successfully.")]
     public async Task ResourceCommand_UsesWellKnownCommandDisplayMetadata(string commandName, string statusMessage, string successMessage)
     {
         using var workspace = TemporaryWorkspace.Create(outputHelper);
@@ -559,6 +563,41 @@ public class ResourceCommandTests(ITestOutputHelper outputHelper)
 
         Assert.Equal(ExitCodeConstants.Success, exitCode);
         AssertJsonObject(backchannel.ExecuteResourceCommandArguments, ("text", "Submitted Aspire!"), ("timeoutMilliseconds", "500"));
+    }
+
+    [Fact]
+    public async Task ResourceCommand_LegacyParameterCommandName_UsesCurrentCommandMetadata()
+    {
+        using var workspace = TemporaryWorkspace.Create(outputHelper);
+
+        var backchannel = new TestAppHostAuxiliaryBackchannel
+        {
+            ExecuteResourceCommandResult = new ExecuteResourceCommandResponse { Success = true },
+            ResourceSnapshots =
+            [
+                CreateResourceSnapshot(
+                    "greeting",
+                    CreateCommand(
+                        "set-parameter",
+                        CreateArgument("Value")))
+            ]
+        };
+        var monitor = new TestAuxiliaryBackchannelMonitor();
+        monitor.AddConnection("hash", "/tmp/test.sock", backchannel);
+
+        var services = CliTestHelper.CreateServiceCollection(workspace, outputHelper, options =>
+        {
+            options.AuxiliaryBackchannelMonitorFactory = _ => monitor;
+        });
+        using var provider = services.BuildServiceProvider();
+
+        var command = provider.GetRequiredService<RootCommand>();
+        var result = command.Parse("resource greeting parameter-set --value \"Hello world\"");
+
+        var exitCode = await result.InvokeAsync().DefaultTimeout();
+
+        Assert.Equal(ExitCodeConstants.Success, exitCode);
+        AssertJsonObject(backchannel.ExecuteResourceCommandArguments, ("Value", "Hello world"));
     }
 
     [Fact]

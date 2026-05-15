@@ -238,12 +238,13 @@ public sealed class ParameterProcessor(
             DynamicLoading = new InputLoadOptions
             {
                 AlwaysLoadOnStart = true,
+                DependsOnInputs = [SetParameterValueName],
                 LoadCallback = async context =>
                 {
                     if (context.Input.Value is null)
                     {
                         var parameterSection = await deploymentStateManager.AcquireSectionAsync(parameterResource.ConfigurationKey, context.CancellationToken).ConfigureAwait(false);
-                        if (parameterSection.Data.Count > 0 && !string.IsNullOrEmpty(context.AllInputs[SetParameterValueName].Value))
+                        if (parameterSection.Data.Count > 0)
                         {
                             context.Input.Value = "true";
                         }
@@ -393,6 +394,7 @@ public sealed class ParameterProcessor(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to delete parameter {ParameterName} from deployment state.", parameterResource.Name);
+            return CommandResults.Failure($"Failed to delete parameter '{parameterResource.Name}'.");
         }
 
         return new ExecuteCommandResult { Success = true, Message = string.Format(CultureInfo.InvariantCulture, CommandStrings.ResourceDeletedParameter, parameterResource.Name) };

@@ -77,11 +77,7 @@ public static class PromptAgentBuilderExtensions
             displayName: "Send Message",
             executeCommand: async ctx =>
             {
-                var message = ctx.Arguments.GetString("message");
-                if (string.IsNullOrWhiteSpace(message))
-                {
-                    return new ExecuteCommandResult { Success = true };
-                }
+                var message = ctx.Arguments.GetString("message")!;
 
                 try
                 {
@@ -115,6 +111,7 @@ public static class PromptAgentBuilderExtensions
                         Name = "message",
                         InputType = InputType.Text,
                         Label = "Message",
+                        Required = true,
                         Placeholder = "Hello, what can you do?",
                         Description = $"Enter a message to send to '{name}'."
                     }
