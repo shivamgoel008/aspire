@@ -35,6 +35,7 @@ internal sealed class UpdateCommand : BaseCommand
     private readonly IConfiguration _configuration;
     private readonly IInstallationDiscovery _installationDiscovery;
     private readonly IUpgradeInstructionProvider _upgradeInstructionProvider;
+    private readonly ICliHostEnvironment _hostEnvironment;
 
     private static readonly OptionWithLegacy<FileInfo?> s_appHostOption = new("--apphost", "--project", UpdateCommandStrings.ProjectArgumentDescription);
     private static readonly Option<bool> s_selfOption = new("--self")
@@ -67,7 +68,8 @@ internal sealed class UpdateCommand : BaseCommand
         AspireCliTelemetry telemetry,
         IConfiguration configuration,
         IInstallationDiscovery installationDiscovery,
-        IUpgradeInstructionProvider upgradeInstructionProvider)
+        IUpgradeInstructionProvider upgradeInstructionProvider,
+        ICliHostEnvironment hostEnvironment)
         : base("update", UpdateCommandStrings.Description, features, updateNotifier, executionContext, interactionService, telemetry)
     {
         _projectLocator = projectLocator;
@@ -81,6 +83,7 @@ internal sealed class UpdateCommand : BaseCommand
         _configuration = configuration;
         _installationDiscovery = installationDiscovery;
         _upgradeInstructionProvider = upgradeInstructionProvider;
+        _hostEnvironment = hostEnvironment;
 
         Options.Add(s_appHostOption);
         Options.Add(s_selfOption);
@@ -187,11 +190,14 @@ internal sealed class UpdateCommand : BaseCommand
             }
             else
             {
-                // If there are hives (PR build directories), prompt for channel selection.
-                // Otherwise, use the implicit/default channel automatically.
+                // If there are hives (PR build directories) AND interactive
+                // input is available, prompt the user to pick a channel. In
+                // non-interactive mode the prompt would crash (#15600), so
+                // fall through to the implicit/default channel — same
+                // behavior as the no-hives branch.
                 var hasHives = ExecutionContext.GetHiveCount() > 0;
 
-                if (hasHives)
+                if (hasHives && _hostEnvironment.SupportsInteractiveInput)
                 {
                     // Prompt for channel selection
                     var channelBinding = PromptBinding.Create(parseResult, _channelOption);
