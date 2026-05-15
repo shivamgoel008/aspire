@@ -44,7 +44,7 @@ public final class App {
         var password = System.getenv("DB1_PASSWORD");
 
         // If no username is configured, fall back to Entra authentication. We extract the
-        // username from the access token's claims and use the token as the password — the
+        // username from the access token's claims and use the token as the password - the
         // standard pattern for Azure Database for PostgreSQL with passwordless auth.
         if (user == null || user.isEmpty()) {
             var conn = resolveEntraConnection(new DefaultAzureCredentialBuilder().build());
