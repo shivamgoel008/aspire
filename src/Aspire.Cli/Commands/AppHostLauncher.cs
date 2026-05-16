@@ -38,6 +38,7 @@ internal sealed class AppHostLauncher(
 {
     private const int MaxDisplayedChildLogLines = 80;
     private const int MaxParentLogReplayLines = 200;
+    private static readonly TimeSpan s_legacyDetachedStartupStabilityWindow = TimeSpan.FromSeconds(2);
 
     /// <summary>
     /// Shared option for the AppHost project file path.
@@ -362,7 +363,7 @@ internal sealed class AppHostLauncher(
                     cancellationToken.ThrowIfCancellationRequested();
                     if (completedTask == readinessTask)
                     {
-                        bool appHostReady;
+                        bool? appHostReady;
                         try
                         {
                             appHostReady = await readinessTask.ConfigureAwait(false);
@@ -379,7 +380,22 @@ internal sealed class AppHostLauncher(
                             break;
                         }
 
-                        if (appHostReady)
+                        if (appHostReady is null)
+                        {
+                            logger.LogDebug(
+                                "AppHost does not support startup readiness RPC. Waiting {StabilityWindow} before detaching.",
+                                s_legacyDetachedStartupStabilityWindow);
+
+                            if (!await WaitForLegacyDetachedStartupStabilityAsync(childExitTask, remainingTimeout, timeProvider, cancellationToken).ConfigureAwait(false))
+                            {
+                                await childExitTask.ConfigureAwait(false);
+                                return CreateChildExitedLaunchResult(childProcess, waitForBackchannelActivity, childStartedAt);
+                            }
+
+                            return new LaunchResult(childProcess, connection, dashboardUrls, false, 0, childStartedAt);
+                        }
+
+                        if (appHostReady == true)
                         {
                             return new LaunchResult(childProcess, connection, dashboardUrls, false, 0, childStartedAt);
                         }
@@ -447,10 +463,28 @@ internal sealed class AppHostLauncher(
         return new LaunchResult(childProcess, null, null, true, exitCode, ChildStartedAt: childStartedAt);
     }
 
-    internal static async Task<bool> WaitForAppHostReadyAsync(IAppHostAuxiliaryBackchannel connection, CancellationToken cancellationToken)
+    internal static async Task<bool?> WaitForAppHostReadyAsync(IAppHostAuxiliaryBackchannel connection, CancellationToken cancellationToken)
     {
         var startupState = await connection.WaitForAppHostReadyAsync(cancellationToken).ConfigureAwait(false);
-        return startupState?.IsReady ?? true;
+        return startupState?.IsReady;
+    }
+
+    internal static async Task<bool> WaitForLegacyDetachedStartupStabilityAsync(
+        Task childExitTask,
+        TimeSpan remainingTimeout,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        var stabilityWindow = remainingTimeout < s_legacyDetachedStartupStabilityWindow
+            ? remainingTimeout
+            : s_legacyDetachedStartupStabilityWindow;
+
+        var completedTask = await Task.WhenAny(
+            childExitTask,
+            Task.Delay(stabilityWindow, timeProvider, cancellationToken)).ConfigureAwait(false);
+
+        cancellationToken.ThrowIfCancellationRequested();
+        return completedTask != childExitTask;
     }
 
     private static void ObserveFaults(Task task)
@@ -623,21 +657,59 @@ internal sealed class AppHostLauncher(
         }
 
         var lines = new Queue<string>(maxLines);
+        var guestCommandLines = new Queue<string>(maxLines);
+        IReadOnlyList<string>? failedGuestCommandLines = null;
+        var trackingGuestCommand = false;
         using var reader = File.OpenText(childLogFile);
         string? line;
         while ((line = reader.ReadLine()) is not null)
         {
-            if (!TryFormatChildLogLineForDisplay(line, out var displayLine))
+            if (!CliLogFormat.TryParseFileLogLine(line, out var entry))
             {
                 continue;
             }
 
-            if (lines.Count == maxLines)
+            if (IsGuestCommandStart(entry))
             {
-                lines.Dequeue();
+                trackingGuestCommand = true;
+                guestCommandLines.Clear();
+                continue;
             }
 
-            lines.Enqueue(displayLine);
+            if (trackingGuestCommand && TryFormatGuestCommandOutputForDisplay(entry, out var guestCommandLine))
+            {
+                EnqueueBounded(guestCommandLines, guestCommandLine, maxLines);
+                continue;
+            }
+
+            if (IsGuestAppHostExit(entry))
+            {
+                if (trackingGuestCommand && guestCommandLines.Count > 0)
+                {
+                    failedGuestCommandLines = guestCommandLines.ToArray();
+                }
+
+                trackingGuestCommand = false;
+                guestCommandLines.Clear();
+                continue;
+            }
+
+            if (!TryFormatChildLogEntryForDisplay(entry, out var displayLine))
+            {
+                continue;
+            }
+
+            EnqueueBounded(lines, displayLine, maxLines);
+        }
+
+        if (failedGuestCommandLines is not null)
+        {
+            return failedGuestCommandLines;
+        }
+
+        if (trackingGuestCommand && guestCommandLines.Count > 0)
+        {
+            return guestCommandLines.ToArray();
         }
 
         return lines.ToArray();
@@ -688,7 +760,7 @@ internal sealed class AppHostLauncher(
             return false;
         }
 
-        if (entry.Category is CliLogFormat.Categories.AppHost || entry.Category.StartsWith(CliLogFormat.Categories.AppHostPrefix, StringComparison.Ordinal))
+        if (entry.Category is CliLogFormat.Categories.Build or CliLogFormat.Categories.AppHost || entry.Category.StartsWith(CliLogFormat.Categories.AppHostPrefix, StringComparison.Ordinal))
         {
             return true;
         }
@@ -708,24 +780,21 @@ internal sealed class AppHostLauncher(
         return false;
     }
 
-    private static bool TryFormatChildLogLineForDisplay(string line, out string displayLine)
+    private static bool TryFormatChildLogEntryForDisplay(CliLogFormat.FileLogEntry entry, out string displayLine)
     {
         displayLine = string.Empty;
 
-        if (!TryParseChildLogLineForReplay(line, out var entry))
+        if (string.IsNullOrWhiteSpace(entry.Message))
         {
             return false;
         }
 
-        if (entry.Category is CliLogFormat.Categories.GuestAppHostProject
-            && entry.Level is CliLogFormat.FileLevelTokens.Debug
-            && entry.Message.StartsWith(CliLogFormat.MessagePrefixes.Executing, StringComparison.Ordinal))
+        if (entry.Category is CliLogFormat.Categories.Stdout or CliLogFormat.Categories.Stderr)
         {
-            displayLine = entry.Message;
-            return true;
+            return false;
         }
 
-        if (entry.Category is CliLogFormat.Categories.AppHost || entry.Category.StartsWith(CliLogFormat.Categories.AppHostPrefix, StringComparison.Ordinal))
+        if (entry.Category is CliLogFormat.Categories.Build or CliLogFormat.Categories.AppHost || entry.Category.StartsWith(CliLogFormat.Categories.AppHostPrefix, StringComparison.Ordinal))
         {
             displayLine = entry.Message;
             return true;
@@ -745,6 +814,43 @@ internal sealed class AppHostLauncher(
         }
 
         return false;
+    }
+
+    private static bool TryFormatGuestCommandOutputForDisplay(CliLogFormat.FileLogEntry entry, out string displayLine)
+    {
+        displayLine = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(entry.Message))
+        {
+            return false;
+        }
+
+        if (entry.Category is CliLogFormat.Categories.AppHost)
+        {
+            displayLine = entry.Message;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsGuestCommandStart(CliLogFormat.FileLogEntry entry)
+        => entry.Category is CliLogFormat.Categories.GuestAppHostProject
+            && entry.Level is CliLogFormat.FileLevelTokens.Debug
+            && entry.Message.StartsWith(CliLogFormat.MessagePrefixes.Executing, StringComparison.Ordinal);
+
+    private static bool IsGuestAppHostExit(CliLogFormat.FileLogEntry entry)
+        => entry.Category is CliLogFormat.Categories.GuestAppHostProject
+            && entry.Message.Contains(" apphost exited with code ", StringComparison.Ordinal);
+
+    private static void EnqueueBounded(Queue<string> lines, string line, int maxLines)
+    {
+        if (lines.Count == maxLines)
+        {
+            lines.Dequeue();
+        }
+
+        lines.Enqueue(line);
     }
 
 }

@@ -58,13 +58,13 @@ public class AppHostLauncherTests(ITestOutputHelper outputHelper)
     }
 
     [Fact]
-    public async Task WaitForAppHostReadyAsync_TreatsUnavailableReadinessAsReady()
+    public async Task WaitForAppHostReadyAsync_ReturnsNullWhenReadinessIsUnavailable()
     {
         var connection = new TestAppHostAuxiliaryBackchannel();
 
         var ready = await AppHostLauncher.WaitForAppHostReadyAsync(connection, CancellationToken.None);
 
-        Assert.True(ready);
+        Assert.Null(ready);
     }
 
     [Fact]
@@ -78,6 +78,32 @@ public class AppHostLauncherTests(ITestOutputHelper outputHelper)
 
         var exception = await Assert.ThrowsAsync<IOException>(() => AppHostLauncher.WaitForAppHostReadyAsync(connection, CancellationToken.None));
         Assert.Equal("connection lost", exception.Message);
+    }
+
+    [Fact]
+    public async Task WaitForLegacyDetachedStartupStabilityAsync_ReturnsFalseWhenChildExitsDuringStabilityWindow()
+    {
+        var stable = await AppHostLauncher.WaitForLegacyDetachedStartupStabilityAsync(
+            Task.CompletedTask,
+            TimeSpan.FromSeconds(120),
+            TimeProvider.System,
+            CancellationToken.None);
+
+        Assert.False(stable);
+    }
+
+    [Fact]
+    public async Task WaitForLegacyDetachedStartupStabilityAsync_ReturnsTrueWhenChildStaysAliveForStabilityWindow()
+    {
+        var childExitTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously).Task;
+
+        var stable = await AppHostLauncher.WaitForLegacyDetachedStartupStabilityAsync(
+            childExitTask,
+            TimeSpan.FromMilliseconds(1),
+            TimeProvider.System,
+            CancellationToken.None);
+
+        Assert.True(stable);
     }
 
     [Fact]
@@ -195,11 +221,30 @@ public class AppHostLauncherTests(ITestOutputHelper outputHelper)
         var lines = AppHostLauncher.ReadChildLogTail(childLogFile, maxLines: 5);
 
         Assert.Equal([
-            "Executing: /opt/homebrew/bin/npm install",
-            "up to date, audited 116 packages in 619ms",
-            "Executing: /opt/homebrew/bin/npx --no-install tsc --noEmit -p tsconfig.apphost.json",
-            "apphost.ts(5,22): error TS1109: Expression expected.",
-            "GuestAppHostProject: TypeScript (Node.js) apphost exited with code 2"
+            "apphost.ts(5,22): error TS1109: Expression expected."
+        ], lines);
+    }
+
+    [Fact]
+    public async Task ReadChildLogTail_IncludesBuildOutput()
+    {
+        using var workspace = TemporaryWorkspace.Create(outputHelper);
+        var childLogFile = Path.Combine(workspace.WorkspaceRoot.FullName, "child.log");
+        await File.WriteAllLinesAsync(childLogFile, [
+            "[2026-05-16 19:07:51.709] [INFO] [Build]   Determining projects to restore...",
+            "[2026-05-16 19:07:51.743] [INFO] [Build]   All projects are up-to-date for restore.",
+            "[2026-05-16 19:07:52.383] [INFO] [Build] /work/BrokenAppHost/Program.cs(3,41): error CS1002: ; expected [/work/BrokenAppHost/BrokenAppHost.csproj]",
+            "[2026-05-16 19:07:52.392] [INFO] [Build] Build FAILED.",
+            "[2026-05-16 19:07:52.392] [INFO] [Build]     1 Error(s)"
+        ]);
+
+        var lines = AppHostLauncher.ReadChildLogTail(childLogFile, maxLines: 4);
+
+        Assert.Equal([
+            "  All projects are up-to-date for restore.",
+            "/work/BrokenAppHost/Program.cs(3,41): error CS1002: ; expected [/work/BrokenAppHost/BrokenAppHost.csproj]",
+            "Build FAILED.",
+            "    1 Error(s)"
         ], lines);
     }
 
@@ -262,6 +307,40 @@ public class AppHostLauncherTests(ITestOutputHelper outputHelper)
                 Assert.Equal(CliLogFormat.FileLevelTokens.Error, entry.Level);
                 Assert.Equal(CliLogFormat.Categories.GuestAppHostProject, entry.Category);
                 Assert.Equal("AppHost server process has exited. Unable to connect to backchannel at /tmp/cli.sock", entry.Message);
+            });
+    }
+
+    [Fact]
+    public async Task ReadChildLogReplayTail_IncludesBuildOutput()
+    {
+        using var workspace = TemporaryWorkspace.Create(outputHelper);
+        var childLogFile = Path.Combine(workspace.WorkspaceRoot.FullName, "child.log");
+        await File.WriteAllLinesAsync(childLogFile, [
+            "[2026-05-16 19:07:51.709] [INFO] [Build]   Determining projects to restore...",
+            "[2026-05-16 19:07:52.383] [INFO] [Build] /work/BrokenAppHost/Program.cs(3,41): error CS1002: ; expected [/work/BrokenAppHost/BrokenAppHost.csproj]",
+            "[2026-05-16 19:07:52.392] [INFO] [Build] Build FAILED."
+        ]);
+
+        var entries = AppHostLauncher.ReadChildLogReplayTail(childLogFile, maxLines: 3);
+
+        Assert.Collection(entries,
+            entry =>
+            {
+                Assert.Equal(CliLogFormat.FileLevelTokens.Information, entry.Level);
+                Assert.Equal(CliLogFormat.Categories.Build, entry.Category);
+                Assert.Equal("  Determining projects to restore...", entry.Message);
+            },
+            entry =>
+            {
+                Assert.Equal(CliLogFormat.FileLevelTokens.Information, entry.Level);
+                Assert.Equal(CliLogFormat.Categories.Build, entry.Category);
+                Assert.Equal("/work/BrokenAppHost/Program.cs(3,41): error CS1002: ; expected [/work/BrokenAppHost/BrokenAppHost.csproj]", entry.Message);
+            },
+            entry =>
+            {
+                Assert.Equal(CliLogFormat.FileLevelTokens.Information, entry.Level);
+                Assert.Equal(CliLogFormat.Categories.Build, entry.Category);
+                Assert.Equal("Build FAILED.", entry.Message);
             });
     }
 
