@@ -1,0 +1,9 @@
+{
+  "author": "mitchdenny",
+  "comment": "Fix for aspire update --channel NU1103 error when switching channels",
+  "mergedAt": "2026-05-16T02:59:54Z",
+  "number": 17017,
+  "runDate": "2026-05-16T03:05:45Z",
+  "status": "included",
+  "title": "Defer dotnet restore in aspire update so channel switches don't trip NU1103"
+}

@@ -1,0 +1,9 @@
+{
+  "author": "davidfowl",
+  "comment": "Playground and security maintenance updates for Component Governance alerts, no shipping product changes",
+  "mergedAt": "2026-05-16T00:42:43Z",
+  "number": 17135,
+  "runDate": "2026-05-16T03:05:45Z",
+  "status": "excluded",
+  "title": "Clear Component Governance warnings from AzDO pipeline 1602"
+}

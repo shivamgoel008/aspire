@@ -1,0 +1,9 @@
+{
+  "author": "joperezr",
+  "comment": "Routine container image tag version bumps",
+  "mergedAt": "2026-05-16T00:36:29Z",
+  "number": 17065,
+  "runDate": "2026-05-16T03:05:45Z",
+  "status": "excluded",
+  "title": "Bump container image tags to latest versions"
+}

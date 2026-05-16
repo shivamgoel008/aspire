@@ -1,0 +1,19 @@
+{
+  "area": "CLI",
+  "areaEmoji": "💻",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "`aspire update --channel <channel>` no longer fails mid-update with NU1103 when switching to a non-stable channel on projects with multiple Aspire package references. The fix defers the NuGet restore until after all package version edits are applied, preventing partial update failures.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🔧",
+  "firstMergedAt": "2026-05-16T02:59:54Z",
+  "lastMergedAt": "2026-05-16T02:59:54Z",
+  "name": "Fix aspire update channel switch NU1103 error",
+  "owner": "mitchdenny",
+  "prs": [
+    17017
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "area": "CLI",
+  "areaEmoji": "💻",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "Backchannel streaming RPC calls that occur while the app host is shutting down no longer cause errors. The CLI now exits immediately when the linked cancellation token is already canceled, ensuring clean shutdown behavior.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🔌",
+  "firstMergedAt": "2026-05-16T00:29:27Z",
+  "lastMergedAt": "2026-05-16T00:29:27Z",
+  "name": "Fix shutdown-time backchannel stream cancellation",
+  "owner": "JamesNK",
+  "prs": [
+    17114
+  ]
+}

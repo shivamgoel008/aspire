@@ -1,0 +1,9 @@
+{
+  "author": "JamesNK",
+  "comment": "Bug fix for backchannel streaming during app host shutdown",
+  "mergedAt": "2026-05-16T00:29:27Z",
+  "number": 17114,
+  "runDate": "2026-05-16T03:05:45Z",
+  "status": "included",
+  "title": "Handle canceled backchannel streams"
+}
