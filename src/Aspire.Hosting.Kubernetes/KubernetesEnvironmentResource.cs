@@ -737,6 +737,16 @@ public sealed class KubernetesEnvironmentResource : Resource, IComputeEnvironmen
 
         foreach (var gatewayResource in gatewayResources)
         {
+            // Apply auto-routing here (rather than via BeforePublishEvent) so it runs under
+            // both `dotnet run -- --publisher kubernetes` (which goes through PipelineExecutor
+            // and fires BeforePublishEvent) and `aspire deploy` (which drives pipeline steps
+            // directly over the CLI JSON-RPC backchannel and never raises BeforePublishEvent).
+            // Recipes such as WithClusterDefaults attach the annotation when they want this.
+            if (gatewayResource.TryGetLastAnnotation<KubernetesGatewayAutoRouteAnnotation>(out var autoRoute))
+            {
+                ApplyAutoRouting(model, gatewayResource, autoRoute);
+            }
+
             if (gatewayResource.Routes.Count == 0)
             {
                 logger.LogWarning("Gateway '{GatewayName}' has no routes configured. Skipping.", gatewayResource.Name);
@@ -745,6 +755,94 @@ public sealed class KubernetesEnvironmentResource : Resource, IComputeEnvironmen
 
             await BuildGatewayObjects(gatewayResource, deploymentTargets, logger, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// Adds an HTTPRoute on the gateway for every external HTTP endpoint in the model that the
+    /// user has not already routed. User-authored <c>WithRoute(...)</c> calls win — both the
+    /// resource name and the path are snapshotted so we never overwrite or duplicate them.
+    /// </summary>
+    private static void ApplyAutoRouting(
+        DistributedApplicationModel model,
+        KubernetesGatewayResource gatewayResource,
+        KubernetesGatewayAutoRouteAnnotation autoRoute)
+    {
+        var alreadyRoutedResources = new HashSet<string>(
+            gatewayResource.Routes.Select(r => r.Endpoint.Resource.Name),
+            StringComparer.OrdinalIgnoreCase);
+
+        var usedPaths = new HashSet<string>(
+            gatewayResource.Routes.Select(r => r.Path),
+            StringComparer.Ordinal);
+
+        var candidates = model.Resources
+            .OfType<IResourceWithEndpoints>()
+            .Where(r => !autoRoute.InfrastructureResourceNames.Contains(r.Name))
+            .Where(r => !alreadyRoutedResources.Contains(r.Name))
+            .Where(r => !IsKubernetesInfrastructureResource(r))
+            .Select(r => new
+            {
+                Resource = r,
+                ExternalHttpEndpoints = r.Annotations
+                    .OfType<EndpointAnnotation>()
+                    .Where(e => e.IsExternal && IsHttpScheme(e.UriScheme))
+                    .ToList(),
+            })
+            .Where(x => x.ExternalHttpEndpoints.Count > 0)
+            .ToList();
+
+        foreach (var entry in candidates)
+        {
+            var multipleEndpoints = entry.ExternalHttpEndpoints.Count > 1;
+
+            foreach (var endpoint in entry.ExternalHttpEndpoints)
+            {
+                var path = autoRoute.PathTemplate.Replace("{name}", entry.Resource.Name, StringComparison.Ordinal);
+                if (multipleEndpoints)
+                {
+                    path = $"{path}-{endpoint.Name}";
+                }
+
+                if (!usedPaths.Add(path))
+                {
+                    continue;
+                }
+
+                var endpointRef = new EndpointReference(entry.Resource, endpoint.Name);
+                gatewayResource.Routes.Add(new GatewayRouteConfig(
+                    Host: null,
+                    Path: path,
+                    PathType: IngressPathType.Prefix,
+                    Endpoint: endpointRef));
+            }
+        }
+    }
+
+    private static bool IsHttpScheme(string uriScheme)
+        => string.Equals(uriScheme, "http", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(uriScheme, "https", StringComparison.OrdinalIgnoreCase);
+
+    // Mirror of the conservative full-name filter used by the auto-router so we never route a
+    // gateway/load-balancer/cert-manager to itself. String compare keeps the K8s assembly free
+    // of hard references to Azure types that may not be loaded.
+    private static bool IsKubernetesInfrastructureResource(IResource resource)
+    {
+        var fullName = resource.GetType().FullName;
+        return fullName switch
+        {
+            "Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource" => true,
+            "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource" => true,
+            "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesLoadBalancerResource" => true,
+            "Aspire.Hosting.Azure.AzureVirtualNetworkResource" => true,
+            "Aspire.Hosting.Azure.AzureSubnetResource" => true,
+            "Aspire.Hosting.Azure.AzureContainerRegistryResource" => true,
+            "Aspire.Hosting.Kubernetes.KubernetesGatewayResource" => true,
+            "Aspire.Hosting.Kubernetes.KubernetesIngressResource" => true,
+            "Aspire.Hosting.Kubernetes.KubernetesHelmChartResource" => true,
+            "Aspire.Hosting.Kubernetes.CertManagerResource" => true,
+            "Aspire.Hosting.Kubernetes.CertManagerIssuerResource" => true,
+            _ => false,
+        };
     }
 
     private static async Task BuildGatewayObjects(

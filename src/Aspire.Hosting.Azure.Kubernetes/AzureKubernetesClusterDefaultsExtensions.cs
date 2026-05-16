@@ -6,7 +6,6 @@
 using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Azure.Kubernetes;
 using Aspire.Hosting.Kubernetes;
-using Aspire.Hosting.Publishing;
 
 namespace Aspire.Hosting;
 
@@ -42,9 +41,9 @@ public static class AzureKubernetesClusterDefaultsExtensions
     /// <see cref="ClusterDefaultsOptions"/>.
     /// </para>
     /// <para>
-    /// Auto-routing runs at <see cref="BeforePublishEvent"/> time so user-authored
-    /// <c>WithRoute</c> calls always win — a resource that the user has explicitly
-    /// routed is skipped. The
+    /// Auto-routing runs as part of the Kubernetes <c>prepare-deployment-targets</c>
+    /// pipeline step so user-authored <c>WithRoute</c> calls always win — a resource
+    /// that the user has explicitly routed is skipped. The
     /// auto-router walks the application model, ignores infrastructure resources (gateway,
     /// load balancer, cert-manager, issuer, vnet, subnet, dashboard, AKS env), and for each
     /// remaining resource with one or more <c>IsExternal == true</c> HTTP endpoints adds a
@@ -154,15 +153,15 @@ public static class AzureKubernetesClusterDefaultsExtensions
             gateway.WithTls(issuerBuilder, options.ConfigureTls);
         }
 
-        // 6. Auto-route external HTTP endpoints at publish time. Defer to BeforePublishEvent
-        //    so user-authored WithRoute(...) calls have already mutated the gateway routes
-        //    (they happen synchronously during AppHost construction). We skip any resource
-        //    the user has already wired up, and any infrastructure resources we created.
+        // 6. Auto-route external HTTP endpoints into the gateway. We attach an annotation
+        //    that the K8s gateway-emission pipeline step honors, rather than subscribing to
+        //    BeforePublishEvent. BeforePublishEvent only fires from PipelineExecutor (the
+        //    legacy `dotnet run -- --publisher kubernetes` path); `aspire deploy` drives
+        //    pipeline steps directly over the CLI JSON-RPC backchannel and never raises it,
+        //    which previously left the gateway with no routes and silently skipped its
+        //    manifest emission entirely.
         if (options.AutoRouteExternalEndpoints)
         {
-            // Capture the names we created so the auto-router can detect "this is one of
-            // ours, leave it alone". Capturing by name (not by reference) is intentional
-            // so that downstream resource swaps stay correct.
             var infraNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 aksName,
@@ -179,128 +178,13 @@ public static class AzureKubernetesClusterDefaultsExtensions
                 infraNames.Add(options.IssuerName);
             }
 
-            var pathTemplate = options.RoutePathTemplate;
-            var capturedGateway = gateway;
-
-            appBuilder.Eventing.Subscribe<BeforePublishEvent>((evt, _) =>
-            {
-                AutoRouteExternalEndpoints(evt.Model, capturedGateway, infraNames, pathTemplate);
-                return Task.CompletedTask;
-            });
+            gateway.WithAnnotation(new KubernetesGatewayAutoRouteAnnotation(
+                options.RoutePathTemplate,
+                infraNames));
         }
 
         return builder;
     }
-
-    /// <summary>
-    /// Walks the application model and attaches every external HTTP endpoint to the
-    /// gateway under the configured path template. Skips infrastructure we created and
-    /// any resource that the user has already routed (user-wins).
-    /// </summary>
-    private static void AutoRouteExternalEndpoints(
-        DistributedApplicationModel model,
-        IResourceBuilder<KubernetesGatewayResource> gatewayBuilder,
-        HashSet<string> infraNames,
-        string pathTemplate)
-    {
-        // Snapshot the resource names already routed on the gateway. Routes is an internal
-        // List<GatewayRouteConfig> on KubernetesGatewayResource — we access it via
-        // InternalsVisibleTo set in src/Aspire.Hosting.Kubernetes/*.csproj. Snapshotting by
-        // name (not reference) is intentional: it survives any resource-swap/bait-and-switch
-        // applied later in the pipeline.
-        var alreadyRoutedResources = new HashSet<string>(
-            gatewayBuilder.Resource.Routes.Select(r => r.Endpoint.Resource.Name),
-            StringComparer.OrdinalIgnoreCase);
-
-        // Snapshot the already-used paths so we don't collide with a user route either.
-        var usedPaths = new HashSet<string>(
-            gatewayBuilder.Resource.Routes.Select(r => r.Path),
-            StringComparer.Ordinal);
-
-        var groupedByResource = model.Resources
-            .OfType<IResourceWithEndpoints>()
-            .Where(r => !infraNames.Contains(r.Name))
-            .Where(r => !alreadyRoutedResources.Contains(r.Name))
-            .Where(r => !IsInfrastructureResource(r))
-            .Select(r => new
-            {
-                Resource = r,
-                ExternalHttpEndpoints = r.Annotations
-                    .OfType<EndpointAnnotation>()
-                    .Where(e => e.IsExternal && IsHttpScheme(e.UriScheme))
-                    .ToList(),
-            })
-            .Where(x => x.ExternalHttpEndpoints.Count > 0)
-            .ToList();
-
-        foreach (var entry in groupedByResource)
-        {
-            // Multi-endpoint disambiguation: when a resource has >1 external HTTP
-            // endpoint, append the endpoint name to the template so each one gets a
-            // distinct path.
-            var multipleEndpoints = entry.ExternalHttpEndpoints.Count > 1;
-
-            foreach (var endpoint in entry.ExternalHttpEndpoints)
-            {
-                var path = pathTemplate.Replace("{name}", entry.Resource.Name, StringComparison.Ordinal);
-                if (multipleEndpoints)
-                {
-                    path = $"{path}-{endpoint.Name}";
-                }
-
-                if (!usedPaths.Add(path))
-                {
-                    // Path collision (either against a user route or another auto route).
-                    // Skip rather than silently overwrite — that's the footgun this method
-                    // is designed to avoid.
-                    continue;
-                }
-
-                var endpointRef = new EndpointReference(entry.Resource, endpoint.Name);
-                gatewayBuilder.WithRoute(path, endpointRef);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Conservative infrastructure-resource filter. Catches the well-known Kubernetes
-    /// hosting infrastructure types by full name so we don't take a hard reference to
-    /// every type (some live in adjacent assemblies that may not be loaded). The string
-    /// comparison is exact on type full name; subclasses are excluded on purpose.
-    /// </summary>
-    private static bool IsInfrastructureResource(IResource resource)
-    {
-        var fullName = resource.GetType().FullName;
-        return fullName switch
-        {
-            "Aspire.Hosting.Kubernetes.KubernetesEnvironmentResource" => true,
-            "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesEnvironmentResource" => true,
-            "Aspire.Hosting.Azure.Kubernetes.AzureKubernetesLoadBalancerResource" => true,
-            "Aspire.Hosting.Azure.AzureVirtualNetworkResource" => true,
-            "Aspire.Hosting.Azure.AzureSubnetResource" => true,
-            "Aspire.Hosting.Azure.AzureContainerRegistryResource" => true,
-            "Aspire.Hosting.Kubernetes.KubernetesGatewayResource" => true,
-            "Aspire.Hosting.Kubernetes.KubernetesIngressResource" => true,
-            "Aspire.Hosting.Kubernetes.KubernetesHelmChartResource" => true,
-            "Aspire.Hosting.Kubernetes.CertManagerResource" => true,
-            "Aspire.Hosting.Kubernetes.CertManagerIssuerResource" => true,
-            _ => false,
-        };
-    }
-
-    /// <summary>
-    /// True when the endpoint's URI scheme is one we'd want to attach to an HTTPRoute.
-    /// HTTPS endpoints are included because the gateway terminates TLS in front of them
-    /// — the route still uses the cluster-internal scheme to talk to the backend.
-    /// </summary>
-    /// <summary>
-    /// True when the endpoint's URI scheme is one we'd want to attach to an HTTPRoute.
-    /// HTTPS endpoints are included because the gateway terminates TLS in front of them
-    /// — the route still uses the cluster-internal scheme to talk to the backend.
-    /// </summary>
-    private static bool IsHttpScheme(string uriScheme)
-        => string.Equals(uriScheme, "http", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(uriScheme, "https", StringComparison.OrdinalIgnoreCase);
 
     // The underlying AKS node-pool API takes a plain string for VM size, so when the
     // caller supplies a ParameterResource override we resolve it synchronously here.
