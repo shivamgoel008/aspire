@@ -36,6 +36,9 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration)
         public const string ResourceStop = "aspire.hosting.resource.stop";
         public const string ResourceStart = "aspire.hosting.resource.start";
         public const string JsonRpcServerCall = "aspire.hosting.jsonrpc.server";
+        public const string DashboardGetConnectionInfo = "aspire.hosting.dashboard.get_connection_info";
+        public const string DashboardWaitHealthy = "aspire.hosting.dashboard.wait_healthy";
+        public const string DashboardResolveUrls = "aspire.hosting.dashboard.resolve_urls";
     }
 
     internal static class Tags
@@ -92,6 +95,9 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration)
         public const string JsonRpcMethod = "rpc.method";
         public const string JsonRpcStreaming = "aspire.hosting.jsonrpc.streaming";
         public const string JsonRpcStreamItemCount = "aspire.hosting.jsonrpc.stream.item_count";
+        public const string DashboardHealthy = "aspire.hosting.dashboard.healthy";
+        public const string DashboardUrlSource = "aspire.hosting.dashboard.url.source";
+        public const string DashboardHasApiBaseUrl = "aspire.hosting.dashboard.api_base_url.exists";
         public const string ExceptionType = "exception.type";
         public const string ExceptionMessage = "exception.message";
     }
@@ -113,6 +119,15 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration)
         public const string Exception = "exception";
         public const string JsonRpcStreamFirstItem = "aspire.hosting.jsonrpc.stream.first_item";
         public const string JsonRpcStreamCompleted = "aspire.hosting.jsonrpc.stream.completed";
+        public const string DashboardWaitHealthyCompleted = "aspire.hosting.dashboard.wait_healthy.completed";
+        public const string DashboardWaitHealthyFailed = "aspire.hosting.dashboard.wait_healthy.failed";
+    }
+
+    internal static class Values
+    {
+        public const string DashboardUrlSourceNone = "none";
+        public const string DashboardUrlSourceResource = "resource";
+        public const string DashboardUrlSourceConfiguration = "configuration";
     }
 
     internal static class Annotations
@@ -211,8 +226,7 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration)
         return activity;
     }
 
-    public static ActivityScope StartDcpResourceObserved(
-        IConfiguration? configuration,
+    public ActivityScope StartDcpResourceObserved(
         IResource appModelResource,
         string resourceKind,
         string resourceName,
@@ -223,7 +237,7 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration)
     {
         // Resource observations arrive from DCP watch notifications after the create-object span has ended,
         // so use a short child activity from the annotated trace context instead of an event on Activity.Current.
-        var activity = StartActivityFromTraceAnnotations(configuration, Activities.DcpResourceObserved, annotations);
+        var activity = StartActivityFromTraceAnnotations(Activities.DcpResourceObserved, annotations);
         activity.SetResource(appModelResource);
         activity.SetDcpResource(resourceKind, resourceName);
         activity.SetDcpCreateObjectFromTraceAnnotations(resourceKind, resourceName, annotations);
@@ -262,6 +276,21 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration)
         return activity;
     }
 
+    public ActivityScope StartDashboardGetConnectionInfo()
+    {
+        return StartActivity(Activities.DashboardGetConnectionInfo);
+    }
+
+    public ActivityScope StartDashboardWaitHealthy()
+    {
+        return StartActivity(Activities.DashboardWaitHealthy);
+    }
+
+    public ActivityScope StartDashboardResolveUrls()
+    {
+        return StartActivity(Activities.DashboardResolveUrls);
+    }
+
     public static ActivityScope StartResourceStop(IConfiguration? configuration, IResource resource, string resourceKind, string resourceName)
     {
         var activity = StartActivity(configuration, Activities.ResourceStop);
@@ -292,7 +321,8 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration)
             return default;
         }
 
-        var activity = Activity.Current is null && TryGetProfilingParentContext(configuration, out var parentContext)
+        var activity = (Activity.Current is null || Activity.Current.Source.Name != ActivitySourceName) &&
+            TryGetProfilingParentContext(configuration, out var parentContext)
             ? s_activitySource.StartActivity(name, activityKind, parentContext)
             : s_activitySource.StartActivity(name, activityKind);
 
@@ -300,9 +330,14 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration)
         return new ActivityScope(activity, configuration);
     }
 
-    private static ActivityScope StartActivityFromTraceAnnotations(IConfiguration? configuration, string name, IDictionary<string, string>? annotations)
+    private ActivityScope StartActivity(string name, ActivityKind activityKind = ActivityKind.Internal)
     {
-        if (!IsEnabled(configuration))
+        return StartActivity(_configuration, name, activityKind);
+    }
+
+    private ActivityScope StartActivityFromTraceAnnotations(string name, IDictionary<string, string>? annotations)
+    {
+        if (!IsEnabled(_configuration))
         {
             return default;
         }
@@ -321,12 +356,12 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration)
 
         if (activity is null)
         {
-            return StartActivity(configuration, name);
+            return StartActivity(name);
         }
 
-        AddProfilingSessionId(activity, configuration, annotations);
+        AddProfilingSessionId(activity, _configuration, annotations);
 
-        return new ActivityScope(activity, configuration);
+        return new ActivityScope(activity, _configuration);
     }
 
     private ActivityScope StartActivityFromTraceContext(string name, ActivityKind activityKind, BackchannelTraceContext? traceContext)
@@ -336,12 +371,27 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration)
             return default;
         }
 
-        // StreamJsonRpc's ActivityTracingStrategy creates Activity.Current from the W3C
-        // traceparent/tracestate values on the JSON-RPC request envelope. If the caller is
-        // older or tracing was unavailable, fall back to the configured profiling parent.
-        var activity = Activity.Current is null && TryGetProfilingParentContext(_configuration, out var parentContext)
-            ? s_activitySource.StartActivity(name, activityKind, parentContext)
-            : s_activitySource.StartActivity(name, activityKind);
+        Activity? activity;
+        if (TryGetBackchannelTraceParent(traceContext, out var traceContextParent))
+        {
+            activity = s_activitySource.StartActivity(name, activityKind, traceContextParent);
+        }
+        else if (TryGetAmbientRemoteParentContext(out var ambientParent))
+        {
+            // StreamJsonRpc's ActivityTracingStrategy creates an unexported server activity
+            // from the caller's W3C traceparent. Parent profiling spans to the remote caller
+            // instead of that hidden activity so exported CLI and Hosting spans are adjacent.
+            activity = s_activitySource.StartActivity(name, activityKind, ambientParent);
+        }
+        else if ((Activity.Current is null || Activity.Current.Source.Name != ActivitySourceName) &&
+            TryGetProfilingParentContext(_configuration, out var configuredParent))
+        {
+            activity = s_activitySource.StartActivity(name, activityKind, configuredParent);
+        }
+        else
+        {
+            activity = s_activitySource.StartActivity(name, activityKind);
+        }
 
         AddBaggage(activity, traceContext);
         AddProfilingSessionId(activity, _configuration, traceContext);
@@ -404,6 +454,39 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration)
             activity.SetTag(Tags.ProfilingSessionId, sessionId);
             activity.SetTag(Tags.LegacyStartupOperationId, sessionId);
         }
+    }
+
+    private static bool TryGetBackchannelTraceParent(BackchannelTraceContext? traceContext, out ActivityContext parentContext)
+    {
+        if (!string.IsNullOrEmpty(traceContext?.TraceParent) &&
+            ActivityContext.TryParse(traceContext.TraceParent, traceContext.TraceState, out parentContext))
+        {
+            return true;
+        }
+
+        parentContext = default;
+        return false;
+    }
+
+    private static bool TryGetAmbientRemoteParentContext(out ActivityContext parentContext)
+    {
+        var ambientActivity = Activity.Current;
+        if (ambientActivity is not null &&
+            ambientActivity.Source.Name != ActivitySourceName &&
+            ambientActivity.Parent is null &&
+            ambientActivity.ParentSpanId != default)
+        {
+            parentContext = new ActivityContext(
+                ambientActivity.TraceId,
+                ambientActivity.ParentSpanId,
+                ambientActivity.ActivityTraceFlags,
+                ambientActivity.TraceStateString,
+                isRemote: true);
+            return true;
+        }
+
+        parentContext = default;
+        return false;
     }
 
     private static bool TryGetProfilingParentContext(IConfiguration? configuration, out ActivityContext parentContext)
@@ -487,6 +570,10 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration)
         public void AddJsonRpcStreamFirstItemEvent() => AddEvent(Events.JsonRpcStreamFirstItem);
 
         public void AddJsonRpcStreamCompletedEvent() => AddEvent(Events.JsonRpcStreamCompleted);
+
+        public void AddDashboardWaitHealthyCompleted() => AddEvent(Events.DashboardWaitHealthyCompleted);
+
+        public void AddDashboardWaitHealthyFailed() => AddEvent(Events.DashboardWaitHealthyFailed);
 
         public void AddResourceWaitCancelled(string resourceName, string waitCondition)
         {
@@ -585,6 +672,12 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration)
         }
 
         public void SetJsonRpcStreamItemCount(int count) => SetTag(Tags.JsonRpcStreamItemCount, count);
+
+        public void SetDashboardHealthy(bool healthy) => SetTag(Tags.DashboardHealthy, healthy);
+
+        public void SetDashboardUrlSource(string source) => SetTag(Tags.DashboardUrlSource, source);
+
+        public void SetDashboardHasApiBaseUrl(bool hasApiBaseUrl) => SetTag(Tags.DashboardHasApiBaseUrl, hasApiBaseUrl);
 
         public void SetDcpPreparedResourceCounts(int containerCount, int executableCount)
         {

@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using Aspire.Hosting.RemoteHost.Diagnostics;
 using Aspire.TypeSystem;
 using Microsoft.Extensions.Logging;
 
@@ -32,7 +33,9 @@ internal sealed class CapabilityDispatcher
     private readonly HandleRegistry _handles;
     private readonly AtsMarshaller _marshaller;
     private readonly ILogger _logger;
+    private readonly RemoteHostProfilingTelemetry _profilingTelemetry;
     private AtsContext? _atsContext;
+    private static int s_scanCount;
 
     /// <summary>
     /// Represents a registered capability.
@@ -53,15 +56,18 @@ internal sealed class CapabilityDispatcher
     /// <param name="assemblyLoader">The assembly loader to get assemblies from.</param>
     /// <param name="marshaller">The marshaller for converting objects to/from JSON.</param>
     /// <param name="logger">The logger.</param>
+    /// <param name="profilingTelemetry">The remote host profiling telemetry helper.</param>
     public CapabilityDispatcher(
         HandleRegistry handles,
         AssemblyLoader assemblyLoader,
         AtsMarshaller marshaller,
-        ILogger<CapabilityDispatcher> logger)
+        ILogger<CapabilityDispatcher> logger,
+        RemoteHostProfilingTelemetry profilingTelemetry)
     {
         _handles = handles;
         _marshaller = marshaller;
         _logger = logger;
+        _profilingTelemetry = profilingTelemetry;
 
         // Scan for capabilities on initialization
         ScanAssemblies(assemblyLoader.GetAssemblies());
@@ -81,6 +87,7 @@ internal sealed class CapabilityDispatcher
         _handles = handles;
         _marshaller = marshaller;
         _logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<CapabilityDispatcher>.Instance;
+        _profilingTelemetry = RemoteHostProfilingTelemetry.Disabled;
 
         ScanAssemblies(assemblies);
     }
@@ -92,11 +99,20 @@ internal sealed class CapabilityDispatcher
     private void ScanAssemblies(IEnumerable<Assembly> assemblies)
     {
         var assemblyList = assemblies.ToList();
+        var firstScan = Interlocked.Increment(ref s_scanCount) == 1;
+        using var activity = _profilingTelemetry.StartCapabilityScan(assemblyList.Count, firstScan);
 
         _logger.LogDebug("Scanning {AssemblyCount} assemblies for capabilities...", assemblyList.Count);
 
         // Scan all assemblies at once to get combined result with AtsContext
         var result = AtsCapabilityScanner.ScanAssemblies(assemblyList);
+        activity.SetAtsCounts(
+            result.Capabilities.Count,
+            result.HandleTypes.Count,
+            result.DtoTypes.Count,
+            result.EnumTypes.Count,
+            result.ExportedValues.Count,
+            result.Diagnostics.Count);
 
         // Store the AtsContext for capability registration
         _atsContext = result.ToAtsContext();
@@ -524,6 +540,7 @@ internal sealed class CapabilityDispatcher
             throw CapabilityException.CapabilityNotFound(capabilityId);
         }
 
+        using var activity = _profilingTelemetry.StartCapabilityInvoke(capabilityId, registration.Capability);
         args ??= new JsonObject();
 
         try
@@ -532,14 +549,17 @@ internal sealed class CapabilityDispatcher
         }
         catch (PolyglotCapabilityInvocationException ex)
         {
+            activity.SetError(ex);
             throw ex.ToCapabilityException();
         }
-        catch (CapabilityException)
+        catch (CapabilityException ex)
         {
+            activity.SetError(ex);
             throw;
         }
         catch (ArgumentException ex) when (IsTypeMismatchException(ex))
         {
+            activity.SetError(ex);
             throw PolyglotCapabilityErrorFormatter.CreateInternalError(
                 capabilityId,
                 registration.Capability?.MethodName,
@@ -553,6 +573,7 @@ internal sealed class CapabilityDispatcher
         }
         catch (InvalidCastException ex)
         {
+            activity.SetError(ex);
             throw PolyglotCapabilityErrorFormatter.CreateInternalError(
                 capabilityId,
                 registration.Capability?.MethodName,
@@ -566,6 +587,7 @@ internal sealed class CapabilityDispatcher
         }
         catch (Exception ex)
         {
+            activity.SetError(ex);
             _logger.LogError(ex, "Capability {CapabilityId} failed with {ExceptionType}: {Message}", capabilityId, ex.GetType().Name, ex.Message);
             throw PolyglotCapabilityErrorFormatter.CreateInternalError(
                 capabilityId,
