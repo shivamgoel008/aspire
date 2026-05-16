@@ -3,6 +3,7 @@
 
 using System.Runtime.CompilerServices;
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using Aspire.Cli.Backchannel;
 using Aspire.Cli.Commands;
@@ -22,6 +23,8 @@ using Microsoft.AspNetCore.InternalTesting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Spectre.Console;
 
 namespace Aspire.Cli.Tests.Commands;
 
@@ -402,6 +405,49 @@ public class RunCommandTests(ITestOutputHelper outputHelper)
     }
 
     [Fact]
+    public async Task RunCommand_WhenAppHostReturnsCancelled_CompletesSuccessfully()
+    {
+        var runnerFactory = (IServiceProvider sp) =>
+        {
+            var runner = new TestDotNetCliRunner();
+            runner.BuildAsyncCallback = (projectFile, noRestore, options, ct) => 0;
+            runner.GetAppHostInformationAsyncCallback = (projectFile, options, ct) => (0, true, VersionHelper.GetDefaultTemplateVersion());
+            runner.RunAsyncCallback = (projectFile, watch, noBuild, noRestore, args, env, backchannelCompletionSource, options, ct) =>
+            {
+                var backchannel = sp.GetRequiredService<IAppHostCliBackchannel>();
+                backchannelCompletionSource!.SetResult(backchannel);
+
+                return Task.FromResult(ExitCodeConstants.Cancelled);
+            };
+
+            return runner;
+        };
+
+        using var workspace = TemporaryWorkspace.Create(outputHelper);
+        var services = CliTestHelper.CreateServiceCollection(workspace, outputHelper, options =>
+        {
+            options.ProjectLocatorFactory = _ => new TestProjectLocator();
+            options.AppHostBackchannelFactory = _ => new TestAppHostBackchannel
+            {
+                GetDashboardUrlsAsyncCallback = _ => Task.FromResult(new DashboardUrlsState
+                {
+                    DashboardHealthy = true,
+                    BaseUrlWithLoginToken = "http://localhost:5000/login?t=abcd"
+                })
+            };
+            options.DotNetCliRunnerFactory = runnerFactory;
+        });
+
+        using var provider = services.BuildServiceProvider();
+        var command = provider.GetRequiredService<RootCommand>();
+        var result = command.Parse("run");
+
+        var exitCode = await result.InvokeAsync().DefaultTimeout(TestConstants.LongTimeoutDuration);
+
+        Assert.Equal(ExitCodeConstants.Success, exitCode);
+    }
+
+    [Fact]
     public async Task RunCommand_WithNoResources_CompletesSuccessfully()
     {
         var getResourceStatesAsyncCalled = new TaskCompletionSource();
@@ -454,6 +500,50 @@ public class RunCommandTests(ITestOutputHelper outputHelper)
 
         var exitCode = await pendingRun.DefaultTimeout(TestConstants.LongTimeoutDuration);
         Assert.Equal(ExitCodeConstants.Success, exitCode);
+    }
+
+    [Fact]
+    public void RenderAppHostSummary_RendersLogsPathAsClickableFileLink()
+    {
+        var output = new StringBuilder();
+        var console = AnsiConsole.Create(new AnsiConsoleSettings
+        {
+            Ansi = AnsiSupport.Yes,
+            ColorSystem = ColorSystemSupport.TrueColor,
+            Out = new AnsiConsoleOutput(new StringWriter(output)),
+            Enrichment = new ProfileEnrichment { UseDefaultEnrichers = false }
+        });
+        console.Profile.Width = int.MaxValue;
+
+        using var workspace = TemporaryWorkspace.Create(outputHelper);
+        var logFilePath = Path.Combine(workspace.WorkspaceRoot.FullName, "cli [run].log");
+        var executionContext = new CliExecutionContext(
+            workingDirectory: workspace.WorkspaceRoot,
+            hivesDirectory: workspace.WorkspaceRoot,
+            cacheDirectory: workspace.WorkspaceRoot,
+            sdksDirectory: workspace.WorkspaceRoot,
+            logsDirectory: workspace.WorkspaceRoot,
+            logFilePath: logFilePath);
+
+        var interactionService = new ConsoleInteractionService(
+            new ConsoleEnvironment(console, console),
+            executionContext,
+            TestHelpers.CreateInteractiveHostEnvironment(),
+            NullLoggerFactory.Instance);
+
+        RunCommand.RenderAppHostSummary(
+            interactionService,
+            "AppHost.csproj",
+            dashboardUrl: "http://localhost:1234",
+            codespacesUrl: null,
+            logFilePath,
+            isExtensionHost: false);
+
+        var outputString = output.ToString();
+        var fileUri = new Uri(Path.GetFullPath(logFilePath)).AbsoluteUri;
+
+        Assert.Contains("Logs", outputString);
+        TerminalLinkAssert.ContainsLink(outputString, fileUri, logFilePath);
     }
 
     [Fact]
@@ -525,8 +615,9 @@ public class RunCommandTests(ITestOutputHelper outputHelper)
 
         var exitCode = await pendingRun.DefaultTimeout(TestConstants.LongTimeoutDuration);
 
-        // The command should succeed even when the dashboard is unhealthy
+        // The command should handle cancellation gracefully
         Assert.Equal(ExitCodeConstants.Success, exitCode);
+        Assert.Equal(1, testInteractionService.DisplayCancellationMessageCount);
 
         // Verify a warning was displayed (not an error)
         var m = Assert.Single(testInteractionService.DisplayedMessages);
@@ -1839,17 +1930,54 @@ public class RunCommandTests(ITestOutputHelper outputHelper)
         using var source = new ActivitySource("test-detached-child-environment");
         using var activity = source.StartActivity("parent");
         Assert.NotNull(activity);
-        activity.SetBaggage(ProfilingTelemetry.SessionIdBaggageName, "session-1");
+        activity.SetBaggage(ProfilingTelemetry.Baggage.SessionId, "session-1");
         activity.TraceStateString = "state-1";
 
         var environment = AppHostLauncher.CreateDetachedChildEnvironment(activity);
 
         Assert.Equal("true", environment[KnownConfigNames.CliRunDetached]);
-        Assert.Equal("true", environment[ProfilingTelemetry.EnabledEnvironmentVariable]);
-        Assert.Equal("session-1", environment[ProfilingTelemetry.SessionIdEnvironmentVariable]);
+        Assert.Equal("true", environment[ProfilingTelemetry.EnvironmentVariables.Enabled]);
+        Assert.Equal("session-1", environment[ProfilingTelemetry.EnvironmentVariables.SessionId]);
         Assert.Equal("session-1", environment[KnownConfigNames.Legacy.StartupOperationId]);
-        Assert.Equal(activity.Id, environment[ProfilingTelemetry.TraceParentEnvironmentVariable]);
-        Assert.Equal("state-1", environment[ProfilingTelemetry.TraceStateEnvironmentVariable]);
+        Assert.Equal(activity.Id, environment[ProfilingTelemetry.EnvironmentVariables.TraceParent]);
+        Assert.Equal("state-1", environment[ProfilingTelemetry.EnvironmentVariables.TraceState]);
+    }
+
+    [Fact]
+    public void DetachedChildEnvironment_IncludesProfilingTelemetryContextFromActiveProfilingSpan()
+    {
+        using var listener = CreateActivityListener(ProfilingTelemetry.ActivitySourceName);
+        using var profilingTelemetry = new ProfilingTelemetry(CreateConfiguration(
+            (ProfilingTelemetry.EnvironmentVariables.Enabled, "true")));
+
+        using var activity = profilingTelemetry.StartDetachedSpawnChild("aspire", ["run"], childCommand: "run");
+        Assert.True(activity.IsRunning);
+
+        var environment = AppHostLauncher.CreateDetachedChildEnvironment(Activity.Current);
+
+        Assert.Equal("true", environment[KnownConfigNames.CliRunDetached]);
+        Assert.Equal("true", environment[ProfilingTelemetry.EnvironmentVariables.Enabled]);
+        var sessionId = environment[ProfilingTelemetry.EnvironmentVariables.SessionId];
+        Assert.False(string.IsNullOrWhiteSpace(sessionId));
+        Assert.Equal(sessionId, environment[KnownConfigNames.Legacy.StartupOperationId]);
+        Assert.Equal(Activity.Current?.Id, environment[ProfilingTelemetry.EnvironmentVariables.TraceParent]);
+    }
+
+    [Fact]
+    public void DetachedChildEnvironment_DoesNotEnableProfilingForNonProfilingActivity()
+    {
+        using var listener = CreateActivityListener("test-detached-child-environment");
+        using var source = new ActivitySource("test-detached-child-environment");
+        using var activity = source.StartActivity("parent");
+        Assert.NotNull(activity);
+
+        var environment = AppHostLauncher.CreateDetachedChildEnvironment(activity);
+
+        Assert.Equal("true", environment[KnownConfigNames.CliRunDetached]);
+        Assert.False(environment.ContainsKey(ProfilingTelemetry.EnvironmentVariables.Enabled));
+        Assert.False(environment.ContainsKey(ProfilingTelemetry.EnvironmentVariables.SessionId));
+        Assert.False(environment.ContainsKey(ProfilingTelemetry.EnvironmentVariables.TraceParent));
+        Assert.False(environment.ContainsKey(ProfilingTelemetry.EnvironmentVariables.TraceState));
     }
 
     [Fact]
@@ -1858,10 +1986,10 @@ public class RunCommandTests(ITestOutputHelper outputHelper)
         var environment = AppHostLauncher.CreateDetachedChildEnvironment(null);
 
         Assert.Equal("true", environment[KnownConfigNames.CliRunDetached]);
-        Assert.False(environment.ContainsKey(ProfilingTelemetry.EnabledEnvironmentVariable));
-        Assert.False(environment.ContainsKey(ProfilingTelemetry.SessionIdEnvironmentVariable));
-        Assert.False(environment.ContainsKey(ProfilingTelemetry.TraceParentEnvironmentVariable));
-        Assert.False(environment.ContainsKey(ProfilingTelemetry.TraceStateEnvironmentVariable));
+        Assert.False(environment.ContainsKey(ProfilingTelemetry.EnvironmentVariables.Enabled));
+        Assert.False(environment.ContainsKey(ProfilingTelemetry.EnvironmentVariables.SessionId));
+        Assert.False(environment.ContainsKey(ProfilingTelemetry.EnvironmentVariables.TraceParent));
+        Assert.False(environment.ContainsKey(ProfilingTelemetry.EnvironmentVariables.TraceState));
     }
 
     [Theory]
@@ -1925,5 +2053,12 @@ public class RunCommandTests(ITestOutputHelper outputHelper)
         };
         ActivitySource.AddActivityListener(listener);
         return listener;
+    }
+
+    private static IConfiguration CreateConfiguration(params (string Key, string? Value)[] values)
+    {
+        return new ConfigurationBuilder()
+            .AddInMemoryCollection(values.Select(value => new KeyValuePair<string, string?>(value.Key, value.Value)))
+            .Build();
     }
 }

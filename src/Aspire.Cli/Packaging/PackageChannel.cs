@@ -332,7 +332,12 @@ internal class PackageChannel(string name, PackageChannelQuality quality, Packag
         }
 
         var mappings = Mappings;
-        if (!VersionHelper.IsLocalBuildChannel(Name) || Type is not PackageChannelType.Explicit || mappings is not { Length: > 0 })
+        if (!VersionHelper.IsLocalBuildChannel(Name) || Type is not PackageChannelType.Explicit)
+        {
+            return this;
+        }
+
+        if (mappings is not { Length: > 0 })
         {
             return this;
         }

@@ -60,7 +60,11 @@ internal sealed partial class CliTemplateFactory
                     await CopyTemplateTreeToDiskAsync("ts-starter", outputPath, ApplyAllTokens, cancellationToken);
 
                     // Persist the template SDK version before restore so integration and codegen package
-                    // resolution stays aligned with the project we just created.
+                    // resolution stays aligned with the project we just created. Only persist the
+                    // channel when NewCommand resolved an Explicit one (--channel, or a registered
+                    // channel matching CliExecutionContext.IdentityChannel). Implicit (nuget.org)
+                    // selections leave the channel unwritten so `aspire add`/`aspire restore` use
+                    // the user's ambient NuGet config without a per-project pin.
                     var config = AspireConfigFile.LoadOrCreate(outputPath, aspireVersion);
                     if (!string.IsNullOrEmpty(inputs.Channel))
                     {

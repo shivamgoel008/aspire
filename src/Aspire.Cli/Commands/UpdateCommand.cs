@@ -111,7 +111,7 @@ internal sealed class UpdateCommand : BaseCommand
         return DotNetToolDetection.GetDotNetToolUpdateCommand();
     }
 
-    protected override async Task<int> ExecuteAsync(ParseResult parseResult, CancellationToken cancellationToken)
+    protected override async Task<CommandResult> ExecuteAsync(ParseResult parseResult, CancellationToken cancellationToken)
     {
         var isSelfUpdate = parseResult.GetValue(s_selfOption);
 
@@ -124,13 +124,12 @@ internal sealed class UpdateCommand : BaseCommand
             {
                 InteractionService.DisplayMessage(KnownEmojis.Information, UpdateCommandStrings.DotNetToolSelfUpdateMessage);
                 InteractionService.DisplayPlainText($"  {dotNetToolUpdateCommand}");
-                return 0;
+                return CommandResult.FromExitCode(0);
             }
 
             if (_cliDownloader is null)
             {
-                InteractionService.DisplayError("CLI self-update is not available in this environment.");
-                return ExitCodeConstants.InvalidCommand;
+                return CommandResult.Failure(ExitCodeConstants.InvalidCommand, "CLI self-update is not available in this environment.");
             }
 
             try
@@ -139,8 +138,7 @@ internal sealed class UpdateCommand : BaseCommand
             }
             catch (OperationCanceledException)
             {
-                InteractionService.DisplayCancellationMessage();
-                return ExitCodeConstants.InvalidCommand;
+                return CommandResult.Cancelled();
             }
         }
 
@@ -151,7 +149,7 @@ internal sealed class UpdateCommand : BaseCommand
             var projectFile = await _projectLocator.UseOrFindAppHostProjectFileAsync(passedAppHostProjectFile, createSettingsFile: true, cancellationToken);
             if (projectFile is null)
             {
-                return ExitCodeConstants.FailedToFindProject;
+                return CommandResult.Failure(ExitCodeConstants.FailedToFindProject);
             }
 
             var project = _projectFactory.GetProject(projectFile);
@@ -167,6 +165,14 @@ internal sealed class UpdateCommand : BaseCommand
             // must consult the project's directory tree, not the user's launch cwd. The
             // process-wide IConfiguration is rooted at the launch cwd at startup, so using
             // it here would silently read the wrong app's local config (issue #16650).
+            //
+            // Step 3 (global config "channel") is a transitional read-only path: the CLI no
+            // longer WRITES the global channel (acquisition scripts and `aspire update --self`
+            // both stopped seeding it), and identity-channel is baked into the binary via
+            // AspireCliChannel metadata. The global read remains so users who deliberately ran
+            // `aspire config set -g channel <x>` on the new CLI keep their preference honored.
+            // TODO: revisit removing the step-3 fallback once telemetry confirms global
+            // channel usage is negligible.
             var channelName = parseResult.GetValue(_channelOption) ?? parseResult.GetValue(_qualityOption);
             var channelFromConfig = false;
             if (string.IsNullOrWhiteSpace(channelName))
@@ -202,7 +208,7 @@ internal sealed class UpdateCommand : BaseCommand
             {
                 // If there are hives (PR build directories), prompt for channel selection.
                 // Otherwise, use the implicit/default channel automatically.
-                var hasHives = ExecutionContext.GetPrHiveCount() > 0;
+                var hasHives = ExecutionContext.GetHiveCount() > 0;
 
                 if (hasHives)
                 {
@@ -256,7 +262,7 @@ internal sealed class UpdateCommand : BaseCommand
                     {
                         InteractionService.DisplayMessage(KnownEmojis.Information, UpdateCommandStrings.DotNetToolSelfUpdateMessage);
                         InteractionService.DisplayPlainText($"  {dotNetToolUpdateCommand}");
-                        return ExitCodeConstants.Success;
+                        return CommandResult.Success();
                     }
 
                     // Use the same channel that was selected for the project update
@@ -268,15 +274,13 @@ internal sealed class UpdateCommand : BaseCommand
         {
             var message = Markup.Escape(ex.Message);
             Telemetry.RecordError(message, ex);
-            InteractionService.DisplayError(message);
-            return ExitCodeConstants.FailedToUpgradeProject;
+            return CommandResult.Failure(ExitCodeConstants.FailedToUpgradeProject, message);
         }
         catch (ChannelNotFoundException ex)
         {
             var message = Markup.Escape(ex.Message);
             Telemetry.RecordError(message, ex);
-            InteractionService.DisplayError(message);
-            return ExitCodeConstants.FailedToUpgradeProject;
+            return CommandResult.Failure(ExitCodeConstants.FailedToUpgradeProject, message);
         }
         catch (ProjectLocatorException ex)
         {
@@ -302,20 +306,20 @@ internal sealed class UpdateCommand : BaseCommand
         }
         catch (OperationCanceledException)
         {
-            InteractionService.DisplayCancellationMessage();
-            return ExitCodeConstants.FailedToUpgradeProject;
+            return CommandResult.Cancelled();
         }
 
-        return 0;
+        return CommandResult.FromExitCode(0);
     }
 
-    private async Task<int> ExecuteSelfUpdateAsync(ParseResult parseResult, CancellationToken cancellationToken, string? selectedChannel = null)
+    private async Task<CommandResult> ExecuteSelfUpdateAsync(ParseResult parseResult, CancellationToken cancellationToken, string? selectedChannel = null)
     {
         var channel = selectedChannel ?? parseResult.GetValue(_channelOption) ?? parseResult.GetValue(_qualityOption);
 
-        // If channel is not specified, always prompt the user to select one.
-        // This ensures they consciously choose a channel that will be saved to global settings
-        // for future 'aspire new' and 'aspire init' commands.
+        // If channel is not specified, prompt the user to select one. The choice
+        // applies only to this self-update invocation; subsequent 'aspire new'
+        // and 'aspire init' commands resolve channel per-project from
+        // aspire.config.json, not from any global setting.
         if (string.IsNullOrEmpty(channel))
         {
             var isStagingEnabled = KnownFeatures.IsStagingChannelEnabled(_features, _configuration);
@@ -337,8 +341,7 @@ internal sealed class UpdateCommand : BaseCommand
             var currentExePath = Environment.ProcessPath;
             if (string.IsNullOrEmpty(currentExePath))
             {
-                InteractionService.DisplayError("Unable to determine the current executable path.");
-                return ExitCodeConstants.InvalidCommand;
+                return CommandResult.Failure(ExitCodeConstants.InvalidCommand, "Unable to determine the current executable path.");
             }
 
             InteractionService.DisplayMessage(KnownEmojis.Package, $"Current CLI location: {currentExePath}");
@@ -350,33 +353,17 @@ internal sealed class UpdateCommand : BaseCommand
             // Extract and update to $HOME/.aspire/bin
             await ExtractAndUpdateAsync(archivePath, cancellationToken);
 
-            // Save the selected channel to global settings for future use with 'aspire new' and 'aspire init'
-            // For stable channel, clear the setting to leave it blank (like the install scripts do)
-            // For other channels (staging, daily), save the channel name
-            if (string.Equals(channel, PackageChannelNames.Stable, StringComparison.OrdinalIgnoreCase))
-            {
-                await _configurationService.DeleteConfigurationAsync("channel", isGlobal: true, cancellationToken);
-                _logger.LogDebug("Cleared global channel setting for stable channel");
-            }
-            else
-            {
-                await _configurationService.SetConfigurationAsync("channel", channel, isGlobal: true, cancellationToken);
-                _logger.LogDebug("Saved global channel setting: {Channel}", channel);
-            }
-
-            return 0;
+            return CommandResult.Success();
         }
         catch (OperationCanceledException)
         {
-            InteractionService.DisplayCancellationMessage();
-            return ExitCodeConstants.InvalidCommand;
+            return CommandResult.Cancelled();
         }
         catch (Exception ex)
         {
             Telemetry.RecordError("Failed to update CLI", ex);
             var errorMessage = $"Failed to update CLI: {ex.Message}";
-            InteractionService.DisplayError(errorMessage);
-            return ExitCodeConstants.InvalidCommand;
+            return CommandResult.Failure(ExitCodeConstants.InvalidCommand, errorMessage);
         }
     }
 

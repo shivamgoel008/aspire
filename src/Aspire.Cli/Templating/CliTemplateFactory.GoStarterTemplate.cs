@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using Aspire.Cli.Configuration;
 using Aspire.Cli.Interaction;
 using Aspire.Cli.Projects;
 using Microsoft.Extensions.Logging;
@@ -57,17 +56,11 @@ internal sealed partial class CliTemplateFactory
                     _logger.LogDebug("Copying embedded Go starter template files to '{OutputPath}'.", outputPath);
                     await CopyTemplateTreeToDiskAsync("go-starter", outputPath, ApplyAllTokens, cancellationToken);
 
-                    // Write channel to settings.json before restore so package resolution uses the selected channel.
-                    if (!string.IsNullOrEmpty(inputs.Channel))
-                    {
-                        var config = AspireJsonConfiguration.Load(outputPath);
-                        if (config is not null)
-                        {
-                            config.Channel = inputs.Channel;
-                            config.Save(outputPath);
-                        }
-                    }
-
+                    // No per-project channel is written here. The Go starter template ships an
+                    // aspire.config.json without a channel pin, and PrebuiltAppHostServer
+                    // aggregates package sources from every registered channel when the project
+                    // doesn't pin one — so daily-feed packages remain reachable on a daily CLI
+                    // without each project carrying a stale channel name across machines.
                     var appHostProject = _projectFactory.TryGetProject(new FileInfo(Path.Combine(outputPath, "apphost.go")));
                     if (appHostProject is not IGuestAppHostSdkGenerator guestProject)
                     {
