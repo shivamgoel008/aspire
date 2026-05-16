@@ -170,6 +170,7 @@ When creating new projects from the PR build:
 - For `aspire-starter`, also pass `--test-framework None --use-redis-cache false` unless the scenario explicitly needs those prompts.
 - Always pass `--localhost-tld false` to suppress the `Use *.dev.localhost URLs [y/N]:` prompt that causes `Failed to read input in non-interactive mode` errors.
 - Always pass `--suppress-agent-init` to suppress the post-create `Would you like to configure AI agent environments for this project?` prompt.
+- The `--output` directory must not already exist. `aspire new` refuses to write into a non-empty directory. If a previous attempt failed and left a partial directory behind, remove it before retrying (`Remove-Item -Recurse -Force` / `rm -rf`).
 - In TTY-attached runs where `--suppress-agent-init` is not passed, `aspire new` may ask `Would you like to configure AI agent environments for this project?`; answer explicitly (usually `n`) unless agent-init is part of the scenario.
 - Run `aspire new <template> --help` to discover all available flags for a template when you encounter unexpected prompts. New flags may be added between releases.
 
