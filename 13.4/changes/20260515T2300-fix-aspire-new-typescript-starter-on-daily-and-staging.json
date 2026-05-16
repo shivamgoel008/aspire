@@ -1,0 +1,19 @@
+{
+  "area": "CLI",
+  "areaEmoji": "💻",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "Fixed `aspire new` failing to scaffold the `aspire-ts-starter` template on daily and staging CLI channels. The scaffolding service was requiring a stable `Aspire.Hosting` version, which does not exist on preview channels, causing the template creation to fail.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🐛",
+  "firstMergedAt": "2026-05-15T23:00:40Z",
+  "lastMergedAt": "2026-05-15T23:00:40Z",
+  "name": "Fix aspire new TypeScript starter on daily and staging channels",
+  "owner": "radical",
+  "prs": [
+    17120
+  ]
+}

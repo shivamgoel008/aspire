@@ -1,0 +1,9 @@
+{
+  "author": "radical",
+  "comment": "Bug fix: aspire new fails to scaffold aspire-ts-starter on daily/staging channels due to stable package requirement",
+  "mergedAt": "2026-05-15T23:00:40Z",
+  "number": 17120,
+  "runDate": "2026-05-16T00:32:00Z",
+  "status": "included",
+  "title": "fix(cli): aspire new fails to scaffold aspire-ts-starter on daily / staging CLI"
+}

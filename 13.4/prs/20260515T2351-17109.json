@@ -1,0 +1,9 @@
+{
+  "author": "sebastienros",
+  "comment": "Engineering improvement: use GitHub App token for automated PR pushes to ensure CI triggers",
+  "mergedAt": "2026-05-15T23:51:34Z",
+  "number": 17109,
+  "runDate": "2026-05-16T00:32:00Z",
+  "status": "included",
+  "title": "Use app token for automated PR pushes"
+}

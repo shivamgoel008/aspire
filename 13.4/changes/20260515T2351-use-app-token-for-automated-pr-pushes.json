@@ -1,0 +1,19 @@
+{
+  "area": "Engineering",
+  "areaEmoji": "🔧",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Improvements",
+  "communityContributors": [],
+  "description": "Automated PR workflows now use a GitHub App token for git push operations, ensuring that CI is triggered on pull_request.synchronize events after automated pushes. Previously the default GITHUB_TOKEN was used, which GitHub suppresses from triggering CI.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🔑",
+  "firstMergedAt": "2026-05-15T23:51:34Z",
+  "lastMergedAt": "2026-05-15T23:51:34Z",
+  "name": "Use app token for automated PR pushes",
+  "owner": "sebastienros",
+  "prs": [
+    17109
+  ]
+}

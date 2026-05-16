@@ -1,0 +1,9 @@
+{
+  "author": "danegsta",
+  "comment": "Test-only change: increases StopAsync timeout in URL test to reduce flakiness",
+  "mergedAt": "2026-05-16T00:15:20Z",
+  "number": 17151,
+  "runDate": "2026-05-16T00:32:00Z",
+  "status": "excluded",
+  "title": "Use longer StopAsync timeout in URL test"
+}
