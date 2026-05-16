@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 // One-line "pit of success" AKS recipe — compare against CertManagerDemo to see how much
-// boilerplate WithClusterDefaults removes.
+// boilerplate WithSimplifiedDeployment removes.
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -28,16 +28,16 @@ var userVmSize = builder.AddParameter("userVmSize", "Standard_D2as_v5");
 // For dev loops that redeploy often, set AcmeEnvironment = Staging in a callback so we
 // don't burn the LE production rate limit:
 //
-//   .WithClusterDefaults(acmeEmail, o => o.AcmeEnvironment = LetsEncryptEnvironment.Staging);
+//   .WithSimplifiedDeployment(acmeEmail, o => o.AcmeEnvironment = LetsEncryptEnvironment.Staging);
 builder.AddAzureKubernetesEnvironment("aks")
-       .WithClusterDefaults(acmeEmail, o =>
+       .WithSimplifiedDeployment(acmeEmail, o =>
        {
            o.SystemNodePoolVmSizeParameter = systemVmSize;
            o.UserNodePoolVmSizeParameter = userVmSize;
        });
 
 // The auto-router picks this up because of WithExternalHttpEndpoints; no WithRoute needed.
-builder.AddProject<Projects.AksClusterDefaultsDemo_ApiService>("api")
+builder.AddProject<Projects.AksSimplifiedDeploymentDemo_ApiService>("api")
        .WithExternalHttpEndpoints();
 
 builder.Build().Run();

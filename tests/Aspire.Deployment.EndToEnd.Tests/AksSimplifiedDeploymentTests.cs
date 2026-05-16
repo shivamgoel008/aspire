@@ -9,10 +9,10 @@ using Xunit;
 namespace Aspire.Deployment.EndToEnd.Tests;
 
 /// <summary>
-/// End-to-end test for the one-line <c>aks.WithClusterDefaults(acmeEmail)</c> recipe
+/// End-to-end test for the one-line <c>aks.WithSimplifiedDeployment(acmeEmail)</c> recipe
 /// (#17160). Mirrors <see cref="AksAzureKubernetesEnvironmentCertManagerDeploymentTests"/>
 /// but exercises the collapsed surface: no VNet/subnet/load-balancer/cert-manager/issuer/gateway
-/// calls in the AppHost — just <c>WithClusterDefaults</c> + a project with
+/// calls in the AppHost — just <c>WithSimplifiedDeployment</c> + a project with
 /// <c>WithExternalHttpEndpoints</c>, and the auto-router takes care of routing.
 ///
 /// Also asserts the Phase 1 (#17158) TLS posture: a plain HTTP request to <c>/api</c>
@@ -21,23 +21,23 @@ namespace Aspire.Deployment.EndToEnd.Tests;
 /// Uses Let's Encrypt <em>staging</em> because production has strict per-domain rate
 /// limits (~5 certs / week) that would block repeat E2E runs.
 /// </summary>
-public sealed class AksClusterDefaultsDeploymentTests(ITestOutputHelper output)
+public sealed class AksSimplifiedDeploymentTests(ITestOutputHelper output)
 {
     // AKS + AGC bring-up + cert issuance, plus the second-deploy idempotency probe.
     private static readonly TimeSpan s_testTimeout = TimeSpan.FromMinutes(75);
 
     [Fact]
-    public async Task DeployApiWithClusterDefaultsToAzureKubernetesEnvironment()
+    public async Task DeployApiWithSimplifiedDeploymentToAzureKubernetesEnvironment()
     {
         using var cts = new CancellationTokenSource(s_testTimeout);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
             cts.Token, TestContext.Current.CancellationToken);
         var cancellationToken = linkedCts.Token;
 
-        await DeployApiWithClusterDefaultsToAzureKubernetesEnvironmentCore(cancellationToken);
+        await DeployApiWithSimplifiedDeploymentToAzureKubernetesEnvironmentCore(cancellationToken);
     }
 
-    private async Task DeployApiWithClusterDefaultsToAzureKubernetesEnvironmentCore(CancellationToken cancellationToken)
+    private async Task DeployApiWithSimplifiedDeploymentToAzureKubernetesEnvironmentCore(CancellationToken cancellationToken)
     {
         var subscriptionId = AzureAuthenticationHelpers.TryGetSubscriptionId();
         if (string.IsNullOrEmpty(subscriptionId))
@@ -61,12 +61,12 @@ public sealed class AksClusterDefaultsDeploymentTests(ITestOutputHelper output)
         var startTime = DateTime.UtcNow;
         var deploymentUrls = new Dictionary<string, string>();
         var resourceGroupName = DeploymentE2ETestHelpers.GenerateResourceGroupName("akscd");
-        var projectName = "AksClusterDefaults";
+        var projectName = "AksSimplifiedDeployment";
 
         // ACME registration email. Staging accepts any well-formed address.
         const string acmeEmail = "aspire-e2e-test@microsoft.com";
 
-        output.WriteLine($"Test: {nameof(DeployApiWithClusterDefaultsToAzureKubernetesEnvironment)}");
+        output.WriteLine($"Test: {nameof(DeployApiWithSimplifiedDeploymentToAzureKubernetesEnvironment)}");
         output.WriteLine($"Project Name: {projectName}");
         output.WriteLine($"Resource Group: {resourceGroupName}");
         output.WriteLine($"Subscription: {subscriptionId[..8]}...");
@@ -98,7 +98,7 @@ public sealed class AksClusterDefaultsDeploymentTests(ITestOutputHelper output)
             await auto.EnterAsync();
             await auto.WaitForAspireAddCompletionAsync(counter);
 
-            // Patch AppHost.cs to use the one-line WithClusterDefaults recipe. Switch the
+            // Patch AppHost.cs to use the one-line WithSimplifiedDeployment recipe. Switch the
             // auto-provisioned issuer to Let's Encrypt staging via the options callback so we
             // don't burn the production rate limit on repeat E2E runs.
             var projectDir = Path.Combine(workspace.WorkspaceRoot.FullName, projectName);
@@ -117,7 +117,7 @@ var acmeEmail = builder.AddParameter("acmeemail");
 
 // The whole VNet + AKS + AGC + cert-manager + Gateway + TLS recipe collapses to this:
 builder.AddAzureKubernetesEnvironment("aks")
-    .WithClusterDefaults(acmeEmail, o =>
+    .WithSimplifiedDeployment(acmeEmail, o =>
     {
         // Staging only — production has tight rate limits that would block repeat E2E runs.
         o.AcmeEnvironment = Aspire.Hosting.Azure.Kubernetes.LetsEncryptEnvironment.Staging;
@@ -130,7 +130,7 @@ builder.Build().Run();
 
             // Also flip the starter's apiService.WithExternalHttpEndpoints — it's there by
             // default in `aspire new`'s starter template, which is exactly what
-            // WithClusterDefaults's auto-router picks up. No further AppHost.cs edits required.
+            // WithSimplifiedDeployment's auto-router picks up. No further AppHost.cs edits required.
 
             const string pragmaBlock =
                 "#pragma warning disable ASPIREPIPELINES001\n" +
@@ -143,7 +143,7 @@ builder.Build().Run();
             }
 
             File.WriteAllText(appHostFilePath, content);
-            output.WriteLine("Modified AppHost.cs with WithClusterDefaults(acmeEmail)");
+            output.WriteLine("Modified AppHost.cs with WithSimplifiedDeployment(acmeEmail)");
 
             output.WriteLine("Step 7: Navigating to AppHost directory...");
             await auto.TypeAsync($"cd {projectName}.AppHost");
@@ -159,7 +159,7 @@ builder.Build().Run();
             await auto.EnterAsync();
             await auto.WaitForSuccessPromptAsync(counter);
 
-            output.WriteLine("Step 9: Starting AKS + WithClusterDefaults deployment (15-20 min)...");
+            output.WriteLine("Step 9: Starting AKS + WithSimplifiedDeployment deployment (15-20 min)...");
             await auto.TypeAsync("aspire deploy --clear-cache");
             await auto.EnterAsync();
             await auto.WaitForPipelineSuccessAsync(timeout: TimeSpan.FromMinutes(40));
@@ -188,7 +188,7 @@ builder.Build().Run();
             await auto.EnterAsync();
             await auto.WaitForSuccessPromptAsync(counter, TimeSpan.FromMinutes(3));
 
-            // The auto-provisioned gateway is "public-gw" (ClusterDefaultsOptions.GatewayName default).
+            // The auto-provisioned gateway is "public-gw" (SimplifiedDeploymentOptions.GatewayName default).
             output.WriteLine("Step 13: Discovering gateway namespace...");
             await auto.TypeAsync(
                 "NS=$(kubectl get gateway --all-namespaces -o jsonpath='{range .items[?(@.metadata.name==\"public-gw\")]}{.metadata.namespace}{end}') && " +
@@ -285,12 +285,12 @@ builder.Build().Run();
             output.WriteLine($"Deployment completed in {duration}");
 
             DeploymentReporter.ReportDeploymentSuccess(
-                nameof(DeployApiWithClusterDefaultsToAzureKubernetesEnvironment),
+                nameof(DeployApiWithSimplifiedDeploymentToAzureKubernetesEnvironment),
                 resourceGroupName,
                 deploymentUrls,
                 duration);
 
-            output.WriteLine("✅ Test passed - WithClusterDefaults one-liner deployed AKS+AGC+cert-manager+gateway end-to-end!");
+            output.WriteLine("✅ Test passed - WithSimplifiedDeployment one-liner deployed AKS+AGC+cert-manager+gateway end-to-end!");
         }
         catch (Exception ex)
         {
@@ -298,7 +298,7 @@ builder.Build().Run();
             output.WriteLine($"❌ Test failed after {duration}: {ex.Message}");
 
             DeploymentReporter.ReportDeploymentFailure(
-                nameof(DeployApiWithClusterDefaultsToAzureKubernetesEnvironment),
+                nameof(DeployApiWithSimplifiedDeploymentToAzureKubernetesEnvironment),
                 resourceGroupName,
                 ex.Message,
                 ex.StackTrace);

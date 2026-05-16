@@ -741,7 +741,7 @@ public sealed class KubernetesEnvironmentResource : Resource, IComputeEnvironmen
             // both `dotnet run -- --publisher kubernetes` (which goes through PipelineExecutor
             // and fires BeforePublishEvent) and `aspire deploy` (which drives pipeline steps
             // directly over the CLI JSON-RPC backchannel and never raises BeforePublishEvent).
-            // Recipes such as WithClusterDefaults attach the annotation when they want this.
+            // Recipes such as WithSimplifiedDeployment attach the annotation when they want this.
             if (gatewayResource.TryGetLastAnnotation<KubernetesGatewayAutoRouteAnnotation>(out var autoRoute))
             {
                 ApplyAutoRouting(model, gatewayResource, autoRoute);

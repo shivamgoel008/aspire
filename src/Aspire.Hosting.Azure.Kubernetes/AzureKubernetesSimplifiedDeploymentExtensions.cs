@@ -10,10 +10,10 @@ using Aspire.Hosting.Kubernetes;
 namespace Aspire.Hosting;
 
 /// <summary>
-/// Provides the "pit of success" extension method <c>WithClusterDefaults</c>, which collapses
+/// Provides the "pit of success" extension method <c>WithSimplifiedDeployment</c>, which collapses
 /// the verbose ~15-line AKS + AGC + cert-manager + VNet + Gateway recipe down to a single call.
 /// </summary>
-public static class AzureKubernetesClusterDefaultsExtensions
+public static class AzureKubernetesSimplifiedDeploymentExtensions
 {
     /// <summary>
     /// Configures the AKS environment with a complete production-grade default topology in
@@ -28,7 +28,7 @@ public static class AzureKubernetesClusterDefaultsExtensions
     /// account. Required because Let's Encrypt mandates an account email and surfacing it as
     /// a parameter keeps it out of source control.
     /// </param>
-    /// <param name="configure">Optional callback to tune <see cref="ClusterDefaultsOptions"/>.</param>
+    /// <param name="configure">Optional callback to tune <see cref="SimplifiedDeploymentOptions"/>.</param>
     /// <returns>The <see cref="IResourceBuilder{AzureKubernetesEnvironmentResource}"/> for chaining.</returns>
     /// <remarks>
     /// <para>
@@ -36,9 +36,9 @@ public static class AzureKubernetesClusterDefaultsExtensions
     /// is verbose and full of footguns: choosing CIDR ranges that don't collide with the AKS
     /// service CIDR, delegating the right subnet to <c>Microsoft.ServiceNetworking/trafficControllers</c>,
     /// remembering to set <c>WithSystemNodePool</c>, attaching cert-manager to the gateway via the
-    /// right annotation, and so on. <c>WithClusterDefaults</c> bakes in the choices that work for
+    /// right annotation, and so on. <c>WithSimplifiedDeployment</c> bakes in the choices that work for
     /// ~80% of users while leaving every individual piece overridable via
-    /// <see cref="ClusterDefaultsOptions"/>.
+    /// <see cref="SimplifiedDeploymentOptions"/>.
     /// </para>
     /// <para>
     /// Auto-routing runs as part of the Kubernetes <c>prepare-deployment-targets</c>
@@ -47,11 +47,11 @@ public static class AzureKubernetesClusterDefaultsExtensions
     /// auto-router walks the application model, ignores infrastructure resources (gateway,
     /// load balancer, cert-manager, issuer, vnet, subnet, dashboard, AKS env), and for each
     /// remaining resource with one or more <c>IsExternal == true</c> HTTP endpoints adds a
-    /// route under <see cref="ClusterDefaultsOptions.RoutePathTemplate"/>.
+    /// route under <see cref="SimplifiedDeploymentOptions.RoutePathTemplate"/>.
     /// </para>
     /// <para>
     /// The defaults install Let's Encrypt production. For development loops that redeploy
-    /// frequently, set <see cref="ClusterDefaultsOptions.AcmeEnvironment"/> to
+    /// frequently, set <see cref="SimplifiedDeploymentOptions.AcmeEnvironment"/> to
     /// <see cref="LetsEncryptEnvironment.Staging"/> to avoid burning the ≈5 certs/hostname/week
     /// production rate limit.
     /// </para>
@@ -62,7 +62,7 @@ public static class AzureKubernetesClusterDefaultsExtensions
     /// var acmeEmail = builder.AddParameter("acme-email");
     ///
     /// var aks = builder.AddAzureKubernetesEnvironment("aks")
-    ///                  .WithClusterDefaults(acmeEmail);
+    ///                  .WithSimplifiedDeployment(acmeEmail);
     ///
     /// builder.AddProject&lt;Projects.Api&gt;("api")
     ///        .WithExternalHttpEndpoints();
@@ -71,10 +71,10 @@ public static class AzureKubernetesClusterDefaultsExtensions
     /// </code>
     /// </example>
     [AspireExport(Description = "Configures the AKS environment with a complete VNet + AGC + cert-manager + TLS-enabled gateway in one call, and auto-routes every external HTTP endpoint", RunSyncOnBackgroundThread = true)]
-    public static IResourceBuilder<AzureKubernetesEnvironmentResource> WithClusterDefaults(
+    public static IResourceBuilder<AzureKubernetesEnvironmentResource> WithSimplifiedDeployment(
         this IResourceBuilder<AzureKubernetesEnvironmentResource> builder,
         IResourceBuilder<ParameterResource> acmeEmail,
-        Action<ClusterDefaultsOptions>? configure = null)
+        Action<SimplifiedDeploymentOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(acmeEmail);
@@ -82,7 +82,7 @@ public static class AzureKubernetesClusterDefaultsExtensions
         // Materialize options up-front. Snapshot-style so later mutation of the options
         // bag (which we don't expose, but the callback could capture and re-invoke) cannot
         // drift the resources we register below.
-        var options = new ClusterDefaultsOptions();
+        var options = new SimplifiedDeploymentOptions();
         configure?.Invoke(options);
 
         var appBuilder = builder.ApplicationBuilder;

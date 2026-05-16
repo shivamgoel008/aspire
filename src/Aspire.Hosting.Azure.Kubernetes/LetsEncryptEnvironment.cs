@@ -6,11 +6,11 @@ namespace Aspire.Hosting.Azure.Kubernetes;
 /// <summary>
 /// Selects which Let's Encrypt ACME directory the auto-provisioned
 /// <c>ClusterIssuer</c> created by
-/// <see cref="AzureKubernetesClusterDefaultsExtensions.WithClusterDefaults"/>
+/// <see cref="AzureKubernetesSimplifiedDeploymentExtensions.WithSimplifiedDeployment"/>
 /// will point at.
 /// </summary>
 /// <remarks>
-/// Production is the default because the entire point of <c>WithClusterDefaults</c>
+/// Production is the default because the entire point of <c>WithSimplifiedDeployment</c>
 /// is to land in the "happy path" — and the happy path for a production AKS deploy
 /// is a real, browser-trusted certificate. Staging exists only for development
 /// loops where the strict Let's Encrypt rate limits (≈5 certs / hostname / week

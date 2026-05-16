@@ -57,7 +57,7 @@ public sealed class HttpRouteFilterV1
 /// </summary>
 /// <remarks>
 /// See <see href="https://gateway-api.sigs.k8s.io/api-types/httproute/#urlrewrite"/>.
-/// Used by the auto-router in <c>WithClusterDefaults</c> to strip the synthetic
+/// Used by the auto-router in <c>WithSimplifiedDeployment</c> to strip the synthetic
 /// per-resource path prefix (for example <c>/webfrontend-http</c>) so the backend
 /// receives requests at the path it actually serves.
 /// </remarks>

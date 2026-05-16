@@ -9,12 +9,12 @@ var app = builder.Build();
 
 app.MapDefaultEndpoints();
 
-// Endpoints used to validate the WithClusterDefaults pit-of-success flow against a live
+// Endpoints used to validate the WithSimplifiedDeployment pit-of-success flow against a live
 // AKS deployment.
 
 static object BuildIdentity(string surface) => new
 {
-    service = "AksClusterDefaultsDemo.ApiService",
+    service = "AksSimplifiedDeploymentDemo.ApiService",
     surface,
     machineName = Environment.MachineName,
     podIp = Environment.GetEnvironmentVariable("POD_IP"),

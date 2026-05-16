@@ -94,7 +94,7 @@ internal sealed record GatewayRouteConfig(
     /// <summary>
     /// When true, the emitted HTTPRoute rule includes a URLRewrite filter that
     /// strips the matched <see cref="Path"/> prefix before forwarding to the
-    /// backend. Used by the WithClusterDefaults auto-router because backends
+    /// backend. Used by the WithSimplifiedDeployment auto-router because backends
     /// don't know about their synthetic gateway-side path prefix.
     /// </summary>
     public bool RewritePrefix { get; init; }

@@ -12,16 +12,16 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Aspire.Hosting.Azure.Tests;
 
-public class ClusterDefaultsTests
+public class SimplifiedDeploymentTests
 {
     [Fact]
-    public void WithClusterDefaults_BareCall_RegistersExpectedResources()
+    public void WithSimplifiedDeployment_BareCall_RegistersExpectedResources()
     {
         using var builder = TestDistributedApplicationBuilder.Create(
             DistributedApplicationOperation.Publish);
 
         var acmeEmail = builder.AddParameter("acme-email", "ops@contoso.com");
-        builder.AddAzureKubernetesEnvironment("aks").WithClusterDefaults(acmeEmail);
+        builder.AddAzureKubernetesEnvironment("aks").WithSimplifiedDeployment(acmeEmail);
 
         using var app = builder.Build();
         var model = app.Services.GetRequiredService<DistributedApplicationModel>();
@@ -34,13 +34,13 @@ public class ClusterDefaultsTests
     }
 
     [Fact]
-    public void WithClusterDefaults_OverridesAddressSpace_PropagatesToVnetAndSubnets()
+    public void WithSimplifiedDeployment_OverridesAddressSpace_PropagatesToVnetAndSubnets()
     {
         using var builder = TestDistributedApplicationBuilder.Create(
             DistributedApplicationOperation.Publish);
 
         var acmeEmail = builder.AddParameter("acme-email", "ops@contoso.com");
-        builder.AddAzureKubernetesEnvironment("aks").WithClusterDefaults(acmeEmail, o =>
+        builder.AddAzureKubernetesEnvironment("aks").WithSimplifiedDeployment(acmeEmail, o =>
         {
             o.AddressSpace = "172.16.0.0/16";
             o.AksSubnetCidr = "172.16.0.0/22";
@@ -58,13 +58,13 @@ public class ClusterDefaultsTests
     }
 
     [Fact]
-    public async Task WithClusterDefaults_AutoRoutesExternalHttpEndpoints()
+    public async Task WithSimplifiedDeployment_AutoRoutesExternalHttpEndpoints()
     {
         using var builder = TestDistributedApplicationBuilder.Create(
             DistributedApplicationOperation.Publish);
 
         var acmeEmail = builder.AddParameter("acme-email", "ops@contoso.com");
-        builder.AddAzureKubernetesEnvironment("aks").WithClusterDefaults(acmeEmail);
+        builder.AddAzureKubernetesEnvironment("aks").WithSimplifiedDeployment(acmeEmail);
 
         builder.AddContainer("api", "myimage")
                .WithHttpEndpoint(targetPort: 8080, name: "http")
@@ -82,13 +82,13 @@ public class ClusterDefaultsTests
     }
 
     [Fact]
-    public async Task WithClusterDefaults_RespectsUserAuthoredRoutes()
+    public async Task WithSimplifiedDeployment_RespectsUserAuthoredRoutes()
     {
         using var builder = TestDistributedApplicationBuilder.Create(
             DistributedApplicationOperation.Publish);
 
         var acmeEmail = builder.AddParameter("acme-email", "ops@contoso.com");
-        builder.AddAzureKubernetesEnvironment("aks").WithClusterDefaults(acmeEmail);
+        builder.AddAzureKubernetesEnvironment("aks").WithSimplifiedDeployment(acmeEmail);
 
         var api = builder.AddContainer("api", "myimage")
                          .WithHttpEndpoint(targetPort: 8080, name: "http")
@@ -110,13 +110,13 @@ public class ClusterDefaultsTests
     }
 
     [Fact]
-    public async Task WithClusterDefaults_DisableAutoRoute_LeavesNoUserRoutes()
+    public async Task WithSimplifiedDeployment_DisableAutoRoute_LeavesNoUserRoutes()
     {
         using var builder = TestDistributedApplicationBuilder.Create(
             DistributedApplicationOperation.Publish);
 
         var acmeEmail = builder.AddParameter("acme-email", "ops@contoso.com");
-        builder.AddAzureKubernetesEnvironment("aks").WithClusterDefaults(acmeEmail, o =>
+        builder.AddAzureKubernetesEnvironment("aks").WithSimplifiedDeployment(acmeEmail, o =>
         {
             o.AutoRouteExternalEndpoints = false;
         });
@@ -134,13 +134,13 @@ public class ClusterDefaultsTests
     }
 
     [Fact]
-    public void WithClusterDefaults_DisableTls_DoesNotProvisionCertManager()
+    public void WithSimplifiedDeployment_DisableTls_DoesNotProvisionCertManager()
     {
         using var builder = TestDistributedApplicationBuilder.Create(
             DistributedApplicationOperation.Publish);
 
         var acmeEmail = builder.AddParameter("acme-email", "ops@contoso.com");
-        builder.AddAzureKubernetesEnvironment("aks").WithClusterDefaults(acmeEmail, o =>
+        builder.AddAzureKubernetesEnvironment("aks").WithSimplifiedDeployment(acmeEmail, o =>
         {
             o.EnableTls = false;
         });
@@ -154,33 +154,33 @@ public class ClusterDefaultsTests
     }
 
     [Fact]
-    public void WithClusterDefaults_ThrowsOnNullBuilder()
+    public void WithSimplifiedDeployment_ThrowsOnNullBuilder()
     {
         using var b = TestDistributedApplicationBuilder.Create();
         var acmeEmail = b.AddParameter("acme-email", "ops@contoso.com");
 
         IResourceBuilder<AzureKubernetesEnvironmentResource> nullBuilder = null!;
 
-        Assert.Throws<ArgumentNullException>(() => nullBuilder.WithClusterDefaults(acmeEmail));
+        Assert.Throws<ArgumentNullException>(() => nullBuilder.WithSimplifiedDeployment(acmeEmail));
     }
 
     [Fact]
-    public void WithClusterDefaults_ThrowsOnNullAcmeEmail()
+    public void WithSimplifiedDeployment_ThrowsOnNullAcmeEmail()
     {
         using var builder = TestDistributedApplicationBuilder.Create();
         var aks = builder.AddAzureKubernetesEnvironment("aks");
 
-        Assert.Throws<ArgumentNullException>(() => aks.WithClusterDefaults(null!));
+        Assert.Throws<ArgumentNullException>(() => aks.WithSimplifiedDeployment(null!));
     }
 
     [Fact]
-    public async Task WithClusterDefaults_MultipleExternalResources_FallBackToPerResourcePaths()
+    public async Task WithSimplifiedDeployment_MultipleExternalResources_FallBackToPerResourcePaths()
     {
         using var builder = TestDistributedApplicationBuilder.Create(
             DistributedApplicationOperation.Publish);
 
         var acmeEmail = builder.AddParameter("acme-email", "ops@contoso.com");
-        builder.AddAzureKubernetesEnvironment("aks").WithClusterDefaults(acmeEmail);
+        builder.AddAzureKubernetesEnvironment("aks").WithSimplifiedDeployment(acmeEmail);
 
         builder.AddContainer("api", "myimage")
                .WithHttpEndpoint(targetPort: 8080, name: "http")
@@ -202,13 +202,13 @@ public class ClusterDefaultsTests
     }
 
     [Fact]
-    public async Task WithClusterDefaults_MultiEndpointSingleResource_CollapsesToOneRoute()
+    public async Task WithSimplifiedDeployment_MultiEndpointSingleResource_CollapsesToOneRoute()
     {
         using var builder = TestDistributedApplicationBuilder.Create(
             DistributedApplicationOperation.Publish);
 
         var acmeEmail = builder.AddParameter("acme-email", "ops@contoso.com");
-        builder.AddAzureKubernetesEnvironment("aks").WithClusterDefaults(acmeEmail);
+        builder.AddAzureKubernetesEnvironment("aks").WithSimplifiedDeployment(acmeEmail);
 
         // A project with WithExternalHttpEndpoints annotates BOTH http and https
         // endpoints, but they front the same backend Kestrel — emit one route, not two.
@@ -230,13 +230,13 @@ public class ClusterDefaultsTests
     }
 
     [Fact]
-    public void WithClusterDefaults_AddsSystemAndUserNodePoolsByDefault()
+    public void WithSimplifiedDeployment_AddsSystemAndUserNodePoolsByDefault()
     {
         using var builder = TestDistributedApplicationBuilder.Create(
             DistributedApplicationOperation.Publish);
 
         var acmeEmail = builder.AddParameter("acme-email", "ops@contoso.com");
-        var aks = builder.AddAzureKubernetesEnvironment("aks").WithClusterDefaults(acmeEmail);
+        var aks = builder.AddAzureKubernetesEnvironment("aks").WithSimplifiedDeployment(acmeEmail);
 
         // Default options should provision a workload pool alongside the system pool so
         // workloads don't have to share the system pool with cert-manager / kube-system.
@@ -248,13 +248,13 @@ public class ClusterDefaultsTests
     }
 
     [Fact]
-    public void WithClusterDefaults_IncludeUserNodePoolFalse_OmitsUserPool()
+    public void WithSimplifiedDeployment_IncludeUserNodePoolFalse_OmitsUserPool()
     {
         using var builder = TestDistributedApplicationBuilder.Create(
             DistributedApplicationOperation.Publish);
 
         var acmeEmail = builder.AddParameter("acme-email", "ops@contoso.com");
-        var aks = builder.AddAzureKubernetesEnvironment("aks").WithClusterDefaults(acmeEmail, o =>
+        var aks = builder.AddAzureKubernetesEnvironment("aks").WithSimplifiedDeployment(acmeEmail, o =>
         {
             o.IncludeUserNodePool = false;
         });
@@ -264,7 +264,7 @@ public class ClusterDefaultsTests
     }
 
     [Fact]
-    public void WithClusterDefaults_VmSizeParameter_OverridesStringDefault()
+    public void WithSimplifiedDeployment_VmSizeParameter_OverridesStringDefault()
     {
         using var builder = TestDistributedApplicationBuilder.Create(
             DistributedApplicationOperation.Publish);
@@ -275,7 +275,7 @@ public class ClusterDefaultsTests
         var systemSku = builder.AddParameter("systemVmSize", "Standard_E2s_v5");
         var userSku = builder.AddParameter("userVmSize", "Standard_E4s_v5");
 
-        var aks = builder.AddAzureKubernetesEnvironment("aks").WithClusterDefaults(acmeEmail, o =>
+        var aks = builder.AddAzureKubernetesEnvironment("aks").WithSimplifiedDeployment(acmeEmail, o =>
         {
             o.SystemNodePoolVmSizeParameter = systemSku;
             o.UserNodePoolVmSizeParameter = userSku;
@@ -288,13 +288,13 @@ public class ClusterDefaultsTests
     }
 
     [Fact]
-    public void WithClusterDefaults_NodePoolCounts_AppliedToConfig()
+    public void WithSimplifiedDeployment_NodePoolCounts_AppliedToConfig()
     {
         using var builder = TestDistributedApplicationBuilder.Create(
             DistributedApplicationOperation.Publish);
 
         var acmeEmail = builder.AddParameter("acme-email", "ops@contoso.com");
-        var aks = builder.AddAzureKubernetesEnvironment("aks").WithClusterDefaults(acmeEmail, o =>
+        var aks = builder.AddAzureKubernetesEnvironment("aks").WithSimplifiedDeployment(acmeEmail, o =>
         {
             o.SystemNodePoolMinCount = 2;
             o.SystemNodePoolMaxCount = 5;

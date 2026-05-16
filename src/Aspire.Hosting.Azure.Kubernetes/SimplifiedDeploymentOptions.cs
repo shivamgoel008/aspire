@@ -8,7 +8,7 @@ namespace Aspire.Hosting.Azure.Kubernetes;
 
 /// <summary>
 /// Knobs for
-/// <see cref="AzureKubernetesClusterDefaultsExtensions.WithClusterDefaults"/>. All
+/// <see cref="AzureKubernetesSimplifiedDeploymentExtensions.WithSimplifiedDeployment"/>. All
 /// properties have defaults that produce the "pit of success" AKS configuration —
 /// every knob exists only so callers can deviate from that default when their
 /// environment requires it, never because they have to set it to make the basic
@@ -26,12 +26,12 @@ namespace Aspire.Hosting.Azure.Kubernetes;
 /// Naming defaults (<see cref="LoadBalancerName"/>, <see cref="GatewayName"/>,
 /// etc.) are short and generic on purpose so they read naturally as resource
 /// names in the dashboard ("public", "public-gw", "cert-manager", "letsencrypt").
-/// Override them when stacking multiple <c>WithClusterDefaults</c>-style
+/// Override them when stacking multiple <c>WithSimplifiedDeployment</c>-style
 /// recipes in one AppHost.
 /// </para>
 /// </remarks>
 [AspireExport(ExposeProperties = true)]
-public sealed class ClusterDefaultsOptions
+public sealed class SimplifiedDeploymentOptions
 {
     /// <summary>
     /// CIDR block for the auto-provisioned VNet. Defaults to <c>10.100.0.0/16</c>,
@@ -74,7 +74,7 @@ public sealed class ClusterDefaultsOptions
 
     /// <summary>
     /// Optional parameter that, when set, overrides <see cref="SystemNodePoolVmSize"/>
-    /// at <c>WithClusterDefaults</c> time. Lets the system pool SKU be swapped per
+    /// at <c>WithSimplifiedDeployment</c> time. Lets the system pool SKU be swapped per
     /// environment via <c>aspire deploy -p systemVmSize=Standard_E2s_v5</c> without
     /// editing the AppHost — useful when a region runs out of quota for the default
     /// SKU and you need to fall back to whatever your subscription has headroom for.
@@ -93,7 +93,7 @@ public sealed class ClusterDefaultsOptions
     public int SystemNodePoolMaxCount { get; set; } = 3;
 
     /// <summary>
-    /// When <see langword="true"/> (the default), <c>WithClusterDefaults</c> also
+    /// When <see langword="true"/> (the default), <c>WithSimplifiedDeployment</c> also
     /// provisions a dedicated user node pool for application workloads so the system
     /// pool stays reserved for AKS system pods (cert-manager, CoreDNS, the AGC ALB
     /// controller). Set to <see langword="false"/> for the rare "tiny dev cluster"
@@ -119,7 +119,7 @@ public sealed class ClusterDefaultsOptions
 
     /// <summary>
     /// Optional parameter that, when set, overrides <see cref="UserNodePoolVmSize"/>
-    /// at <c>WithClusterDefaults</c> time. Lets the workload pool SKU be swapped per
+    /// at <c>WithSimplifiedDeployment</c> time. Lets the workload pool SKU be swapped per
     /// environment via <c>aspire deploy -p userVmSize=Standard_E2s_v5</c> without
     /// editing the AppHost.
     /// </summary>

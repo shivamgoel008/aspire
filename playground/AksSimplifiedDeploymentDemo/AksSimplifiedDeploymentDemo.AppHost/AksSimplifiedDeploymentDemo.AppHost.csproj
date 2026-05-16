@@ -15,7 +15,7 @@
     <AspireProjectOrPackageReference Include="Aspire.Hosting.Azure.Kubernetes" />
     <AspireProjectOrPackageReference Include="Aspire.Hosting.Azure.Network" />
 
-    <ProjectReference Include="..\AksClusterDefaultsDemo.ApiService\AksClusterDefaultsDemo.ApiService.csproj" />
+    <ProjectReference Include="..\AksSimplifiedDeploymentDemo.ApiService\AksSimplifiedDeploymentDemo.ApiService.csproj" />
   </ItemGroup>
 
 </Project>
