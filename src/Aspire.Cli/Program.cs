@@ -4,7 +4,6 @@
 using System.CommandLine;
 using System.Diagnostics;
 using System.Globalization;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using Aspire.Cli.Acquisition;
@@ -54,6 +53,8 @@ namespace Aspire.Cli;
 
 public class Program
 {
+    internal const string RootLoggerName = "Aspire.Cli";
+
     private static string GetUsersAspirePath()
     {
         return CliPathHelper.GetAspireHomeDirectory();
@@ -723,33 +724,21 @@ public class Program
 
     public static async Task<int> Main(string[] args)
     {
-        // Setup handling of CTRL-C as early as possible so that if
-        // we get a CTRL-C anywhere that is not handled by Spectre Console
+        // Setup handling of CTRL-C and SIGTERM as early as possible so that if
+        // we get a signal anywhere that is not handled by Spectre Console
         // already that we know to trigger cancellation.
-        using var cts = new CancellationTokenSource();
-        Console.CancelKeyPress += (sender, eventArgs) =>
-        {
-            cts.Cancel();
-            eventArgs.Cancel = true;
-        };
-        using var sigTermRegistration = OperatingSystem.IsWindows()
-            ? null
-            : PosixSignalRegistration.Create(PosixSignal.SIGTERM, context =>
-            {
-                cts.Cancel();
-                context.Cancel = true;
-            });
+        using var cancellationManager = new ConsoleCancellationManager();
 
         Console.OutputEncoding = Encoding.UTF8;
 
         var loggingOptions = ParseLoggingOptions(args);
         var errorWriter = new StartupErrorWriter(loggingOptions.LogFilePath);
         var (loggerFactory, fileLoggerProvider) = CreateLoggerFactory(args, loggingOptions, errorWriter);
-        var logger = loggerFactory.CreateLogger<Program>();
+        var logger = loggerFactory.CreateLogger(RootLoggerName);
         using var startupContext = new CliStartupContext(loggingOptions, errorWriter, loggerFactory, fileLoggerProvider, logger);
 
-        logger.LogInformation("Version: {Version}", AspireCliTelemetry.GetCliVersion());
-        logger.LogInformation("Build ID: {BuildId}", AspireCliTelemetry.GetCliBuildId());
+        logger.LogInformation("Aspire CLI version: {Version}", AspireCliTelemetry.GetCliVersion());
+        logger.LogInformation("Aspire CLI build ID: {BuildId}", AspireCliTelemetry.GetCliBuildId());
         logger.LogInformation("Working directory: {WorkingDirectory}", Environment.CurrentDirectory);
         // Logging the log file path is useful so that when console logging is enabled (for example with --log-level debug),
         // the path is written to the console logger (stderr) for easier discovery.
@@ -782,7 +771,7 @@ public class Program
         app.Services.GetRequiredService<IFeatures>().LogFeatureState();
 
         // Display first run experience if this is the first time the CLI is run on this machine
-        await DisplayFirstTimeUseNoticeIfNeededAsync(app.Services, args, cts.Token);
+        await DisplayFirstTimeUseNoticeIfNeededAsync(app.Services, args, cancellationManager.Token);
 
         var rootCommand = app.Services.GetRequiredService<RootCommand>();
         var invokeConfig = new InvocationConfiguration()
@@ -816,7 +805,7 @@ public class Program
 
             mainActivity?.SetTag(TelemetryConstants.Tags.CommandName, commandName);
 
-            var exitCode = await parseResult.InvokeAsync(invokeConfig, cts.Token);
+            var exitCode = await parseResult.InvokeAsync(invokeConfig, cancellationManager.Token);
 
             // Log exit code for debugging
             logger.LogInformation("Exit code: {ExitCode}", exitCode);
@@ -833,9 +822,9 @@ public class Program
             // Allows logging of exceptions to telemetry.
 
             // Don't log or display cancellation exceptions.
-            // Check both Ctrl+C cancellation (cts.IsCancellationRequested) and
+            // Check both Ctrl+C cancellation (cancellationManager.IsCancellationRequested) and
             // extension prompt cancellation (ExtensionOperationCanceledException).
-            if (!(ex is OperationCanceledException && cts.IsCancellationRequested) && ex is not ExtensionOperationCanceledException)
+            if (!(ex is OperationCanceledException && cancellationManager.IsCancellationRequested) && ex is not ExtensionOperationCanceledException)
             {
                 logger.LogError(ex, "An unexpected error occurred.");
 
