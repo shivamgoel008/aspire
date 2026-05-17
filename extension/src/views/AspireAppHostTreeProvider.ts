@@ -33,7 +33,7 @@ import {
     ViewMode,
     shortenPaths,
 } from './AppHostDataRepository';
-import { collectResourceCommandArguments } from './ResourceCommandArguments';
+import { collectResourceCommandArguments, hasSecretResourceCommandArguments } from './ResourceCommandArguments';
 
 type TreeElement = AppHostItem | PidItem | EndpointUrlItem | ResourcesGroupItem | ResourceItem | WorkspaceResourcesItem | HealthChecksGroupItem | HealthCheckItem;
 
@@ -718,7 +718,7 @@ export class AspireAppHostTreeProvider implements vscode.TreeDataProvider<TreeEl
             return;
         }
 
-        this._runResourceCommand(element, `"${selected.label}"`, ...additionalArgs);
+        this._runResourceCommand(element, `"${selected.label}"`, additionalArgs, hasSecretResourceCommandArguments(selected.command));
     }
 
     async copyAppHostPath(element: AppHostItem): Promise<void> {
@@ -746,12 +746,10 @@ export class AspireAppHostTreeProvider implements vscode.TreeDataProvider<TreeEl
         vscode.commands.executeCommand('simpleBrowser.show', element.url);
     }
 
-    private _runResourceCommand(element: ResourceItem, command: string, ...extraArgs: string[]): void {
-        const additionalArgs = extraArgs.length > 0 ? extraArgs : undefined;
-
+    private _runResourceCommand(element: ResourceItem, command: string, additionalArgs?: string[], redactAdditionalArgs = false): void {
         if (this._repository.viewMode === 'workspace') {
             const appHostFlag = this._repository.workspaceAppHostPath ? ` --apphost "${this._repository.workspaceAppHostPath}"` : '';
-            this._terminalProvider.sendAspireCommandToAspireTerminal(`resource "${element.resource.name}" ${command}${appHostFlag}`, true, additionalArgs);
+            this._terminalProvider.sendAspireCommandToAspireTerminal(`resource "${element.resource.name}" ${command}${appHostFlag}`, true, additionalArgs, { redactAdditionalArgs });
             return;
         }
 
@@ -759,7 +757,7 @@ export class AspireAppHostTreeProvider implements vscode.TreeDataProvider<TreeEl
         if (!appHost) {
             return;
         }
-        this._terminalProvider.sendAspireCommandToAspireTerminal(`resource "${element.resource.name}" ${command} --apphost "${appHost.appHostPath}"`, true, additionalArgs);
+        this._terminalProvider.sendAspireCommandToAspireTerminal(`resource "${element.resource.name}" ${command} --apphost "${appHost.appHostPath}"`, true, additionalArgs, { redactAdditionalArgs });
     }
 
     private _findAppHostForResource(element: ResourceItem): AppHostDisplayInfo | undefined {

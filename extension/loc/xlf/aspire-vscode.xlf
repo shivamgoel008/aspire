@@ -185,7 +185,7 @@
       <source xml:lang="en">Encountered an exception ({0}) while running the following command: {1}.</source>
     </trans-unit>
     <trans-unit id="aspire-vscode.strings.resourceCommandInvalidNumber">
-      <source xml:lang="en">Enter a number using digits and an optional decimal point.</source>
+      <source xml:lang="en">Enter a number using invariant culture, for example 1, -1.5, or 1e3.</source>
     </trans-unit>
     <trans-unit id="aspire-vscode.strings.enterPipelineStep">
       <source xml:lang="en">Enter the pipeline step to execute</source>

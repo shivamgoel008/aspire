@@ -35,7 +35,7 @@ import { AspireGutterDecorationProvider } from './editor/AspireGutterDecorationP
 import { AppHostFilePresenceWatcher } from './editor/AppHostFilePresenceWatcher';
 import { getSupportedLanguageIds } from './editor/parsers/AppHostResourceParser';
 import { readGitCommitSha } from './utils/versionInfo';
-import { collectResourceCommandArguments } from './views/ResourceCommandArguments';
+import { collectResourceCommandArguments, hasSecretResourceCommandArguments } from './views/ResourceCommandArguments';
 import { ResourceCommandJson } from './views/AppHostDataRepository';
 
 let aspireExtensionContext = new AspireExtensionContext();
@@ -146,7 +146,7 @@ export async function activate(context: vscode.ExtensionContext) {
     if (appHostPath) {
       command += ` --apphost "${appHostPath}"`;
     }
-    terminalProvider.sendAspireCommandToAspireTerminal(command, true, additionalArgs);
+    terminalProvider.sendAspireCommandToAspireTerminal(command, true, additionalArgs, { redactAdditionalArgs: hasSecretResourceCommandArguments(resourceCommand) });
   });
   const codeLensViewLogsRegistration = vscode.commands.registerCommand('aspire-vscode.codeLensViewLogs', (resourceName: string, appHostPath: string) => {
     let command = `logs "${resourceName}"`;

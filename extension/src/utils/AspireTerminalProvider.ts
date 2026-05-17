@@ -19,6 +19,20 @@ export interface AspireTerminal {
     dispose: () => void;
 }
 
+export interface SendAspireCommandOptions {
+    redactAdditionalArgs?: boolean;
+}
+
+function quoteShellArg(arg: string): string {
+    if (process.platform === 'win32') {
+        // On Windows PowerShell, wrap in double quotes and escape interpolation characters.
+        return `"${arg.replace(/`/g, '``').replace(/"/g, '`"').replace(/\$/g, '`$')}"`;
+    }
+
+    // On Unix, wrap in single quotes and escape inner single quotes.
+    return `'${arg.replace(/'/g, "'\"'\"'")}'`;
+}
+
 export class AspireTerminalProvider implements vscode.Disposable {
     private _terminalByDebugSessionId: Map<string | null, AspireTerminal> = new Map();
     private _rpcServerConnectionInfo?: RpcServerConnectionInfo;
@@ -59,7 +73,7 @@ export class AspireTerminalProvider implements vscode.Disposable {
         this._dcpServerConnectionInfo = value;
     }
 
-    async sendAspireCommandToAspireTerminal(subcommand: string, showTerminal: boolean = true, additionalArgs?: string[]) {
+    async sendAspireCommandToAspireTerminal(subcommand: string, showTerminal: boolean = true, additionalArgs?: string[], options?: SendAspireCommandOptions) {
         const cliPath = await this.getAspireCliExecutablePath();
 
         // On Windows, use & to execute paths, especially those with special characters
@@ -73,35 +87,34 @@ export class AspireTerminalProvider implements vscode.Disposable {
             const quotedPath = /[\s"'`$!*?()&|<>;]/.test(cliPath) ? `'${cliPath.replace(/'/g, `'\"'\"'`)}'` : cliPath;
             command = `${quotedPath} ${subcommand}`;
         }
+        const baseCommand = command;
 
-        const cliArgs: string[] = [];
+        const extensionArgs: string[] = [];
         if (this.isCliDebugLoggingEnabled()) {
-            cliArgs.push('--debug');
+            extensionArgs.push('--debug');
         }
 
         if (process.env[EnvironmentVariables.ASPIRE_CLI_STOP_ON_ENTRY] === 'true') {
-            cliArgs.push('--cli-wait-for-debugger');
+            extensionArgs.push('--cli-wait-for-debugger');
         }
 
-        if (additionalArgs && additionalArgs.length > 0) {
-            cliArgs.push(...additionalArgs);
-        }
+        const cliArgs = additionalArgs && additionalArgs.length > 0
+            ? [...extensionArgs, ...additionalArgs]
+            : extensionArgs;
 
         if (cliArgs.length > 0) {
-            const quotedArgs = cliArgs.map(arg => {
-                if (process.platform === 'win32') {
-                    // On Windows PowerShell, wrap in double quotes and escape interpolation characters.
-                    return `"${arg.replace(/`/g, '``').replace(/"/g, '`"').replace(/\$/g, '`$')}"`;
-                } else {
-                    // On Unix, wrap in single quotes and escape inner single quotes
-                    return `'${arg.replace(/'/g, "'\"'\"'")}'`;
-                }
-            });
+            const quotedArgs = cliArgs.map(quoteShellArg);
             command += ' ' + quotedArgs.join(' ');
         }
 
         const aspireTerminal = this.getAspireTerminal();
-        extensionLogOutputChannel.info(`Sending command to Aspire terminal: ${command}`);
+        let logCommand = command;
+        if (options?.redactAdditionalArgs && additionalArgs && additionalArgs.length > 0) {
+            const logArgs = extensionArgs.map(quoteShellArg);
+            logArgs.push('[redacted command arguments]');
+            logCommand = `${baseCommand} ${logArgs.join(' ')}`;
+        }
+        extensionLogOutputChannel.info(`Sending command to Aspire terminal: ${logCommand}`);
 
         if (aspireTerminal.terminal.shellIntegration) {
             aspireTerminal.terminal.shellIntegration.executeCommand(command);

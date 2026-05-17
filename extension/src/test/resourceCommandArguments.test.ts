@@ -2,6 +2,7 @@ import * as assert from 'assert';
 import {
     buildResourceCommandCliArgs,
     getResourceCommandArgumentValidationMessage,
+    hasSecretResourceCommandArguments,
     ResourceCommandArgumentValue,
 } from '../views/ResourceCommandArguments';
 import { ResourceCommandArgumentInputJson } from '../views/AppHostDataRepository';
@@ -107,12 +108,34 @@ suite('ResourceCommandArguments', () => {
 
         assert.strictEqual(getResourceCommandArgumentValidationMessage(input, '1.5'), undefined);
         assert.strictEqual(getResourceCommandArgumentValidationMessage(input, '-1.5'), undefined);
-        assert.strictEqual(getResourceCommandArgumentValidationMessage(input, '1,5'), 'Enter a number using digits and an optional decimal point.');
+        assert.strictEqual(getResourceCommandArgumentValidationMessage(input, '.5'), undefined);
+        assert.strictEqual(getResourceCommandArgumentValidationMessage(input, '1e3'), undefined);
+        assert.strictEqual(getResourceCommandArgumentValidationMessage(input, '+1.5E-2'), undefined);
+        assert.strictEqual(getResourceCommandArgumentValidationMessage(input, '1,5'), 'Enter a number using invariant culture, for example 1, -1.5, or 1e3.');
     });
 
     test('validates maximum length', () => {
         const input = makeInput({ maxLength: 3 });
 
         assert.strictEqual(getResourceCommandArgumentValidationMessage(input, 'abcd'), 'Value must be 3 characters or fewer.');
+    });
+
+    test('detects enabled secret text arguments', () => {
+        assert.strictEqual(hasSecretResourceCommandArguments({
+            description: null,
+            argumentInputs: [
+                makeInput({ inputType: 'Text' }),
+                makeInput({ inputType: 'SecretText' }),
+            ],
+        }), true);
+    });
+
+    test('ignores disabled secret text arguments', () => {
+        assert.strictEqual(hasSecretResourceCommandArguments({
+            description: null,
+            argumentInputs: [
+                makeInput({ inputType: 'SecretText', disabled: true }),
+            ],
+        }), false);
     });
 });

@@ -4,6 +4,7 @@ import * as sinon from 'sinon';
 import { AspireTerminalProvider } from '../utils/AspireTerminalProvider';
 import * as cliPathModule from '../utils/cliPath';
 import { EnvironmentVariables } from '../utils/environment';
+import { extensionLogOutputChannel } from '../utils/logging';
 
 suite('AspireTerminalProvider tests', () => {
     let terminalProvider: AspireTerminalProvider;
@@ -209,6 +210,44 @@ suite('AspireTerminalProvider tests', () => {
             }
             finally {
                 getAspireTerminalStub.restore();
+            }
+        });
+
+        test('redacts additional arguments from logs when requested', async () => {
+            resolveCliPathStub.resolves({ cliPath: 'aspire', available: true, source: 'path' });
+            let executedCommand: string | undefined;
+            const infoStub = sinon.stub(extensionLogOutputChannel, 'info');
+            const terminal = {
+                shellIntegration: {
+                    executeCommand: (commandLine: string) => {
+                        executedCommand = commandLine;
+                        return {} as vscode.TerminalShellExecution;
+                    }
+                },
+                sendText: () => { },
+                show: () => { }
+            } as unknown as vscode.Terminal;
+            const getAspireTerminalStub = sinon.stub(terminalProvider, 'getAspireTerminal').returns({
+                terminal,
+                dispose: () => { }
+            });
+
+            try {
+                await terminalProvider.sendAspireCommandToAspireTerminal('resource "web" "configure"', true, [
+                    '--',
+                    '--secret',
+                    'super-secret',
+                ], { redactAdditionalArgs: true });
+
+                assert.ok(executedCommand?.includes('super-secret'));
+                assert.strictEqual(infoStub.calledOnce, true);
+                const logMessage = infoStub.firstCall.args[0];
+                assert.ok(logMessage.includes('[redacted command arguments]'));
+                assert.ok(!logMessage.includes('super-secret'));
+            }
+            finally {
+                getAspireTerminalStub.restore();
+                infoStub.restore();
             }
         });
     });
