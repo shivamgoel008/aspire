@@ -1,0 +1,19 @@
+{
+  "area": "CLI",
+  "areaEmoji": "💻",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "Fixed an issue where `aspire agent init` would fail to install the bundled Aspire skill because the frontmatter description exceeded the 1024-character limit enforced by Codex and the latest Copilot CLI.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🔧",
+  "firstMergedAt": "2026-05-17T07:22:39Z",
+  "lastMergedAt": "2026-05-17T07:22:39Z",
+  "name": "Fix Aspire skill description length for agent init",
+  "owner": "davidfowl",
+  "prs": [
+    17183
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "author": "davidfowl",
+  "comment": "Fixes aspire agent init skill install failing due to 1024-char frontmatter limit",
+  "mergedAt": "2026-05-17T07:22:39Z",
+  "number": 17183,
+  "runDate": "2026-05-17T08:43:57Z",
+  "status": "included",
+  "title": "Shorten Aspire skill description"
+}
+home directory"
+}

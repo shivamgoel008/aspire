@@ -1,0 +1,9 @@
+{
+  "author": "JamesNK",
+  "comment": "Test-only fix for flaky test isolation; no user-facing changes",
+  "mergedAt": "2026-05-17T08:19:01Z",
+  "number": 17180,
+  "runDate": "2026-05-17T08:43:57Z",
+  "status": "excluded",
+  "title": "Fix flaky NewCommandChannelResolutionTests by isolating home directory"
+}
