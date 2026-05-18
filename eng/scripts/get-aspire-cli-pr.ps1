@@ -698,6 +698,22 @@ function Update-PathEnvironment {
             if (-not $userPath) { $userPath = "" }
             $userPathArray = if ($userPath) { $userPath.Split($pathSeparator, [StringSplitOptions]::RemoveEmptyEntries) } else { @() }
             if ($userPathArray -notcontains $CliBinDir) {
+                # PR installs land under <prefix>\dogfood\pr-<N>\bin, a path that changes per
+                # PR number. Without the rewrite below, every PR install would leave a fresh,
+                # never-cleaned-up entry in the user's PATH (one per PR tried). When we are
+                # adding a dogfood\pr-*\bin entry, drop any previously-recorded dogfood\pr-*\bin
+                # entries first; for non-PR installs fall through to the original append.
+                $isPrPath = $CliBinDir -match '[/\\]dogfood[/\\]pr-[^/\\]+[/\\]bin$'
+                if ($isPrPath) {
+                    $beforeCount = $userPathArray.Count
+                    $userPathArray = @($userPathArray | Where-Object {
+                        $_ -notmatch '[/\\]dogfood[/\\]pr-[^/\\]+[/\\]bin$'
+                    })
+                    $removedCount = $beforeCount - $userPathArray.Count
+                    if ($removedCount -gt 0) {
+                        Write-Message "Removed $removedCount previous dogfood\pr-*\bin entry/entries from user PATH" -Level Info
+                    }
+                }
                 if ($PSCmdlet.ShouldProcess("User PATH environment variable", "Add $CliBinDir")) {
                     $newUserPath = (@($CliBinDir) + $userPathArray) -join $pathSeparator
                     [Environment]::SetEnvironmentVariable("PATH", $newUserPath, [EnvironmentVariableTarget]::User)

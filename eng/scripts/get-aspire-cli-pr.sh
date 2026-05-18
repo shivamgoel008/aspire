@@ -512,9 +512,31 @@ add_to_path()
     elif [[ -f "$config_file" ]] && grep -Fxq "$command" "$config_file"; then
         say_info "Command already exists in $config_file, skipping addition"
     elif [[ -w $config_file ]]; then
-        echo -e "\n# Added by get-aspire-cli*.sh script" >> "$config_file"
-        echo "$command" >> "$config_file"
-        say_info "Successfully added aspire to \$PATH in $config_file"
+        # PR installs land under $HOME/.aspire/dogfood/pr-<N>/bin, a path that changes per
+        # PR number. The literal-line grep above never matches an earlier PR install, so
+        # without this rewrite a user's profile accumulates one stale `export PATH=...`
+        # block for every PR they have ever tried. Detect any prior dogfood/pr-<N>/bin
+        # export line and replace it with the new one in-place; for non-PR paths fall
+        # through to the original append behavior.
+        if [[ "$bin_path" == *"/dogfood/pr-"*"/bin" ]] \
+            && grep -Eq '^export PATH="[^"]*/dogfood/pr-[^/"]+/bin:\$PATH"$' "$config_file"; then
+            local tmp_file
+            tmp_file="$(mktemp "${config_file}.aspire.XXXXXX")"
+            # sed -E with a portable substitution; the replacement string is shell-escaped
+            # via printf because $command contains $PATH literally.
+            local escaped_replacement
+            escaped_replacement="$(printf '%s' "$command" | sed -e 's/[\/&]/\\&/g')"
+            sed -E "s/^export PATH=\"[^\"]*\/dogfood\/pr-[^\/\"]+\/bin:\\\$PATH\"$/${escaped_replacement}/" "$config_file" > "$tmp_file" \
+                && mv "$tmp_file" "$config_file" \
+                && say_info "Replaced previous dogfood/pr-* PATH entry in $config_file with $command" \
+                || { rm -f "$tmp_file"; say_warn "Failed to update $config_file in place; appending new entry instead"; \
+                    echo -e "\n# Added by get-aspire-cli*.sh script" >> "$config_file"; \
+                    echo "$command" >> "$config_file"; }
+        else
+            echo -e "\n# Added by get-aspire-cli*.sh script" >> "$config_file"
+            echo "$command" >> "$config_file"
+            say_info "Successfully added aspire to \$PATH in $config_file"
+        fi
     else
         say_info "Manually add the following to $config_file (or similar):"
         say_info "  $command"

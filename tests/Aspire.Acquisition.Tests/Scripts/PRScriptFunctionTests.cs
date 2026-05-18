@@ -357,4 +357,98 @@ public class PRScriptFunctionTests(ITestOutputHelper testOutput)
     }
 
     #endregion
+
+    #region add_to_path PR install dedup
+
+    // Regression: PR installs land under $HOME/.aspire/dogfood/pr-<N>/bin, a path
+    // that changes per PR number. The legacy implementation used an exact-line
+    // grep match against the shell config file, so a user who tried five PRs
+    // accumulated five `export PATH=...` lines, none of which dedup against each
+    // other. The dedup pass below replaces any prior `dogfood/pr-<N>/bin` line
+    // with the new one instead of appending.
+
+    [Fact]
+    public async Task AddToPath_PrInstall_ReplacesExistingDogfoodPrLine()
+    {
+        using var env = new TestEnvironment();
+        var configFile = Path.Combine(env.MockHome, ".zshrc");
+        var existing = "# existing config\n\n# Added by get-aspire-cli*.sh script\n"
+            + "export PATH=\"$HOME/.aspire/dogfood/pr-17182/bin:$PATH\"\n";
+        File.WriteAllText(configFile, existing);
+
+        var newPath = Path.Combine(env.MockHome, ".aspire", "dogfood", "pr-17192", "bin");
+        var newCommand = "export PATH=\"$HOME/.aspire/dogfood/pr-17192/bin:$PATH\"";
+
+        using var cmd = new ScriptFunctionCommand(
+            s_prScript,
+            $"VERBOSE=true; DRY_RUN=false; add_to_path '{configFile}' '{newPath}' '{newCommand}'",
+            env,
+            _testOutput);
+
+        var result = await cmd.ExecuteAsync();
+
+        result.EnsureSuccessful();
+        var contents = File.ReadAllText(configFile);
+        Assert.DoesNotContain("pr-17182", contents);
+        Assert.Contains("pr-17192", contents);
+        // Exactly one export PATH line remains in the file.
+        var exportLines = contents.Split('\n').Count(l => l.StartsWith("export PATH=", StringComparison.Ordinal));
+        Assert.Equal(1, exportLines);
+    }
+
+    [Fact]
+    public async Task AddToPath_PrInstall_WithNoPriorDogfoodLine_AppendsAsBefore()
+    {
+        using var env = new TestEnvironment();
+        var configFile = Path.Combine(env.MockHome, ".zshrc");
+        File.WriteAllText(configFile, "# existing config\n");
+
+        var newPath = Path.Combine(env.MockHome, ".aspire", "dogfood", "pr-17192", "bin");
+        var newCommand = "export PATH=\"$HOME/.aspire/dogfood/pr-17192/bin:$PATH\"";
+
+        using var cmd = new ScriptFunctionCommand(
+            s_prScript,
+            $"VERBOSE=true; DRY_RUN=false; add_to_path '{configFile}' '{newPath}' '{newCommand}'",
+            env,
+            _testOutput);
+
+        var result = await cmd.ExecuteAsync();
+
+        result.EnsureSuccessful();
+        var contents = File.ReadAllText(configFile);
+        Assert.Contains("# existing config", contents);
+        Assert.Contains("pr-17192", contents);
+        Assert.Contains("# Added by get-aspire-cli*.sh script", contents);
+    }
+
+    [Fact]
+    public async Task AddToPath_NonPrInstall_AppendsAndDoesNotMatchDogfoodHeuristic()
+    {
+        // Non-PR (e.g. release-channel) paths must keep the legacy append behavior;
+        // the dedup pass only triggers when the new path itself matches dogfood/pr-*/bin.
+        using var env = new TestEnvironment();
+        var configFile = Path.Combine(env.MockHome, ".zshrc");
+        var existing = "# existing config\n\n# Added by get-aspire-cli*.sh script\n"
+            + "export PATH=\"$HOME/.aspire/dogfood/pr-17182/bin:$PATH\"\n";
+        File.WriteAllText(configFile, existing);
+
+        var newPath = Path.Combine(env.MockHome, ".aspire", "bin");
+        var newCommand = "export PATH=\"$HOME/.aspire/bin:$PATH\"";
+
+        using var cmd = new ScriptFunctionCommand(
+            s_prScript,
+            $"VERBOSE=true; DRY_RUN=false; add_to_path '{configFile}' '{newPath}' '{newCommand}'",
+            env,
+            _testOutput);
+
+        var result = await cmd.ExecuteAsync();
+
+        result.EnsureSuccessful();
+        var contents = File.ReadAllText(configFile);
+        // Pre-existing PR line is untouched and the new release line is appended.
+        Assert.Contains("pr-17182", contents);
+        Assert.Contains("$HOME/.aspire/bin", contents);
+    }
+
+    #endregion
 }
