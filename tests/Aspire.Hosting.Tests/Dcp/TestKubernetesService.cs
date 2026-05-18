@@ -70,7 +70,11 @@ internal sealed class TestKubernetesService : IKubernetesService
         // "Allocate" port for a service.
         if (res is Service svc)
         {
-            if (svc.Spec.AddressAllocationMode != AddressAllocationModes.Proxyless || svc.Spec.Port is not null)
+            // Container tunnel client services are proxyless, but unlike dynamic
+            // container endpoints they must be ready before the dependent container starts.
+            if (svc.Spec.AddressAllocationMode != AddressAllocationModes.Proxyless ||
+                svc.Spec.Port is not null ||
+                svc.Metadata.Annotations?.ContainsKey(CustomResource.ContainerTunnelInstanceName) is true)
             {
                 if (svc.Status is null)
                 {
