@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using Aspire.Hosting.Utils;
 using Microsoft.Extensions.Logging;
 using System.Text;
 
@@ -9,25 +8,27 @@ namespace Aspire.Hosting;
 
 internal static class LoggingHelpers
 {
-    public static void WriteDashboardSummary(ILogger logger, string? dashboardUrls, string? otlpGrpcUrls, string? otlpHttpUrls, string? token, bool isContainer = false)
+    public static void WriteDashboardSummary(ILogger logger, string? dashboardUrl, string? otlpGrpcUrl, string? otlpHttpUrl, string? token, bool isContainer = false)
     {
-        if (!StringUtils.TryGetUriFromDelimitedString(dashboardUrls, ";", out var firstDashboardUrl))
+        static string? GetAuthority(string? url)
+        {
+            return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                ? uri.GetLeftPart(UriPartial.Authority)
+                : null;
+        }
+
+        var dashboardAuthority = GetAuthority(dashboardUrl);
+        var otlpGrpcAuthority = GetAuthority(otlpGrpcUrl);
+        var otlpHttpAuthority = GetAuthority(otlpHttpUrl);
+
+        // Nothing to log if we have no URLs at all.
+        if (dashboardAuthority is null && otlpGrpcAuthority is null && otlpHttpAuthority is null)
         {
             return;
         }
 
-        static string? GetEndpointAuthority(string? urls)
-        {
-            return StringUtils.TryGetUriFromDelimitedString(urls, ";", out var firstUrl)
-                ? firstUrl.GetLeftPart(UriPartial.Authority)
-                : null;
-        }
-
-        var dashboardUrl = firstDashboardUrl.GetLeftPart(UriPartial.Authority);
-        var otlpGrpcUrl = GetEndpointAuthority(otlpGrpcUrls);
-        var otlpHttpUrl = GetEndpointAuthority(otlpHttpUrls);
-        var loginUrl = !string.IsNullOrEmpty(token)
-            ? $"{dashboardUrl}/login?t={token}"
+        var loginUrl = !string.IsNullOrEmpty(token) && dashboardAuthority is not null
+            ? $"{dashboardAuthority}/login?t={token}"
             : null;
 
         var templateBuilder = new StringBuilder();
@@ -35,9 +36,13 @@ internal static class LoggingHelpers
 
         templateBuilder
             .Append("Aspire Dashboard").Append('\n')
-            .Append('\n')
-            .Append("Dashboard:    {DashboardUrl}").Append('\n');
-        parameters.Add(dashboardUrl);
+            .Append('\n');
+
+        if (dashboardAuthority is not null)
+        {
+            templateBuilder.Append("Dashboard:    {DashboardUrl}").Append('\n');
+            parameters.Add(dashboardAuthority);
+        }
 
         if (loginUrl is not null)
         {
@@ -45,16 +50,16 @@ internal static class LoggingHelpers
             parameters.Add(loginUrl);
         }
 
-        if (otlpGrpcUrl is not null)
+        if (otlpGrpcAuthority is not null)
         {
             templateBuilder.Append("OTLP/gRPC:    {OtlpGrpcUrl}").Append('\n');
-            parameters.Add(otlpGrpcUrl);
+            parameters.Add(otlpGrpcAuthority);
         }
 
-        if (otlpHttpUrl is not null)
+        if (otlpHttpAuthority is not null)
         {
             templateBuilder.Append("OTLP/HTTP:    {OtlpHttpUrl}").Append('\n');
-            parameters.Add(otlpHttpUrl);
+            parameters.Add(otlpHttpAuthority);
         }
 
         if (isContainer)
