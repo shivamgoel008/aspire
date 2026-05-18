@@ -517,21 +517,36 @@ public class DistributedApplication : IHost, IAsyncDisposable
         var configuration = _host.Services.GetRequiredService<IConfiguration>();
         ProfilingTelemetry.RecordAppHostStartupEvent(ProfilingTelemetry.Events.AppHostRunAsyncEntered);
         ProfilingTelemetry.RecordAppHostProcessStartup(configuration);
-
-        // We only run the start lifecycle hook if we are in run mode or
-        // publish mode. In inspect mode we try to avoid lifecycle hooks
-        // kickings. Eventing will still work generally since they are more
-        // targetted.
-        var executionContext = _host.Services.GetRequiredService<DistributedApplicationExecutionContext>();
-        if (executionContext.IsPublishMode || executionContext.IsRunMode)
-        {
-            await ExecuteBeforeStartHooksAsync(cancellationToken).ConfigureAwait(false);
-        }
-
         var lifetime = _host.Services.GetRequiredService<IHostApplicationLifetime>();
+
         try
         {
-            await _host.RunAsync(cancellationToken).ConfigureAwait(false);
+            using (var appHostStartActivity = ProfilingTelemetry.StartAppHostStart(configuration, nameof(RunAsync)))
+            {
+                try
+                {
+                    // We only run the start lifecycle hook if we are in run mode or
+                    // publish mode. In inspect mode we try to avoid lifecycle hooks
+                    // kickings. Eventing will still work generally since they are more
+                    // targetted.
+                    var executionContext = _host.Services.GetRequiredService<DistributedApplicationExecutionContext>();
+                    if (executionContext.IsPublishMode || executionContext.IsRunMode)
+                    {
+                        await ExecuteBeforeStartHooksAsync(cancellationToken).ConfigureAwait(false);
+                    }
+
+                    // Call StartAsync directly so the startup span closes when startup completes,
+                    // not when the application eventually shuts down.
+                    await _host.StartAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException || !lifetime.ApplicationStopping.IsCancellationRequested)
+                {
+                    appHostStartActivity.SetError(ex);
+                    throw;
+                }
+            }
+
+            await _host.WaitForShutdownAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (lifetime.ApplicationStopping.IsCancellationRequested)
         {

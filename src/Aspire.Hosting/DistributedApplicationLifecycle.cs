@@ -26,7 +26,7 @@ internal sealed class DistributedApplicationLifecycle(
     public Task StartedAsync(CancellationToken cancellationToken)
     {
         _hostStartupActivity.AddAppHostHostStarted();
-        _hostStartupActivity.Dispose();
+        DisposeHostStartupActivity();
 
         if (executionContext.IsRunMode && !cancellationToken.IsCancellationRequested)
         {
@@ -64,16 +64,25 @@ internal sealed class DistributedApplicationLifecycle(
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
+        DisposeHostStartupActivity();
         return Task.CompletedTask;
     }
 
     public Task StoppedAsync(CancellationToken cancellationToken)
     {
+        DisposeHostStartupActivity();
         return Task.CompletedTask;
     }
 
     public Task StoppingAsync(CancellationToken cancellationToken)
     {
+        DisposeHostStartupActivity();
         return Task.CompletedTask;
+    }
+
+    private void DisposeHostStartupActivity()
+    {
+        _hostStartupActivity.Dispose();
+        _hostStartupActivity = default;
     }
 }
