@@ -1,0 +1,9 @@
+{
+  "author": "spboyer",
+  "comment": "Internal skill routing description update for aspire-deployment skill — no user-facing product change",
+  "mergedAt": "2026-05-18T18:19:37Z",
+  "number": 17209,
+  "runDate": "2026-05-18T18:40:05Z",
+  "status": "excluded",
+  "title": "Improve aspire-deployment skill routing"
+}

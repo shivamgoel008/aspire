@@ -1,0 +1,9 @@
+{
+  "author": "sebastienros",
+  "comment": "New Azure provisioning helpers for polyglot AppHosts (Container Apps scale, App Service site config)",
+  "mergedAt": "2026-05-18T17:58:18Z",
+  "number": 17133,
+  "runDate": "2026-05-18T18:40:05Z",
+  "status": "included",
+  "title": "Add Azure provisioning polyglot customization helpers"
+}

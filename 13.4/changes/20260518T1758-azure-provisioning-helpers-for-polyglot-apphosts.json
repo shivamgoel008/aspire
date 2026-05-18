@@ -1,0 +1,19 @@
+{
+  "area": "AppHost",
+  "areaEmoji": "🏠",
+  "backport": false,
+  "breaking": false,
+  "changeType": "New features",
+  "communityContributors": [],
+  "description": "Polyglot AppHosts (TypeScript, Python, Go, Java) can now customize Azure Container Apps scale settings and App Service site configuration using strongly typed helper APIs (configureScale, configureSiteConfig, configureSlotSiteConfig), with full code generation support across all polyglot SDKs.",
+  "docsPrs": [],
+  "docsRequired": true,
+  "emoji": "☁️",
+  "firstMergedAt": "2026-05-18T17:58:18Z",
+  "lastMergedAt": "2026-05-18T17:58:18Z",
+  "name": "Azure provisioning helpers for polyglot AppHosts",
+  "owner": "sebastienros",
+  "prs": [
+    17133
+  ]
+}
