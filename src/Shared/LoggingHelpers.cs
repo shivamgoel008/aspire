@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using System.Text;
 
 namespace Aspire.Hosting;
@@ -10,6 +11,11 @@ internal static class LoggingHelpers
 {
     public static void WriteDashboardSummary(ILogger logger, string? dashboardUrl, string? otlpGrpcUrl, string? otlpHttpUrl, string? token, bool isContainer = false)
     {
+        // Callers should pass a single resolved URL, not a semicolon-delimited list.
+        AssertSingleUrl(dashboardUrl, nameof(dashboardUrl));
+        AssertSingleUrl(otlpGrpcUrl, nameof(otlpGrpcUrl));
+        AssertSingleUrl(otlpHttpUrl, nameof(otlpHttpUrl));
+
         static string? GetAuthority(string? url)
         {
             return Uri.TryCreate(url, UriKind.Absolute, out var uri)
@@ -69,5 +75,11 @@ internal static class LoggingHelpers
         }
 
         logger.LogInformation(templateBuilder.ToString(), parameters.ToArray());
+    }
+
+    [Conditional("DEBUG")]
+    private static void AssertSingleUrl(string? url, string paramName)
+    {
+        Debug.Assert(url is null || !url.Contains(';'), $"{paramName} should not contain ';': {url}");
     }
 }
