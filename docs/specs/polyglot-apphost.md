@@ -1569,7 +1569,7 @@ public sealed class AtsContext
 - `Summary` - Summary text
 - `Remarks` - Longer remarks text
 - `Returns` - Return value documentation
-- `Parameters` - Parameter documentation keyed by C# parameter name
+- `Parameters` - List of parameter documentation entries, each with the C# parameter name and description
 
 **Generation steps:**
 
