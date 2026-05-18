@@ -31,6 +31,9 @@ interface SecretWarningItem extends vscode.QuickPickItem {
 export const resourceCommandSecretWarningSuppressedKey = 'resourceCommandArguments.secretWarningSuppressed';
 
 export interface ResourceCommandArgumentOptions {
+    // Callers pass ExtensionContext.globalState here. The suppression is one extension-wide
+    // preference for the current VS Code profile on this machine, not per workspace, AppHost,
+    // project, resource, or command.
     secretWarningState?: vscode.Memento;
 }
 
