@@ -144,7 +144,6 @@ jobs:
 
       # --- Validate ----------------------------------------------------------
       - name: Print Parameters
-        id: print-params
         run: |
           echo "=== Release Workflow Parameters ==="
           echo "Release Version: ${{ inputs.release_version }}"
