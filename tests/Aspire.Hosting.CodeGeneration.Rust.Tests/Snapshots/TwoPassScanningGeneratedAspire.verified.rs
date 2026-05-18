@@ -39,25 +39,6 @@ impl std::fmt::Display for ContainerMountType {
     }
 }
 
-/// ContainerLifetime
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ContainerLifetime {
-    #[default]
-    #[serde(rename = "Session")]
-    Session,
-    #[serde(rename = "Persistent")]
-    Persistent,
-}
-
-impl std::fmt::Display for ContainerLifetime {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Session => write!(f, "Session"),
-            Self::Persistent => write!(f, "Persistent"),
-        }
-    }
-}
-
 /// ImagePullPolicy
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ImagePullPolicy {
@@ -1664,6 +1645,44 @@ impl CSharpAppResource {
         Ok(IResource::new(handle, self.client.clone()))
     }
 
+    /// Sets session lifetime behavior for the resource
+    pub fn with_session_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withSessionLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior for the resource
+    pub fn with_persistent_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withPersistentLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets resource lifetime behavior to match another resource
+    pub fn with_lifetime_of(&self, source_builder: &IResource) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("sourceBuilder".to_string(), source_builder.handle().to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withLifetimeOf", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior tied to a parent process
+    pub fn with_parent_process_lifetime(&self, parent_process_id: f64) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("parentProcessId".to_string(), serde_json::to_value(&parent_process_id).unwrap_or(Value::Null));
+        let result = self.client.invoke_capability("Aspire.Hosting/withParentProcessLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
     /// Sets an environment variable
     pub fn with_environment(&self, name: &str, value: Value) -> Result<IResourceWithEnvironment, Box<dyn std::error::Error>> {
         let mut args: HashMap<String, Value> = HashMap::new();
@@ -1814,6 +1833,16 @@ impl CSharpAppResource {
             args.insert("protocol".to_string(), serde_json::to_value(v).unwrap_or(Value::Null));
         }
         let result = self.client.invoke_capability("Aspire.Hosting/withEndpoint", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResourceWithEndpoints::new(handle, self.client.clone()))
+    }
+
+    /// Configures endpoint proxy support
+    pub fn with_endpoint_proxy_support(&self, proxy_enabled: bool) -> Result<IResourceWithEndpoints, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("proxyEnabled".to_string(), serde_json::to_value(&proxy_enabled).unwrap_or(Value::Null));
+        let result = self.client.invoke_capability("Aspire.Hosting/withEndpointProxySupport", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(IResourceWithEndpoints::new(handle, self.client.clone()))
     }
@@ -3094,6 +3123,44 @@ impl ContainerRegistryResource {
         Ok(IResource::new(handle, self.client.clone()))
     }
 
+    /// Sets session lifetime behavior for the resource
+    pub fn with_session_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withSessionLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior for the resource
+    pub fn with_persistent_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withPersistentLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets resource lifetime behavior to match another resource
+    pub fn with_lifetime_of(&self, source_builder: &IResource) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("sourceBuilder".to_string(), source_builder.handle().to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withLifetimeOf", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior tied to a parent process
+    pub fn with_parent_process_lifetime(&self, parent_process_id: f64) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("parentProcessId".to_string(), serde_json::to_value(&parent_process_id).unwrap_or(Value::Null));
+        let result = self.client.invoke_capability("Aspire.Hosting/withParentProcessLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
     /// Customizes displayed URLs via callback
     pub fn with_urls(&self, callback: impl Fn(Vec<Value>) -> Value + Send + Sync + 'static) -> Result<IResource, Box<dyn std::error::Error>> {
         let mut args: HashMap<String, Value> = HashMap::new();
@@ -3716,16 +3783,6 @@ impl ContainerResource {
         Ok(ContainerResource::new(handle, self.client.clone()))
     }
 
-    /// Sets the lifetime behavior of the container resource
-    pub fn with_lifetime(&self, lifetime: ContainerLifetime) -> Result<ContainerResource, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("builder".to_string(), self.handle.to_json());
-        args.insert("lifetime".to_string(), serde_json::to_value(&lifetime).unwrap_or(Value::Null));
-        let result = self.client.invoke_capability("Aspire.Hosting/withLifetime", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(ContainerResource::new(handle, self.client.clone()))
-    }
-
     /// Sets the container image pull policy
     pub fn with_image_pull_policy(&self, pull_policy: ImagePullPolicy) -> Result<ContainerResource, Box<dyn std::error::Error>> {
         let mut args: HashMap<String, Value> = HashMap::new();
@@ -3807,16 +3864,6 @@ impl ContainerResource {
             args.insert("defaultCertificateDirectoryPaths".to_string(), serde_json::to_value(v).unwrap_or(Value::Null));
         }
         let result = self.client.invoke_capability("Aspire.Hosting/withContainerCertificatePaths", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(ContainerResource::new(handle, self.client.clone()))
-    }
-
-    /// Configures endpoint proxy support
-    pub fn with_endpoint_proxy_support(&self, proxy_enabled: bool) -> Result<ContainerResource, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("builder".to_string(), self.handle.to_json());
-        args.insert("proxyEnabled".to_string(), serde_json::to_value(&proxy_enabled).unwrap_or(Value::Null));
-        let result = self.client.invoke_capability("Aspire.Hosting/withEndpointProxySupport", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(ContainerResource::new(handle, self.client.clone()))
     }
@@ -3906,6 +3953,44 @@ impl ContainerResource {
             args.insert("helpLink".to_string(), serde_json::to_value(v).unwrap_or(Value::Null));
         }
         let result = self.client.invoke_capability("Aspire.Hosting/withRequiredCommand", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets session lifetime behavior for the resource
+    pub fn with_session_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withSessionLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior for the resource
+    pub fn with_persistent_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withPersistentLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets resource lifetime behavior to match another resource
+    pub fn with_lifetime_of(&self, source_builder: &IResource) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("sourceBuilder".to_string(), source_builder.handle().to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withLifetimeOf", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior tied to a parent process
+    pub fn with_parent_process_lifetime(&self, parent_process_id: f64) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("parentProcessId".to_string(), serde_json::to_value(&parent_process_id).unwrap_or(Value::Null));
+        let result = self.client.invoke_capability("Aspire.Hosting/withParentProcessLifetime", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(IResource::new(handle, self.client.clone()))
     }
@@ -4060,6 +4145,16 @@ impl ContainerResource {
             args.insert("protocol".to_string(), serde_json::to_value(v).unwrap_or(Value::Null));
         }
         let result = self.client.invoke_capability("Aspire.Hosting/withEndpoint", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResourceWithEndpoints::new(handle, self.client.clone()))
+    }
+
+    /// Configures endpoint proxy support
+    pub fn with_endpoint_proxy_support(&self, proxy_enabled: bool) -> Result<IResourceWithEndpoints, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("proxyEnabled".to_string(), serde_json::to_value(&proxy_enabled).unwrap_or(Value::Null));
+        let result = self.client.invoke_capability("Aspire.Hosting/withEndpointProxySupport", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(IResourceWithEndpoints::new(handle, self.client.clone()))
     }
@@ -5608,6 +5703,44 @@ impl DotnetToolResource {
         Ok(IResource::new(handle, self.client.clone()))
     }
 
+    /// Sets session lifetime behavior for the resource
+    pub fn with_session_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withSessionLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior for the resource
+    pub fn with_persistent_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withPersistentLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets resource lifetime behavior to match another resource
+    pub fn with_lifetime_of(&self, source_builder: &IResource) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("sourceBuilder".to_string(), source_builder.handle().to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withLifetimeOf", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior tied to a parent process
+    pub fn with_parent_process_lifetime(&self, parent_process_id: f64) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("parentProcessId".to_string(), serde_json::to_value(&parent_process_id).unwrap_or(Value::Null));
+        let result = self.client.invoke_capability("Aspire.Hosting/withParentProcessLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
     /// Sets an environment variable
     pub fn with_environment(&self, name: &str, value: Value) -> Result<IResourceWithEnvironment, Box<dyn std::error::Error>> {
         let mut args: HashMap<String, Value> = HashMap::new();
@@ -5758,6 +5891,16 @@ impl DotnetToolResource {
             args.insert("protocol".to_string(), serde_json::to_value(v).unwrap_or(Value::Null));
         }
         let result = self.client.invoke_capability("Aspire.Hosting/withEndpoint", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResourceWithEndpoints::new(handle, self.client.clone()))
+    }
+
+    /// Configures endpoint proxy support
+    pub fn with_endpoint_proxy_support(&self, proxy_enabled: bool) -> Result<IResourceWithEndpoints, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("proxyEnabled".to_string(), serde_json::to_value(&proxy_enabled).unwrap_or(Value::Null));
+        let result = self.client.invoke_capability("Aspire.Hosting/withEndpointProxySupport", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(IResourceWithEndpoints::new(handle, self.client.clone()))
     }
@@ -7315,6 +7458,44 @@ impl ExecutableResource {
         Ok(IResource::new(handle, self.client.clone()))
     }
 
+    /// Sets session lifetime behavior for the resource
+    pub fn with_session_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withSessionLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior for the resource
+    pub fn with_persistent_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withPersistentLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets resource lifetime behavior to match another resource
+    pub fn with_lifetime_of(&self, source_builder: &IResource) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("sourceBuilder".to_string(), source_builder.handle().to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withLifetimeOf", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior tied to a parent process
+    pub fn with_parent_process_lifetime(&self, parent_process_id: f64) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("parentProcessId".to_string(), serde_json::to_value(&parent_process_id).unwrap_or(Value::Null));
+        let result = self.client.invoke_capability("Aspire.Hosting/withParentProcessLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
     /// Sets an environment variable
     pub fn with_environment(&self, name: &str, value: Value) -> Result<IResourceWithEnvironment, Box<dyn std::error::Error>> {
         let mut args: HashMap<String, Value> = HashMap::new();
@@ -7465,6 +7646,16 @@ impl ExecutableResource {
             args.insert("protocol".to_string(), serde_json::to_value(v).unwrap_or(Value::Null));
         }
         let result = self.client.invoke_capability("Aspire.Hosting/withEndpoint", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResourceWithEndpoints::new(handle, self.client.clone()))
+    }
+
+    /// Configures endpoint proxy support
+    pub fn with_endpoint_proxy_support(&self, proxy_enabled: bool) -> Result<IResourceWithEndpoints, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("proxyEnabled".to_string(), serde_json::to_value(&proxy_enabled).unwrap_or(Value::Null));
+        let result = self.client.invoke_capability("Aspire.Hosting/withEndpointProxySupport", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(IResourceWithEndpoints::new(handle, self.client.clone()))
     }
@@ -8418,6 +8609,44 @@ impl ExternalServiceResource {
             args.insert("helpLink".to_string(), serde_json::to_value(v).unwrap_or(Value::Null));
         }
         let result = self.client.invoke_capability("Aspire.Hosting/withRequiredCommand", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets session lifetime behavior for the resource
+    pub fn with_session_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withSessionLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior for the resource
+    pub fn with_persistent_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withPersistentLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets resource lifetime behavior to match another resource
+    pub fn with_lifetime_of(&self, source_builder: &IResource) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("sourceBuilder".to_string(), source_builder.handle().to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withLifetimeOf", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior tied to a parent process
+    pub fn with_parent_process_lifetime(&self, parent_process_id: f64) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("parentProcessId".to_string(), serde_json::to_value(&parent_process_id).unwrap_or(Value::Null));
+        let result = self.client.invoke_capability("Aspire.Hosting/withParentProcessLifetime", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(IResource::new(handle, self.client.clone()))
     }
@@ -10991,6 +11220,44 @@ impl ParameterResource {
         Ok(IResource::new(handle, self.client.clone()))
     }
 
+    /// Sets session lifetime behavior for the resource
+    pub fn with_session_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withSessionLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior for the resource
+    pub fn with_persistent_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withPersistentLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets resource lifetime behavior to match another resource
+    pub fn with_lifetime_of(&self, source_builder: &IResource) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("sourceBuilder".to_string(), source_builder.handle().to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withLifetimeOf", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior tied to a parent process
+    pub fn with_parent_process_lifetime(&self, parent_process_id: f64) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("parentProcessId".to_string(), serde_json::to_value(&parent_process_id).unwrap_or(Value::Null));
+        let result = self.client.invoke_capability("Aspire.Hosting/withParentProcessLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
     /// Customizes displayed URLs via callback
     pub fn with_urls(&self, callback: impl Fn(Vec<Value>) -> Value + Send + Sync + 'static) -> Result<IResource, Box<dyn std::error::Error>> {
         let mut args: HashMap<String, Value> = HashMap::new();
@@ -12070,6 +12337,44 @@ impl ProjectResource {
         Ok(IResource::new(handle, self.client.clone()))
     }
 
+    /// Sets session lifetime behavior for the resource
+    pub fn with_session_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withSessionLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior for the resource
+    pub fn with_persistent_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withPersistentLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets resource lifetime behavior to match another resource
+    pub fn with_lifetime_of(&self, source_builder: &IResource) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("sourceBuilder".to_string(), source_builder.handle().to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withLifetimeOf", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior tied to a parent process
+    pub fn with_parent_process_lifetime(&self, parent_process_id: f64) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("parentProcessId".to_string(), serde_json::to_value(&parent_process_id).unwrap_or(Value::Null));
+        let result = self.client.invoke_capability("Aspire.Hosting/withParentProcessLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
     /// Sets an environment variable
     pub fn with_environment(&self, name: &str, value: Value) -> Result<IResourceWithEnvironment, Box<dyn std::error::Error>> {
         let mut args: HashMap<String, Value> = HashMap::new();
@@ -12220,6 +12525,16 @@ impl ProjectResource {
             args.insert("protocol".to_string(), serde_json::to_value(v).unwrap_or(Value::Null));
         }
         let result = self.client.invoke_capability("Aspire.Hosting/withEndpoint", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResourceWithEndpoints::new(handle, self.client.clone()))
+    }
+
+    /// Configures endpoint proxy support
+    pub fn with_endpoint_proxy_support(&self, proxy_enabled: bool) -> Result<IResourceWithEndpoints, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("proxyEnabled".to_string(), serde_json::to_value(&proxy_enabled).unwrap_or(Value::Null));
+        let result = self.client.invoke_capability("Aspire.Hosting/withEndpointProxySupport", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(IResourceWithEndpoints::new(handle, self.client.clone()))
     }
@@ -13822,16 +14137,6 @@ impl TestDatabaseResource {
         Ok(ContainerResource::new(handle, self.client.clone()))
     }
 
-    /// Sets the lifetime behavior of the container resource
-    pub fn with_lifetime(&self, lifetime: ContainerLifetime) -> Result<ContainerResource, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("builder".to_string(), self.handle.to_json());
-        args.insert("lifetime".to_string(), serde_json::to_value(&lifetime).unwrap_or(Value::Null));
-        let result = self.client.invoke_capability("Aspire.Hosting/withLifetime", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(ContainerResource::new(handle, self.client.clone()))
-    }
-
     /// Sets the container image pull policy
     pub fn with_image_pull_policy(&self, pull_policy: ImagePullPolicy) -> Result<ContainerResource, Box<dyn std::error::Error>> {
         let mut args: HashMap<String, Value> = HashMap::new();
@@ -13913,16 +14218,6 @@ impl TestDatabaseResource {
             args.insert("defaultCertificateDirectoryPaths".to_string(), serde_json::to_value(v).unwrap_or(Value::Null));
         }
         let result = self.client.invoke_capability("Aspire.Hosting/withContainerCertificatePaths", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(ContainerResource::new(handle, self.client.clone()))
-    }
-
-    /// Configures endpoint proxy support
-    pub fn with_endpoint_proxy_support(&self, proxy_enabled: bool) -> Result<ContainerResource, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("builder".to_string(), self.handle.to_json());
-        args.insert("proxyEnabled".to_string(), serde_json::to_value(&proxy_enabled).unwrap_or(Value::Null));
-        let result = self.client.invoke_capability("Aspire.Hosting/withEndpointProxySupport", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(ContainerResource::new(handle, self.client.clone()))
     }
@@ -14012,6 +14307,44 @@ impl TestDatabaseResource {
             args.insert("helpLink".to_string(), serde_json::to_value(v).unwrap_or(Value::Null));
         }
         let result = self.client.invoke_capability("Aspire.Hosting/withRequiredCommand", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets session lifetime behavior for the resource
+    pub fn with_session_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withSessionLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior for the resource
+    pub fn with_persistent_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withPersistentLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets resource lifetime behavior to match another resource
+    pub fn with_lifetime_of(&self, source_builder: &IResource) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("sourceBuilder".to_string(), source_builder.handle().to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withLifetimeOf", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior tied to a parent process
+    pub fn with_parent_process_lifetime(&self, parent_process_id: f64) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("parentProcessId".to_string(), serde_json::to_value(&parent_process_id).unwrap_or(Value::Null));
+        let result = self.client.invoke_capability("Aspire.Hosting/withParentProcessLifetime", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(IResource::new(handle, self.client.clone()))
     }
@@ -14166,6 +14499,16 @@ impl TestDatabaseResource {
             args.insert("protocol".to_string(), serde_json::to_value(v).unwrap_or(Value::Null));
         }
         let result = self.client.invoke_capability("Aspire.Hosting/withEndpoint", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResourceWithEndpoints::new(handle, self.client.clone()))
+    }
+
+    /// Configures endpoint proxy support
+    pub fn with_endpoint_proxy_support(&self, proxy_enabled: bool) -> Result<IResourceWithEndpoints, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("proxyEnabled".to_string(), serde_json::to_value(&proxy_enabled).unwrap_or(Value::Null));
+        let result = self.client.invoke_capability("Aspire.Hosting/withEndpointProxySupport", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(IResourceWithEndpoints::new(handle, self.client.clone()))
     }
@@ -15236,16 +15579,6 @@ impl TestRedisResource {
         Ok(ContainerResource::new(handle, self.client.clone()))
     }
 
-    /// Sets the lifetime behavior of the container resource
-    pub fn with_lifetime(&self, lifetime: ContainerLifetime) -> Result<ContainerResource, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("builder".to_string(), self.handle.to_json());
-        args.insert("lifetime".to_string(), serde_json::to_value(&lifetime).unwrap_or(Value::Null));
-        let result = self.client.invoke_capability("Aspire.Hosting/withLifetime", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(ContainerResource::new(handle, self.client.clone()))
-    }
-
     /// Sets the container image pull policy
     pub fn with_image_pull_policy(&self, pull_policy: ImagePullPolicy) -> Result<ContainerResource, Box<dyn std::error::Error>> {
         let mut args: HashMap<String, Value> = HashMap::new();
@@ -15327,16 +15660,6 @@ impl TestRedisResource {
             args.insert("defaultCertificateDirectoryPaths".to_string(), serde_json::to_value(v).unwrap_or(Value::Null));
         }
         let result = self.client.invoke_capability("Aspire.Hosting/withContainerCertificatePaths", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(ContainerResource::new(handle, self.client.clone()))
-    }
-
-    /// Configures endpoint proxy support
-    pub fn with_endpoint_proxy_support(&self, proxy_enabled: bool) -> Result<ContainerResource, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("builder".to_string(), self.handle.to_json());
-        args.insert("proxyEnabled".to_string(), serde_json::to_value(&proxy_enabled).unwrap_or(Value::Null));
-        let result = self.client.invoke_capability("Aspire.Hosting/withEndpointProxySupport", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(ContainerResource::new(handle, self.client.clone()))
     }
@@ -15426,6 +15749,44 @@ impl TestRedisResource {
             args.insert("helpLink".to_string(), serde_json::to_value(v).unwrap_or(Value::Null));
         }
         let result = self.client.invoke_capability("Aspire.Hosting/withRequiredCommand", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets session lifetime behavior for the resource
+    pub fn with_session_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withSessionLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior for the resource
+    pub fn with_persistent_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withPersistentLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets resource lifetime behavior to match another resource
+    pub fn with_lifetime_of(&self, source_builder: &IResource) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("sourceBuilder".to_string(), source_builder.handle().to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withLifetimeOf", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior tied to a parent process
+    pub fn with_parent_process_lifetime(&self, parent_process_id: f64) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("parentProcessId".to_string(), serde_json::to_value(&parent_process_id).unwrap_or(Value::Null));
+        let result = self.client.invoke_capability("Aspire.Hosting/withParentProcessLifetime", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(IResource::new(handle, self.client.clone()))
     }
@@ -15600,6 +15961,16 @@ impl TestRedisResource {
             args.insert("protocol".to_string(), serde_json::to_value(v).unwrap_or(Value::Null));
         }
         let result = self.client.invoke_capability("Aspire.Hosting/withEndpoint", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResourceWithEndpoints::new(handle, self.client.clone()))
+    }
+
+    /// Configures endpoint proxy support
+    pub fn with_endpoint_proxy_support(&self, proxy_enabled: bool) -> Result<IResourceWithEndpoints, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("proxyEnabled".to_string(), serde_json::to_value(&proxy_enabled).unwrap_or(Value::Null));
+        let result = self.client.invoke_capability("Aspire.Hosting/withEndpointProxySupport", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(IResourceWithEndpoints::new(handle, self.client.clone()))
     }
@@ -16756,16 +17127,6 @@ impl TestVaultResource {
         Ok(ContainerResource::new(handle, self.client.clone()))
     }
 
-    /// Sets the lifetime behavior of the container resource
-    pub fn with_lifetime(&self, lifetime: ContainerLifetime) -> Result<ContainerResource, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("builder".to_string(), self.handle.to_json());
-        args.insert("lifetime".to_string(), serde_json::to_value(&lifetime).unwrap_or(Value::Null));
-        let result = self.client.invoke_capability("Aspire.Hosting/withLifetime", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(ContainerResource::new(handle, self.client.clone()))
-    }
-
     /// Sets the container image pull policy
     pub fn with_image_pull_policy(&self, pull_policy: ImagePullPolicy) -> Result<ContainerResource, Box<dyn std::error::Error>> {
         let mut args: HashMap<String, Value> = HashMap::new();
@@ -16847,16 +17208,6 @@ impl TestVaultResource {
             args.insert("defaultCertificateDirectoryPaths".to_string(), serde_json::to_value(v).unwrap_or(Value::Null));
         }
         let result = self.client.invoke_capability("Aspire.Hosting/withContainerCertificatePaths", args)?;
-        let handle: Handle = serde_json::from_value(result)?;
-        Ok(ContainerResource::new(handle, self.client.clone()))
-    }
-
-    /// Configures endpoint proxy support
-    pub fn with_endpoint_proxy_support(&self, proxy_enabled: bool) -> Result<ContainerResource, Box<dyn std::error::Error>> {
-        let mut args: HashMap<String, Value> = HashMap::new();
-        args.insert("builder".to_string(), self.handle.to_json());
-        args.insert("proxyEnabled".to_string(), serde_json::to_value(&proxy_enabled).unwrap_or(Value::Null));
-        let result = self.client.invoke_capability("Aspire.Hosting/withEndpointProxySupport", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(ContainerResource::new(handle, self.client.clone()))
     }
@@ -16946,6 +17297,44 @@ impl TestVaultResource {
             args.insert("helpLink".to_string(), serde_json::to_value(v).unwrap_or(Value::Null));
         }
         let result = self.client.invoke_capability("Aspire.Hosting/withRequiredCommand", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets session lifetime behavior for the resource
+    pub fn with_session_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withSessionLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior for the resource
+    pub fn with_persistent_lifetime(&self) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withPersistentLifetime", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets resource lifetime behavior to match another resource
+    pub fn with_lifetime_of(&self, source_builder: &IResource) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("sourceBuilder".to_string(), source_builder.handle().to_json());
+        let result = self.client.invoke_capability("Aspire.Hosting/withLifetimeOf", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResource::new(handle, self.client.clone()))
+    }
+
+    /// Sets persistent lifetime behavior tied to a parent process
+    pub fn with_parent_process_lifetime(&self, parent_process_id: f64) -> Result<IResource, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("parentProcessId".to_string(), serde_json::to_value(&parent_process_id).unwrap_or(Value::Null));
+        let result = self.client.invoke_capability("Aspire.Hosting/withParentProcessLifetime", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(IResource::new(handle, self.client.clone()))
     }
@@ -17100,6 +17489,16 @@ impl TestVaultResource {
             args.insert("protocol".to_string(), serde_json::to_value(v).unwrap_or(Value::Null));
         }
         let result = self.client.invoke_capability("Aspire.Hosting/withEndpoint", args)?;
+        let handle: Handle = serde_json::from_value(result)?;
+        Ok(IResourceWithEndpoints::new(handle, self.client.clone()))
+    }
+
+    /// Configures endpoint proxy support
+    pub fn with_endpoint_proxy_support(&self, proxy_enabled: bool) -> Result<IResourceWithEndpoints, Box<dyn std::error::Error>> {
+        let mut args: HashMap<String, Value> = HashMap::new();
+        args.insert("builder".to_string(), self.handle.to_json());
+        args.insert("proxyEnabled".to_string(), serde_json::to_value(&proxy_enabled).unwrap_or(Value::Null));
+        let result = self.client.invoke_capability("Aspire.Hosting/withEndpointProxySupport", args)?;
         let handle: Handle = serde_json::from_value(result)?;
         Ok(IResourceWithEndpoints::new(handle, self.client.clone()))
     }

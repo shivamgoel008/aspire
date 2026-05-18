@@ -1499,8 +1499,6 @@ CertificateTrustScope = typing.Literal["None", "Append", "Override", "System"]
 
 CommandResultFormat = typing.Literal["Text", "Json", "Markdown"]
 
-ContainerLifetime = typing.Literal["Session", "Persistent"]
-
 ContainerMountType = typing.Literal["BindMount", "Volume"]
 
 DistributedApplicationOperation = typing.Literal["Run", "Publish"]
@@ -4449,16 +4447,16 @@ class EndpointUpdateContext:
         )
 
     @_uncached_property
-    def is_proxied(self) -> bool:
+    def is_proxied(self) -> bool | None:
         """Gets the IsProxied property"""
         result = self._client.invoke_capability(
             'Aspire.Hosting.ApplicationModel/EndpointUpdateContext.isProxied',
             {'context': self._handle}
         )
-        return typing.cast(bool, result)
+        return typing.cast(bool | None, result)
 
     @is_proxied.setter
-    def is_proxied(self, value: bool) -> None:
+    def is_proxied(self, value: bool | None) -> None:
         """Sets the IsProxied property"""
         self._client.invoke_capability(
             'Aspire.Hosting.ApplicationModel/EndpointUpdateContext.setIsProxied',
@@ -6047,6 +6045,22 @@ class AbstractResource(abc.ABC):
         """Adds a required command dependency"""
 
     @abc.abstractmethod
+    def with_session_lifetime(self) -> typing.Self:
+        """Sets session lifetime behavior for the resource"""
+
+    @abc.abstractmethod
+    def with_persistent_lifetime(self) -> typing.Self:
+        """Sets persistent lifetime behavior for the resource"""
+
+    @abc.abstractmethod
+    def with_lifetime_of(self, source_builder: AbstractResource) -> typing.Self:
+        """Sets resource lifetime behavior to match another resource"""
+
+    @abc.abstractmethod
+    def with_parent_process_lifetime(self, parent_process_id: int) -> typing.Self:
+        """Sets persistent lifetime behavior tied to a parent process"""
+
+    @abc.abstractmethod
     def with_urls(self, callback: typing.Callable[[ResourceUrlsCallbackContext], None]) -> typing.Self:
         """Customizes displayed URLs via callback"""
 
@@ -6307,15 +6321,19 @@ class AbstractResourceWithEndpoints(AbstractResource):
         """Updates an HTTPS endpoint via callback"""
 
     @abc.abstractmethod
-    def with_endpoint(self, *, port: int | None = None, target_port: int | None = None, scheme: str | None = None, name: str | None = None, env: str | None = None, is_proxied: bool = True, is_external: bool | None = None, protocol: ProtocolType | None = None) -> typing.Self:
+    def with_endpoint(self, *, port: int | None = None, target_port: int | None = None, scheme: str | None = None, name: str | None = None, env: str | None = None, is_proxied: bool | None = None, is_external: bool | None = None, protocol: ProtocolType | None = None) -> typing.Self:
         """Adds a network endpoint"""
 
     @abc.abstractmethod
-    def with_http_endpoint(self, *, port: int | None = None, target_port: int | None = None, name: str | None = None, env: str | None = None, is_proxied: bool = True) -> typing.Self:
+    def with_endpoint_proxy_support(self, proxy_enabled: bool) -> typing.Self:
+        """Configures endpoint proxy support"""
+
+    @abc.abstractmethod
+    def with_http_endpoint(self, *, port: int | None = None, target_port: int | None = None, name: str | None = None, env: str | None = None, is_proxied: bool | None = None) -> typing.Self:
         """Adds an HTTP endpoint"""
 
     @abc.abstractmethod
-    def with_https_endpoint(self, *, port: int | None = None, target_port: int | None = None, name: str | None = None, env: str | None = None, is_proxied: bool = True) -> typing.Self:
+    def with_https_endpoint(self, *, port: int | None = None, target_port: int | None = None, name: str | None = None, env: str | None = None, is_proxied: bool | None = None) -> typing.Self:
         """Adds an HTTPS endpoint"""
 
     @abc.abstractmethod
@@ -6437,6 +6455,10 @@ class _BaseResourceKwargs(typing.TypedDict, total=False):
     container_registry: AbstractResource
     dockerfile_base_image: DockerfileBaseImageParameters | typing.Literal[True]
     required_command: str | tuple[str, str]
+    session_lifetime: typing.Literal[True]
+    persistent_lifetime: typing.Literal[True]
+    lifetime_of: AbstractResource
+    parent_process_lifetime: int
     urls: typing.Callable[[ResourceUrlsCallbackContext], None]
     url: str | ReferenceExpression | tuple[str | ReferenceExpression, str]
     url_for_endpoint: tuple[str, typing.Callable[[ResourceUrlAnnotation], None]]
@@ -6522,6 +6544,48 @@ class _BaseResource(AbstractResource):
             rpc_args['helpLink'] = help_link
         result = self._client.invoke_capability(
             'Aspire.Hosting/withRequiredCommand',
+            rpc_args,
+        )
+        self._handle = self._wrap_builder(result)
+        return self
+
+    def with_session_lifetime(self) -> typing.Self:
+        """Sets session lifetime behavior for the resource"""
+        rpc_args: dict[str, typing.Any] = {'builder': self._handle}
+        result = self._client.invoke_capability(
+            'Aspire.Hosting/withSessionLifetime',
+            rpc_args,
+        )
+        self._handle = self._wrap_builder(result)
+        return self
+
+    def with_persistent_lifetime(self) -> typing.Self:
+        """Sets persistent lifetime behavior for the resource"""
+        rpc_args: dict[str, typing.Any] = {'builder': self._handle}
+        result = self._client.invoke_capability(
+            'Aspire.Hosting/withPersistentLifetime',
+            rpc_args,
+        )
+        self._handle = self._wrap_builder(result)
+        return self
+
+    def with_lifetime_of(self, source_builder: AbstractResource) -> typing.Self:
+        """Sets resource lifetime behavior to match another resource"""
+        rpc_args: dict[str, typing.Any] = {'builder': self._handle}
+        rpc_args['sourceBuilder'] = source_builder
+        result = self._client.invoke_capability(
+            'Aspire.Hosting/withLifetimeOf',
+            rpc_args,
+        )
+        self._handle = self._wrap_builder(result)
+        return self
+
+    def with_parent_process_lifetime(self, parent_process_id: int) -> typing.Self:
+        """Sets persistent lifetime behavior tied to a parent process"""
+        rpc_args: dict[str, typing.Any] = {'builder': self._handle}
+        rpc_args['parentProcessId'] = parent_process_id
+        result = self._client.invoke_capability(
+            'Aspire.Hosting/withParentProcessLifetime',
             rpc_args,
         )
         self._handle = self._wrap_builder(result)
@@ -7040,6 +7104,32 @@ class _BaseResource(AbstractResource):
                 handle = self._wrap_builder(client.invoke_capability('Aspire.Hosting/withRequiredCommand', rpc_args))
             else:
                 raise TypeError("Invalid type for option 'required_command'. Expected: str or (str, str)")
+        if _session_lifetime := kwargs.pop("session_lifetime", None):
+            if _session_lifetime is True:
+                rpc_args: dict[str, typing.Any] = {"builder": handle}
+                handle = self._wrap_builder(client.invoke_capability('Aspire.Hosting/withSessionLifetime', rpc_args))
+            else:
+                raise TypeError("Invalid type for option 'session_lifetime'. Expected: Literal[True]")
+        if _persistent_lifetime := kwargs.pop("persistent_lifetime", None):
+            if _persistent_lifetime is True:
+                rpc_args: dict[str, typing.Any] = {"builder": handle}
+                handle = self._wrap_builder(client.invoke_capability('Aspire.Hosting/withPersistentLifetime', rpc_args))
+            else:
+                raise TypeError("Invalid type for option 'persistent_lifetime'. Expected: Literal[True]")
+        if _lifetime_of := kwargs.pop("lifetime_of", None):
+            if _validate_type(_lifetime_of, AbstractResource):
+                rpc_args: dict[str, typing.Any] = {"builder": handle}
+                rpc_args["sourceBuilder"] = typing.cast(AbstractResource, _lifetime_of)
+                handle = self._wrap_builder(client.invoke_capability('Aspire.Hosting/withLifetimeOf', rpc_args))
+            else:
+                raise TypeError("Invalid type for option 'lifetime_of'. Expected: AbstractResource")
+        if _parent_process_lifetime := kwargs.pop("parent_process_lifetime", None):
+            if _validate_type(_parent_process_lifetime, int):
+                rpc_args: dict[str, typing.Any] = {"builder": handle}
+                rpc_args["parentProcessId"] = typing.cast(int, _parent_process_lifetime)
+                handle = self._wrap_builder(client.invoke_capability('Aspire.Hosting/withParentProcessLifetime', rpc_args))
+            else:
+                raise TypeError("Invalid type for option 'parent_process_lifetime'. Expected: int")
         if _urls := kwargs.pop("urls", None):
             if _validate_type(_urls, typing.Callable[[ResourceUrlsCallbackContext], None]):
                 rpc_args: dict[str, typing.Any] = {"builder": handle}
@@ -7408,7 +7498,6 @@ class ContainerResourceKwargs(_BaseResourceKwargs, total=False):
     image: str | tuple[str, str]
     image_sha256: str
     container_runtime_args: typing.Iterable[str]
-    lifetime: ContainerLifetime
     image_pull_policy: ImagePullPolicy
     publish_as_container: typing.Literal[True]
     dockerfile: str | DockerfileParameters
@@ -7416,7 +7505,6 @@ class ContainerResourceKwargs(_BaseResourceKwargs, total=False):
     build_arg: tuple[str, str | ParameterResource]
     build_secret: tuple[str, ParameterResource]
     container_certificate_paths: ContainerCertificatePathsParameters | typing.Literal[True]
-    endpoint_proxy_support: bool
     dockerfile_builder: tuple[str, typing.Callable[[DockerfileBuilderCallbackContext], None]] | DockerfileBuilderParameters
     container_network_alias: str
     mcp_server: McpServerParameters | typing.Literal[True]
@@ -7432,6 +7520,7 @@ class ContainerResourceKwargs(_BaseResourceKwargs, total=False):
     http_endpoint_callback: typing.Callable[[EndpointUpdateContext], None] | HttpEndpointCallbackParameters
     https_endpoint_callback: typing.Callable[[EndpointUpdateContext], None] | HttpsEndpointCallbackParameters
     endpoint: EndpointParameters | typing.Literal[True]
+    endpoint_proxy_support: bool
     http_endpoint: HttpEndpointParameters | typing.Literal[True]
     https_endpoint: HttpsEndpointParameters | typing.Literal[True]
     external_http_endpoints: typing.Literal[True]
@@ -7543,17 +7632,6 @@ class ContainerResource(_BaseResource, AbstractResourceWithEnvironment, Abstract
         self._handle = self._wrap_builder(result)
         return self
 
-    def with_lifetime(self, lifetime: ContainerLifetime) -> typing.Self:
-        """Sets the lifetime behavior of the container resource"""
-        rpc_args: dict[str, typing.Any] = {'builder': self._handle}
-        rpc_args['lifetime'] = lifetime
-        result = self._client.invoke_capability(
-            'Aspire.Hosting/withLifetime',
-            rpc_args,
-        )
-        self._handle = self._wrap_builder(result)
-        return self
-
     def with_image_pull_policy(self, pull_policy: ImagePullPolicy) -> typing.Self:
         """Sets the container image pull policy"""
         rpc_args: dict[str, typing.Any] = {'builder': self._handle}
@@ -7636,17 +7714,6 @@ class ContainerResource(_BaseResource, AbstractResourceWithEnvironment, Abstract
             rpc_args['defaultCertificateDirectoryPaths'] = default_certificate_dir_paths
         result = self._client.invoke_capability(
             'Aspire.Hosting/withContainerCertificatePaths',
-            rpc_args,
-        )
-        self._handle = self._wrap_builder(result)
-        return self
-
-    def with_endpoint_proxy_support(self, proxy_enabled: bool) -> typing.Self:
-        """Configures endpoint proxy support"""
-        rpc_args: dict[str, typing.Any] = {'builder': self._handle}
-        rpc_args['proxyEnabled'] = proxy_enabled
-        result = self._client.invoke_capability(
-            'Aspire.Hosting/withEndpointProxySupport',
             rpc_args,
         )
         self._handle = self._wrap_builder(result)
@@ -7830,7 +7897,7 @@ class ContainerResource(_BaseResource, AbstractResourceWithEnvironment, Abstract
         self._handle = self._wrap_builder(result)
         return self
 
-    def with_endpoint(self, *, port: int | None = None, target_port: int | None = None, scheme: str | None = None, name: str | None = None, env: str | None = None, is_proxied: bool = True, is_external: bool | None = None, protocol: ProtocolType | None = None) -> typing.Self:
+    def with_endpoint(self, *, port: int | None = None, target_port: int | None = None, scheme: str | None = None, name: str | None = None, env: str | None = None, is_proxied: bool | None = None, is_external: bool | None = None, protocol: ProtocolType | None = None) -> typing.Self:
         """Adds a network endpoint"""
         rpc_args: dict[str, typing.Any] = {'builder': self._handle}
         if port is not None:
@@ -7856,7 +7923,18 @@ class ContainerResource(_BaseResource, AbstractResourceWithEnvironment, Abstract
         self._handle = self._wrap_builder(result)
         return self
 
-    def with_http_endpoint(self, *, port: int | None = None, target_port: int | None = None, name: str | None = None, env: str | None = None, is_proxied: bool = True) -> typing.Self:
+    def with_endpoint_proxy_support(self, proxy_enabled: bool) -> typing.Self:
+        """Configures endpoint proxy support"""
+        rpc_args: dict[str, typing.Any] = {'builder': self._handle}
+        rpc_args['proxyEnabled'] = proxy_enabled
+        result = self._client.invoke_capability(
+            'Aspire.Hosting/withEndpointProxySupport',
+            rpc_args,
+        )
+        self._handle = self._wrap_builder(result)
+        return self
+
+    def with_http_endpoint(self, *, port: int | None = None, target_port: int | None = None, name: str | None = None, env: str | None = None, is_proxied: bool | None = None) -> typing.Self:
         """Adds an HTTP endpoint"""
         rpc_args: dict[str, typing.Any] = {'builder': self._handle}
         if port is not None:
@@ -7876,7 +7954,7 @@ class ContainerResource(_BaseResource, AbstractResourceWithEnvironment, Abstract
         self._handle = self._wrap_builder(result)
         return self
 
-    def with_https_endpoint(self, *, port: int | None = None, target_port: int | None = None, name: str | None = None, env: str | None = None, is_proxied: bool = True) -> typing.Self:
+    def with_https_endpoint(self, *, port: int | None = None, target_port: int | None = None, name: str | None = None, env: str | None = None, is_proxied: bool | None = None) -> typing.Self:
         """Adds an HTTPS endpoint"""
         rpc_args: dict[str, typing.Any] = {'builder': self._handle}
         if port is not None:
@@ -8218,13 +8296,6 @@ class ContainerResource(_BaseResource, AbstractResourceWithEnvironment, Abstract
                 handle = self._wrap_builder(client.invoke_capability('Aspire.Hosting/withContainerRuntimeArgs', rpc_args))
             else:
                 raise TypeError("Invalid type for option 'container_runtime_args'. Expected: Iterable[str]")
-        if _lifetime := kwargs.pop("lifetime", None):
-            if _validate_type(_lifetime, ContainerLifetime):
-                rpc_args: dict[str, typing.Any] = {"builder": handle}
-                rpc_args["lifetime"] = typing.cast(ContainerLifetime, _lifetime)
-                handle = self._wrap_builder(client.invoke_capability('Aspire.Hosting/withLifetime', rpc_args))
-            else:
-                raise TypeError("Invalid type for option 'lifetime'. Expected: ContainerLifetime")
         if _image_pull_policy := kwargs.pop("image_pull_policy", None):
             if _validate_type(_image_pull_policy, ImagePullPolicy):
                 rpc_args: dict[str, typing.Any] = {"builder": handle}
@@ -8286,13 +8357,6 @@ class ContainerResource(_BaseResource, AbstractResourceWithEnvironment, Abstract
                 handle = self._wrap_builder(client.invoke_capability('Aspire.Hosting/withContainerCertificatePaths', rpc_args))
             else:
                 raise TypeError("Invalid type for option 'container_certificate_paths'. Expected: ContainerCertificatePathsParameters or Literal[True]")
-        if _endpoint_proxy_support := kwargs.pop("endpoint_proxy_support", None):
-            if _validate_type(_endpoint_proxy_support, bool):
-                rpc_args: dict[str, typing.Any] = {"builder": handle}
-                rpc_args["proxyEnabled"] = typing.cast(bool, _endpoint_proxy_support)
-                handle = self._wrap_builder(client.invoke_capability('Aspire.Hosting/withEndpointProxySupport', rpc_args))
-            else:
-                raise TypeError("Invalid type for option 'endpoint_proxy_support'. Expected: bool")
         if _dockerfile_builder := kwargs.pop("dockerfile_builder", None):
             if _validate_tuple_types(_dockerfile_builder, (str, typing.Callable[[DockerfileBuilderCallbackContext], None])):
                 rpc_args: dict[str, typing.Any] = {"builder": handle}
@@ -8448,6 +8512,13 @@ class ContainerResource(_BaseResource, AbstractResourceWithEnvironment, Abstract
                 handle = self._wrap_builder(client.invoke_capability('Aspire.Hosting/withEndpoint', rpc_args))
             else:
                 raise TypeError("Invalid type for option 'endpoint'. Expected: EndpointParameters or Literal[True]")
+        if _endpoint_proxy_support := kwargs.pop("endpoint_proxy_support", None):
+            if _validate_type(_endpoint_proxy_support, bool):
+                rpc_args: dict[str, typing.Any] = {"builder": handle}
+                rpc_args["proxyEnabled"] = typing.cast(bool, _endpoint_proxy_support)
+                handle = self._wrap_builder(client.invoke_capability('Aspire.Hosting/withEndpointProxySupport', rpc_args))
+            else:
+                raise TypeError("Invalid type for option 'endpoint_proxy_support'. Expected: bool")
         if _http_endpoint := kwargs.pop("http_endpoint", None):
             if _validate_dict_types(_http_endpoint, HttpEndpointParameters):
                 rpc_args: dict[str, typing.Any] = {"builder": handle}
@@ -8681,6 +8752,7 @@ class ProjectResourceKwargs(_BaseResourceKwargs, total=False):
     http_endpoint_callback: typing.Callable[[EndpointUpdateContext], None] | HttpEndpointCallbackParameters
     https_endpoint_callback: typing.Callable[[EndpointUpdateContext], None] | HttpsEndpointCallbackParameters
     endpoint: EndpointParameters | typing.Literal[True]
+    endpoint_proxy_support: bool
     http_endpoint: HttpEndpointParameters | typing.Literal[True]
     https_endpoint: HttpsEndpointParameters | typing.Literal[True]
     external_http_endpoints: typing.Literal[True]
@@ -8886,7 +8958,7 @@ class ProjectResource(_BaseResource, AbstractResourceWithEnvironment, AbstractRe
         self._handle = self._wrap_builder(result)
         return self
 
-    def with_endpoint(self, *, port: int | None = None, target_port: int | None = None, scheme: str | None = None, name: str | None = None, env: str | None = None, is_proxied: bool = True, is_external: bool | None = None, protocol: ProtocolType | None = None) -> typing.Self:
+    def with_endpoint(self, *, port: int | None = None, target_port: int | None = None, scheme: str | None = None, name: str | None = None, env: str | None = None, is_proxied: bool | None = None, is_external: bool | None = None, protocol: ProtocolType | None = None) -> typing.Self:
         """Adds a network endpoint"""
         rpc_args: dict[str, typing.Any] = {'builder': self._handle}
         if port is not None:
@@ -8912,7 +8984,18 @@ class ProjectResource(_BaseResource, AbstractResourceWithEnvironment, AbstractRe
         self._handle = self._wrap_builder(result)
         return self
 
-    def with_http_endpoint(self, *, port: int | None = None, target_port: int | None = None, name: str | None = None, env: str | None = None, is_proxied: bool = True) -> typing.Self:
+    def with_endpoint_proxy_support(self, proxy_enabled: bool) -> typing.Self:
+        """Configures endpoint proxy support"""
+        rpc_args: dict[str, typing.Any] = {'builder': self._handle}
+        rpc_args['proxyEnabled'] = proxy_enabled
+        result = self._client.invoke_capability(
+            'Aspire.Hosting/withEndpointProxySupport',
+            rpc_args,
+        )
+        self._handle = self._wrap_builder(result)
+        return self
+
+    def with_http_endpoint(self, *, port: int | None = None, target_port: int | None = None, name: str | None = None, env: str | None = None, is_proxied: bool | None = None) -> typing.Self:
         """Adds an HTTP endpoint"""
         rpc_args: dict[str, typing.Any] = {'builder': self._handle}
         if port is not None:
@@ -8932,7 +9015,7 @@ class ProjectResource(_BaseResource, AbstractResourceWithEnvironment, AbstractRe
         self._handle = self._wrap_builder(result)
         return self
 
-    def with_https_endpoint(self, *, port: int | None = None, target_port: int | None = None, name: str | None = None, env: str | None = None, is_proxied: bool = True) -> typing.Self:
+    def with_https_endpoint(self, *, port: int | None = None, target_port: int | None = None, name: str | None = None, env: str | None = None, is_proxied: bool | None = None) -> typing.Self:
         """Adds an HTTPS endpoint"""
         rpc_args: dict[str, typing.Any] = {'builder': self._handle}
         if port is not None:
@@ -9361,6 +9444,13 @@ class ProjectResource(_BaseResource, AbstractResourceWithEnvironment, AbstractRe
                 handle = self._wrap_builder(client.invoke_capability('Aspire.Hosting/withEndpoint', rpc_args))
             else:
                 raise TypeError("Invalid type for option 'endpoint'. Expected: EndpointParameters or Literal[True]")
+        if _endpoint_proxy_support := kwargs.pop("endpoint_proxy_support", None):
+            if _validate_type(_endpoint_proxy_support, bool):
+                rpc_args: dict[str, typing.Any] = {"builder": handle}
+                rpc_args["proxyEnabled"] = typing.cast(bool, _endpoint_proxy_support)
+                handle = self._wrap_builder(client.invoke_capability('Aspire.Hosting/withEndpointProxySupport', rpc_args))
+            else:
+                raise TypeError("Invalid type for option 'endpoint_proxy_support'. Expected: bool")
         if _http_endpoint := kwargs.pop("http_endpoint", None):
             if _validate_dict_types(_http_endpoint, HttpEndpointParameters):
                 rpc_args: dict[str, typing.Any] = {"builder": handle}
@@ -9603,6 +9693,7 @@ class ExecutableResourceKwargs(_BaseResourceKwargs, total=False):
     http_endpoint_callback: typing.Callable[[EndpointUpdateContext], None] | HttpEndpointCallbackParameters
     https_endpoint_callback: typing.Callable[[EndpointUpdateContext], None] | HttpsEndpointCallbackParameters
     endpoint: EndpointParameters | typing.Literal[True]
+    endpoint_proxy_support: bool
     http_endpoint: HttpEndpointParameters | typing.Literal[True]
     https_endpoint: HttpsEndpointParameters | typing.Literal[True]
     external_http_endpoints: typing.Literal[True]
@@ -9807,7 +9898,7 @@ class ExecutableResource(_BaseResource, AbstractResourceWithEnvironment, Abstrac
         self._handle = self._wrap_builder(result)
         return self
 
-    def with_endpoint(self, *, port: int | None = None, target_port: int | None = None, scheme: str | None = None, name: str | None = None, env: str | None = None, is_proxied: bool = True, is_external: bool | None = None, protocol: ProtocolType | None = None) -> typing.Self:
+    def with_endpoint(self, *, port: int | None = None, target_port: int | None = None, scheme: str | None = None, name: str | None = None, env: str | None = None, is_proxied: bool | None = None, is_external: bool | None = None, protocol: ProtocolType | None = None) -> typing.Self:
         """Adds a network endpoint"""
         rpc_args: dict[str, typing.Any] = {'builder': self._handle}
         if port is not None:
@@ -9833,7 +9924,18 @@ class ExecutableResource(_BaseResource, AbstractResourceWithEnvironment, Abstrac
         self._handle = self._wrap_builder(result)
         return self
 
-    def with_http_endpoint(self, *, port: int | None = None, target_port: int | None = None, name: str | None = None, env: str | None = None, is_proxied: bool = True) -> typing.Self:
+    def with_endpoint_proxy_support(self, proxy_enabled: bool) -> typing.Self:
+        """Configures endpoint proxy support"""
+        rpc_args: dict[str, typing.Any] = {'builder': self._handle}
+        rpc_args['proxyEnabled'] = proxy_enabled
+        result = self._client.invoke_capability(
+            'Aspire.Hosting/withEndpointProxySupport',
+            rpc_args,
+        )
+        self._handle = self._wrap_builder(result)
+        return self
+
+    def with_http_endpoint(self, *, port: int | None = None, target_port: int | None = None, name: str | None = None, env: str | None = None, is_proxied: bool | None = None) -> typing.Self:
         """Adds an HTTP endpoint"""
         rpc_args: dict[str, typing.Any] = {'builder': self._handle}
         if port is not None:
@@ -9853,7 +9955,7 @@ class ExecutableResource(_BaseResource, AbstractResourceWithEnvironment, Abstrac
         self._handle = self._wrap_builder(result)
         return self
 
-    def with_https_endpoint(self, *, port: int | None = None, target_port: int | None = None, name: str | None = None, env: str | None = None, is_proxied: bool = True) -> typing.Self:
+    def with_https_endpoint(self, *, port: int | None = None, target_port: int | None = None, name: str | None = None, env: str | None = None, is_proxied: bool | None = None) -> typing.Self:
         """Adds an HTTPS endpoint"""
         rpc_args: dict[str, typing.Any] = {'builder': self._handle}
         if port is not None:
@@ -10268,6 +10370,13 @@ class ExecutableResource(_BaseResource, AbstractResourceWithEnvironment, Abstrac
                 handle = self._wrap_builder(client.invoke_capability('Aspire.Hosting/withEndpoint', rpc_args))
             else:
                 raise TypeError("Invalid type for option 'endpoint'. Expected: EndpointParameters or Literal[True]")
+        if _endpoint_proxy_support := kwargs.pop("endpoint_proxy_support", None):
+            if _validate_type(_endpoint_proxy_support, bool):
+                rpc_args: dict[str, typing.Any] = {"builder": handle}
+                rpc_args["proxyEnabled"] = typing.cast(bool, _endpoint_proxy_support)
+                handle = self._wrap_builder(client.invoke_capability('Aspire.Hosting/withEndpointProxySupport', rpc_args))
+            else:
+                raise TypeError("Invalid type for option 'endpoint_proxy_support'. Expected: bool")
         if _http_endpoint := kwargs.pop("http_endpoint", None):
             if _validate_dict_types(_http_endpoint, HttpEndpointParameters):
                 rpc_args: dict[str, typing.Any] = {"builder": handle}
