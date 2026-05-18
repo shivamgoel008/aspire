@@ -24,7 +24,9 @@ internal sealed class ProfileCaptureEnvironment : IDisposable
         // The CLI telemetry pipeline is configured from ambient process environment at startup.
         // Mutating process state here is intentional because this runs before DI creates
         // TelemetryManager; child AppHost processes get an explicit copy via AddCurrentToEnvironment.
-        var previousValues = new Dictionary<string, string?>(StringComparer.Ordinal);
+        // Environment variable names are case-insensitive on Windows, so use the matching comparer
+        // to avoid storing two restore entries for what the OS treats as the same variable.
+        var previousValues = new Dictionary<string, string?>(StringComparers.EnvironmentVariableName);
         foreach (var (name, value) in values)
         {
             previousValues[name] = Environment.GetEnvironmentVariable(name);
@@ -64,7 +66,7 @@ internal sealed class ProfileCaptureEnvironment : IDisposable
         // AppHosts support these non-prefixed variables directly, so we do not need separate
         // ASPIRE_OTEL_* copies for the profiling path.
         // OTEL env var conventions: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
-        return new Dictionary<string, string?>
+        return new Dictionary<string, string?>(StringComparers.EnvironmentVariableName)
         {
             [AspireCliTelemetry.TelemetryOptOutConfigKey] = "true",
             [KnownConfigNames.ProfilingEnabled] = "true",

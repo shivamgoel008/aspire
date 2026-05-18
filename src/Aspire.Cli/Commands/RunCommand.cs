@@ -452,11 +452,13 @@ internal sealed class RunCommand : BaseCommand
                 // Some AppHost implementations, including guest AppHosts, report the teardown exit code
                 // from a helper process that the CLI stops after the AppHost has already started; on
                 // Unix-like systems that surfaces as 128 + signal (e.g., 130 SIGINT, 137 SIGKILL, 143
-                // SIGTERM). Treat those known teardown codes as a successful capture, but propagate any
-                // other non-zero exit code so a genuine AppHost crash during shutdown is not masked.
+                // SIGTERM). These are AppHost process exit codes (not CLI exit codes), so use the raw
+                // signal-based literals here instead of CLI exit-code constants. Treat the known teardown
+                // codes as a successful capture, but propagate any other non-zero exit code so a
+                // genuine AppHost crash during shutdown is not masked.
                 if (profileStopRequested)
                 {
-                    return exitCode is 0 or ExitCodeConstants.Cancelled or 137 or 143
+                    return exitCode is 0 or 130 or 137 or 143
                         ? CommandResult.Success()
                         : CommandResult.FromExitCode(exitCode);
                 }

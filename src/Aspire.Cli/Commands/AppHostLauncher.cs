@@ -179,16 +179,19 @@ internal sealed class AppHostLauncher(
             await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
         }
 
-        if (result.Backchannel?.AppHostInfo is { } appHostInfo)
+        if (result.Backchannel is not null)
         {
-            await result.Backchannel.StopAppHostAsync(cancellationToken).ConfigureAwait(false);
-
+            // Reuse the shared "RPC stop + wait for termination" flow so capture mode follows the
+            // same teardown path as socket-discovered running-instance stops.
             var manager = new RunningInstanceManager(logger, interactionService, timeProvider);
-            await manager.MonitorProcessesForTerminationAsync(appHostInfo, cancellationToken).ConfigureAwait(false);
+            await manager.StopAndMonitorAsync(result.Backchannel, cancellationToken).ConfigureAwait(false);
         }
 
         if (result.ChildProcess is { HasExited: false } childProcess)
         {
+            // Safety net for the hidden capture path: if the RPC stop did not bring the spawned
+            // child CLI down within the grace period, terminate the process tree so we never
+            // leave an orphaned AppHost behind.
             try
             {
                 await childProcess.WaitForExitAsync(cancellationToken).WaitAsync(TimeSpan.FromSeconds(10), cancellationToken).ConfigureAwait(false);
@@ -199,9 +202,6 @@ internal sealed class AppHostLauncher(
             }
             catch (OperationCanceledException) when (!childProcess.HasExited)
             {
-                // This path is only used for profile captures of detached launches. If shutdown is
-                // canceled while we are waiting for the child CLI to observe the AppHost stop, kill
-                // the process tree so the hidden capture mode does not leave an orphaned AppHost.
                 childProcess.Kill(entireProcessTree: true);
                 throw;
             }
