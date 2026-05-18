@@ -426,6 +426,7 @@ public sealed class DashboardWebApplication : IAsyncDisposable
                 var options = _app.Services.GetRequiredService<IOptionsMonitor<DashboardOptions>>().CurrentValue;
                 // Always print a dashboard summary including dashboard and OTLP endpoints.
                 var token = options.Frontend.AuthMode == FrontendAuthMode.BrowserToken ? options.Frontend.BrowserToken : null;
+                var frontendAddress = frontendEndpointInfo.GetResolvedAddress(replaceIPAnyWithLocalhost: true);
                 var otlpGrpcAddress = _otlpServiceGrpcEndPointAccessor?.Invoke().GetResolvedAddress(replaceIPAnyWithLocalhost: true);
                 var otlpHttpAddress = _otlpServiceHttpEndPointAccessor?.Invoke().GetResolvedAddress(replaceIPAnyWithLocalhost: true);
                 // DOTNET_RUNNING_IN_CONTAINER is a well-known environment variable added by official .NET images.
@@ -434,7 +435,7 @@ public sealed class DashboardWebApplication : IAsyncDisposable
 
                 LoggingHelpers.WriteDashboardSummary(
                     _logger,
-                    frontendEndpointInfo.GetResolvedAddress(replaceIPAnyWithLocalhost: true),
+                    frontendAddress,
                     otlpGrpcAddress,
                     otlpHttpAddress,
                     token,
