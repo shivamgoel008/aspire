@@ -22,7 +22,21 @@ internal sealed class LsCommand : BaseCommand
     private readonly IProjectLocator _projectLocator;
     private readonly CliExecutionContext _executionContext;
     private readonly ICliHostEnvironment _hostEnvironment;
+    private readonly ConsoleEnvironment _consoleEnvironment;
     private readonly ProfilingTelemetry _profilingTelemetry;
+
+    // `--format json --stream` emits newline-delimited JSON (NDJSON), one object per line:
+    //   {"type":"started"}
+    //   {"type":"candidate","candidate":{"path":"C:\\repo\\AppHost.csproj","language":"C#","status":"buildable"}}
+    //   {"type":"complete","appHostCount":1}
+    //   {"type":"canceled"}
+    // These constants are the stable wire-format values for the `type` property.
+    // See https://github.com/ndjson/ndjson-spec for the line-delimited JSON convention.
+    // Keep docs/specs/cli-output-formats.md in sync when changing this shape.
+    private const string JsonStreamStartedEventType = "started";
+    private const string JsonStreamCandidateEventType = "candidate";
+    private const string JsonStreamCompleteEventType = "complete";
+    private const string JsonStreamCanceledEventType = "canceled";
 
     private static readonly Option<OutputFormat> s_formatOption = new("--format")
     {
@@ -34,6 +48,11 @@ internal sealed class LsCommand : BaseCommand
         Description = SharedCommandStrings.LsAllOptionDescription
     };
 
+    private static readonly Option<bool> s_streamOption = new("--stream")
+    {
+        Description = SharedCommandStrings.LsStreamOptionDescription
+    };
+
     public LsCommand(
         IInteractionService interactionService,
         IProjectLocator projectLocator,
@@ -41,6 +60,7 @@ internal sealed class LsCommand : BaseCommand
         ICliUpdateNotifier updateNotifier,
         CliExecutionContext executionContext,
         ICliHostEnvironment hostEnvironment,
+        ConsoleEnvironment consoleEnvironment,
         AspireCliTelemetry telemetry,
         ProfilingTelemetry profilingTelemetry)
         : base("ls", SharedCommandStrings.LsCommandDescription, features, updateNotifier, executionContext, interactionService, telemetry)
@@ -49,10 +69,20 @@ internal sealed class LsCommand : BaseCommand
         _projectLocator = projectLocator;
         _executionContext = executionContext;
         _hostEnvironment = hostEnvironment;
+        _consoleEnvironment = consoleEnvironment;
         _profilingTelemetry = profilingTelemetry;
 
         Options.Add(s_formatOption);
         Options.Add(s_allOption);
+        Options.Add(s_streamOption);
+
+        Validators.Add(result =>
+        {
+            if (result.GetValue(s_streamOption) && result.GetValue(s_formatOption) != OutputFormat.Json)
+            {
+                result.AddError(SharedCommandStrings.LsStreamRequiresJson);
+            }
+        });
     }
 
     protected override async Task<CommandResult> ExecuteAsync(ParseResult parseResult, CancellationToken cancellationToken)
@@ -61,6 +91,7 @@ internal sealed class LsCommand : BaseCommand
 
         var format = parseResult.GetValue(s_formatOption);
         var includeAll = parseResult.GetValue(s_allOption);
+        var stream = parseResult.GetValue(s_streamOption);
         using var profilingActivity = _profilingTelemetry.StartLsCommand(format.ToString().ToLowerInvariant(), includeAll);
 
         // `aspire ls` is ambient discovery from the working directory by default, so
@@ -72,31 +103,36 @@ internal sealed class LsCommand : BaseCommand
 
         try
         {
-            // Live rendering is only for human interactive output. JSON and debug output are consumed by
-            // tools/logs, and non-interactive hosts may not support terminal cursor rewrites, so those modes
-            // wait for discovery to finish and emit one stable payload.
-            var useLiveOutput = format != OutputFormat.Json
+            var useJsonStream = format == OutputFormat.Json && stream;
+
+            // Live rendering is only for human interactive table output. JSON without --stream is consumed by
+            // tools/logs as one stable payload, and JSON with --stream writes machine-readable event lines.
+            // Non-interactive hosts may not support terminal cursor rewrites, so they also wait for the final table.
+            var useLiveOutput = format == OutputFormat.Table
                 && _hostEnvironment.SupportsInteractiveOutput
                 && !_executionContext.DebugMode;
 
             List<AppHostProjectCandidate> appHosts;
             using (var findAppHostsActivity = _profilingTelemetry.StartLsFindAppHosts(scope.ToString()))
             {
-                appHosts = useLiveOutput
-                    ? await FindAppHostsWithLiveUpdatesAsync(scope, cancellationToken).ConfigureAwait(false)
-                    : await _projectLocator.FindAppHostProjectsAsync(_executionContext.WorkingDirectory, scope, cancellationToken).ConfigureAwait(false);
+                appHosts = (useLiveOutput, useJsonStream) switch
+                {
+                    (true, _) => await FindAppHostsWithLiveUpdatesAsync(scope, cancellationToken).ConfigureAwait(false),
+                    (_, true) => await FindAppHostsWithJsonStreamAsync(scope, cancellationToken).ConfigureAwait(false),
+                    _ => await _projectLocator.FindAppHostProjectsAsync(_executionContext.WorkingDirectory, scope, cancellationToken).ConfigureAwait(false)
+                };
                 findAppHostsActivity.SetAppHostCandidateCount(appHosts.Count);
             }
             profilingActivity.SetAppHostCandidateCount(appHosts.Count);
 
             var appHostInfos = CreateDisplayInfos(appHosts);
 
-            if (format == OutputFormat.Json)
+            if (format == OutputFormat.Json && !useJsonStream)
             {
                 var json = JsonSerializer.Serialize(appHostInfos, JsonSourceGenerationContext.RelaxedEscaping.ListCandidateAppHostDisplayInfo);
                 _interactionService.DisplayRawText(json, ConsoleOutput.Standard);
             }
-            else if (!useLiveOutput)
+            else if (!useLiveOutput && !useJsonStream)
             {
                 if (appHostInfos.Count == 0)
                 {
@@ -112,8 +148,58 @@ internal sealed class LsCommand : BaseCommand
         }
         catch (OperationCanceledException ex) when (ex.CancellationToken == cancellationToken || cancellationToken.IsCancellationRequested)
         {
-            _interactionService.DisplayCancellationMessage();
+            if (format == OutputFormat.Json && stream)
+            {
+                WriteJsonStreamEvent(new LsJsonStreamEvent { Type = JsonStreamCanceledEventType }, new object());
+            }
+            else
+            {
+                _interactionService.DisplayCancellationMessage();
+            }
+
             return CommandResult.Success();
+        }
+    }
+
+    private async Task<List<AppHostProjectCandidate>> FindAppHostsWithJsonStreamAsync(AppHostDiscoveryScope scope, CancellationToken cancellationToken)
+    {
+        var streamLock = new object();
+        var appHosts = new List<AppHostProjectCandidate>();
+        WriteJsonStreamEvent(new LsJsonStreamEvent { Type = JsonStreamStartedEventType }, streamLock);
+
+        await foreach (var candidate in _projectLocator.FindAppHostProjectsStreamAsync(_executionContext.WorkingDirectory, scope, cancellationToken).ConfigureAwait(false))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            appHosts.Add(candidate);
+            WriteJsonStreamEvent(new LsJsonStreamEvent
+            {
+                Type = JsonStreamCandidateEventType,
+                Candidate = CreateDisplayInfo(candidate)
+            }, streamLock);
+        }
+
+        appHosts.Sort((x, y) => x.AppHostFile.FullName.CompareTo(y.AppHostFile.FullName));
+
+        WriteJsonStreamEvent(new LsJsonStreamEvent
+        {
+            Type = JsonStreamCompleteEventType,
+            AppHostCount = appHosts.Count
+        }, streamLock);
+
+        return appHosts;
+    }
+
+    private void WriteJsonStreamEvent(LsJsonStreamEvent streamEvent, object streamLock)
+    {
+        var json = JsonSerializer.Serialize(streamEvent, JsonSourceGenerationContext.Streaming.LsJsonStreamEvent);
+
+        // Flush immediately so tools can render each discovery event without waiting for the
+        // final array or the process exit.
+        lock (streamLock)
+        {
+            var writer = _consoleEnvironment.Out.Profile.Out.Writer;
+            writer.WriteLine(json);
+            writer.Flush();
         }
     }
 
@@ -125,9 +211,10 @@ internal sealed class LsCommand : BaseCommand
 
         await _interactionService.DisplayLiveAsync(BuildLiveSearchRenderable(liveAppHostInfos, isSearching: true), async updateTarget =>
         {
-            void OnCandidateFound(AppHostProjectCandidate candidate)
+            await foreach (var candidate in _projectLocator.FindAppHostProjectsStreamAsync(_executionContext.WorkingDirectory, scope, cancellationToken).ConfigureAwait(false))
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                appHosts.Add(candidate);
 
                 // Candidate validation runs in parallel. Keep the live render state locked while
                 // updating it so Spectre.Console never renders a list that another worker is mutating.
@@ -139,10 +226,10 @@ internal sealed class LsCommand : BaseCommand
                 }
             }
 
-            appHosts = await _projectLocator.FindAppHostProjectsAsync(_executionContext.WorkingDirectory, scope, cancellationToken, OnCandidateFound).ConfigureAwait(false);
+            appHosts.Sort((x, y) => x.AppHostFile.FullName.CompareTo(y.AppHostFile.FullName));
 
-            // The final frame should match the authoritative sorted result returned by ProjectLocator,
-            // not the order callbacks happened to arrive from parallel validation workers.
+            // The final frame should be sorted by path, not by the order stream items arrived
+            // from parallel validation workers.
             lock (displayLock)
             {
                 liveAppHostInfos.Clear();
@@ -234,6 +321,7 @@ internal sealed class LsCommand : BaseCommand
     }
 }
 
+// `aspire ls --format json` uses this shape; keep docs/specs/cli-output-formats.md in sync when changing it.
 internal sealed class CandidateAppHostDisplayInfo
 {
     public required string Path { get; init; }
@@ -241,4 +329,14 @@ internal sealed class CandidateAppHostDisplayInfo
     public required string Language { get; init; }
 
     public required string Status { get; init; }
+}
+
+// `aspire ls --format json --stream` uses this shape; keep docs/specs/cli-output-formats.md in sync when changing it.
+internal sealed class LsJsonStreamEvent
+{
+    public required string Type { get; init; }
+
+    public CandidateAppHostDisplayInfo? Candidate { get; init; }
+
+    public int? AppHostCount { get; init; }
 }

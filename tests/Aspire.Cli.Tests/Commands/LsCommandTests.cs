@@ -3,6 +3,7 @@
 
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Aspire.Cli.Commands;
 using Aspire.Cli.Projects;
@@ -158,6 +159,211 @@ public class LsCommandTests(ITestOutputHelper outputHelper)
     }
 
     [Fact]
+    public async Task LsCommand_JsonFormat_Stream_ReturnsNewlineDelimitedEvents()
+    {
+        using var workspace = TemporaryWorkspace.Create(outputHelper);
+        var textWriter = new TestOutputTextWriter(outputHelper);
+        var errorWriter = new StringWriter();
+        var appHostPath1 = Path.Combine(workspace.WorkspaceRoot.FullName, "App1", "App1.AppHost.csproj");
+        var appHostPath2 = Path.Combine(workspace.WorkspaceRoot.FullName, "App2", "App2.AppHost.csproj");
+        var appHost1 = new AppHostProjectCandidate(new FileInfo(appHostPath1), KnownLanguageId.CSharp);
+        var appHost2 = new AppHostProjectCandidate(new FileInfo(appHostPath2), KnownLanguageId.TypeScript, AppHostProjectCandidateStatus.PossiblyUnbuildable);
+        var projectLocator = new TestProjectLocator
+        {
+            FindAppHostProjectsStreamAsyncCallback = (_, _, _) => ToAsyncEnumerable(appHost1, appHost2)
+        };
+
+        var services = CliTestHelper.CreateServiceCollection(workspace, outputHelper, options =>
+        {
+            options.OutputTextWriter = textWriter;
+            options.ErrorTextWriter = errorWriter;
+            options.ProjectLocatorFactory = _ => projectLocator;
+        });
+        using var provider = services.BuildServiceProvider();
+
+        var command = provider.GetRequiredService<RootCommand>();
+        var result = command.Parse("ls --format json --stream");
+
+        var exitCode = await result.InvokeAsync().DefaultTimeout();
+
+        Assert.Equal(CliExitCodes.Success, exitCode);
+
+        var lines = textWriter.Logs.ToArray();
+        Assert.Equal(4, lines.Length);
+        Assert.All(lines, line =>
+        {
+            Assert.DoesNotContain('\n', line);
+            using var document = JsonDocument.Parse(line);
+            Assert.Equal(JsonValueKind.Object, document.RootElement.ValueKind);
+        });
+
+        using var startedEvent = JsonDocument.Parse(lines[0]);
+        Assert.Equal("started", startedEvent.RootElement.GetProperty("type").GetString());
+
+        using var firstCandidateEvent = JsonDocument.Parse(lines[1]);
+        Assert.Equal("candidate", firstCandidateEvent.RootElement.GetProperty("type").GetString());
+        var firstCandidate = firstCandidateEvent.RootElement.GetProperty("candidate");
+        Assert.Equal(appHostPath1, firstCandidate.GetProperty("path").GetString());
+        Assert.Equal(KnownLanguageId.CSharp, firstCandidate.GetProperty("language").GetString());
+        Assert.Equal("buildable", firstCandidate.GetProperty("status").GetString());
+
+        using var secondCandidateEvent = JsonDocument.Parse(lines[2]);
+        Assert.Equal("candidate", secondCandidateEvent.RootElement.GetProperty("type").GetString());
+        var secondCandidate = secondCandidateEvent.RootElement.GetProperty("candidate");
+        Assert.Equal(appHostPath2, secondCandidate.GetProperty("path").GetString());
+        Assert.Equal(KnownLanguageId.TypeScript, secondCandidate.GetProperty("language").GetString());
+        Assert.Equal("possibly-unbuildable", secondCandidate.GetProperty("status").GetString());
+
+        using var completeEvent = JsonDocument.Parse(lines[3]);
+        Assert.Equal("complete", completeEvent.RootElement.GetProperty("type").GetString());
+        Assert.Equal(2, completeEvent.RootElement.GetProperty("appHostCount").GetInt32());
+        Assert.Equal(string.Empty, errorWriter.ToString());
+    }
+
+    [Fact]
+    public async Task LsCommand_JsonFormat_Stream_WhenNoCandidates_DoesNotWriteStderr()
+    {
+        using var workspace = TemporaryWorkspace.Create(outputHelper);
+        var textWriter = new TestOutputTextWriter(outputHelper);
+        var errorWriter = new StringWriter();
+
+        var services = CliTestHelper.CreateServiceCollection(workspace, outputHelper, options =>
+        {
+            options.OutputTextWriter = textWriter;
+            options.ErrorTextWriter = errorWriter;
+        });
+        using var provider = services.BuildServiceProvider();
+
+        var command = provider.GetRequiredService<RootCommand>();
+        var result = command.Parse("ls --format json --stream");
+
+        var exitCode = await result.InvokeAsync().DefaultTimeout();
+
+        Assert.Equal(CliExitCodes.Success, exitCode);
+
+        var lines = textWriter.Logs.ToArray();
+        Assert.Equal(2, lines.Length);
+
+        using var startedEvent = JsonDocument.Parse(lines[0]);
+        Assert.Equal("started", startedEvent.RootElement.GetProperty("type").GetString());
+
+        using var completeEvent = JsonDocument.Parse(lines[1]);
+        Assert.Equal("complete", completeEvent.RootElement.GetProperty("type").GetString());
+        Assert.Equal(0, completeEvent.RootElement.GetProperty("appHostCount").GetInt32());
+        Assert.Equal(string.Empty, errorWriter.ToString());
+    }
+
+    [Fact]
+    public async Task LsCommand_JsonFormat_Stream_FlushesCandidateBeforeDiscoveryCompletes()
+    {
+        using var workspace = TemporaryWorkspace.Create(outputHelper);
+        var textWriter = new TestOutputTextWriter(outputHelper);
+        var candidateReported = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowDiscoveryToComplete = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var appHostPath = Path.Combine(workspace.WorkspaceRoot.FullName, "App", "App.AppHost.csproj");
+        var appHost = new AppHostProjectCandidate(new FileInfo(appHostPath), KnownLanguageId.CSharp);
+        var projectLocator = new TestProjectLocator
+        {
+            FindAppHostProjectsStreamAsyncCallback = (_, _, cancellationToken) => GetCandidatesAsync(cancellationToken)
+        };
+
+        async IAsyncEnumerable<AppHostProjectCandidate> GetCandidatesAsync([EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            yield return appHost;
+            candidateReported.SetResult();
+            await allowDiscoveryToComplete.Task.WaitAsync(cancellationToken);
+        }
+
+        var services = CliTestHelper.CreateServiceCollection(workspace, outputHelper, options =>
+        {
+            options.OutputTextWriter = textWriter;
+            options.ProjectLocatorFactory = _ => projectLocator;
+        });
+        using var provider = services.BuildServiceProvider();
+
+        var command = provider.GetRequiredService<RootCommand>();
+        var result = command.Parse("ls --format json --stream");
+
+        var invokeTask = result.InvokeAsync();
+        await candidateReported.Task.DefaultTimeout();
+
+        var partialLines = textWriter.Logs.ToArray();
+        Assert.Equal(2, partialLines.Length);
+        using var candidateEvent = JsonDocument.Parse(partialLines[1]);
+        Assert.Equal("candidate", candidateEvent.RootElement.GetProperty("type").GetString());
+        Assert.Equal(appHostPath, candidateEvent.RootElement.GetProperty("candidate").GetProperty("path").GetString());
+
+        allowDiscoveryToComplete.SetResult();
+
+        var exitCode = await invokeTask.DefaultTimeout();
+
+        Assert.Equal(CliExitCodes.Success, exitCode);
+        Assert.Equal(3, textWriter.Logs.Count);
+    }
+
+    [Fact]
+    public async Task LsCommand_JsonFormat_Stream_WhenCancelled_ReturnsCanceledEvent()
+    {
+        using var workspace = TemporaryWorkspace.Create(outputHelper);
+        using var cancellationTokenSource = new CancellationTokenSource();
+        var textWriter = new TestOutputTextWriter(outputHelper);
+        var projectLocator = new TestProjectLocator
+        {
+            FindAppHostProjectsStreamAsyncCallback = (_, _, cancellationToken) => CancelDiscoveryAsync(cancellationToken)
+        };
+
+        async IAsyncEnumerable<AppHostProjectCandidate> CancelDiscoveryAsync([EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            cancellationTokenSource.Cancel();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            yield break;
+        }
+
+        var services = CliTestHelper.CreateServiceCollection(workspace, outputHelper, options =>
+        {
+            options.OutputTextWriter = textWriter;
+            options.ProjectLocatorFactory = _ => projectLocator;
+        });
+        using var provider = services.BuildServiceProvider();
+
+        var command = provider.GetRequiredService<RootCommand>();
+        var result = command.Parse("ls --format json --stream");
+
+        var exitCode = await result.InvokeAsync(new InvocationConfiguration(), cancellationTokenSource.Token).DefaultTimeout();
+
+        Assert.Equal(CliExitCodes.Success, exitCode);
+
+        var lines = textWriter.Logs.ToArray();
+        Assert.Equal(2, lines.Length);
+
+        using var startedEvent = JsonDocument.Parse(lines[0]);
+        Assert.Equal("started", startedEvent.RootElement.GetProperty("type").GetString());
+
+        using var canceledEvent = JsonDocument.Parse(lines[1]);
+        Assert.Equal("canceled", canceledEvent.RootElement.GetProperty("type").GetString());
+    }
+
+    [Fact]
+    public async Task LsCommand_StreamOption_RequiresJsonFormat()
+    {
+        using var workspace = TemporaryWorkspace.Create(outputHelper);
+        var textWriter = new TestOutputTextWriter(outputHelper);
+        var services = CliTestHelper.CreateServiceCollection(workspace, outputHelper, options =>
+        {
+            options.OutputTextWriter = textWriter;
+        });
+        using var provider = services.BuildServiceProvider();
+
+        var command = provider.GetRequiredService<RootCommand>();
+        var result = command.Parse("ls --stream");
+
+        var exitCode = await result.InvokeAsync().DefaultTimeout();
+
+        Assert.NotEqual(CliExitCodes.Success, exitCode);
+        Assert.Empty(textWriter.Logs);
+    }
+
+    [Fact]
     public async Task LsCommand_TableFormat_ColorsStatus()
     {
         using var workspace = TemporaryWorkspace.Create(outputHelper);
@@ -204,16 +410,7 @@ public class LsCommandTests(ITestOutputHelper outputHelper)
         var appHost2 = new AppHostProjectCandidate(new FileInfo(appHostPath2), KnownLanguageId.TypeScript, AppHostProjectCandidateStatus.PossiblyUnbuildable);
         var projectLocator = new TestProjectLocator
         {
-            FindAppHostProjectsWithProgressAsyncCallback = (_, _, onCandidateFound, _) =>
-            {
-                onCandidateFound(appHost1);
-                onCandidateFound(appHost2);
-                return Task.FromResult(new List<AppHostProjectCandidate>
-                {
-                    appHost1,
-                    appHost2
-                });
-            }
+            FindAppHostProjectsStreamAsyncCallback = (_, _, _) => ToAsyncEnumerable(appHost1, appHost2)
         };
 
         var services = CliTestHelper.CreateServiceCollection(workspace, outputHelper, options =>
@@ -229,7 +426,7 @@ public class LsCommandTests(ITestOutputHelper outputHelper)
 
         var exitCode = await result.InvokeAsync().DefaultTimeout();
 
-        Assert.Equal(ExitCodeConstants.Success, exitCode);
+        Assert.Equal(CliExitCodes.Success, exitCode);
         Assert.Empty(interactionService.DisplayedRenderables);
 
         var liveOutputs = interactionService.DisplayedLiveRenderables.Select(RenderToPlainConsole).ToArray();
@@ -267,7 +464,7 @@ public class LsCommandTests(ITestOutputHelper outputHelper)
 
         var exitCode = await result.InvokeAsync(new InvocationConfiguration(), cancellationTokenSource.Token).DefaultTimeout();
 
-        Assert.Equal(ExitCodeConstants.Success, exitCode);
+        Assert.Equal(CliExitCodes.Success, exitCode);
         Assert.Equal(1, interactionService.DisplayCancellationMessageCount);
     }
 
@@ -413,5 +610,14 @@ public class LsCommandTests(ITestOutputHelper outputHelper)
         console.Write(renderable);
 
         return writer.ToString().Replace("\r\n", "\n");
+    }
+
+    private static async IAsyncEnumerable<AppHostProjectCandidate> ToAsyncEnumerable(params AppHostProjectCandidate[] candidates)
+    {
+        foreach (var candidate in candidates)
+        {
+            await Task.Yield();
+            yield return candidate;
+        }
     }
 }

@@ -151,6 +151,12 @@
   <data name="LsAllOptionDescription" xml:space="preserve">
     <value>Include all candidate AppHosts, ignoring .gitignore and built-in directory filters</value>
   </data>
+  <data name="LsStreamOptionDescription" xml:space="preserve">
+    <value>Stream newline-delimited JSON discovery events. Requires --format json</value>
+  </data>
+  <data name="LsStreamRequiresJson" xml:space="preserve">
+    <value>The --stream option requires --format json.</value>
+  </data>
   <data name="LsNoCandidateAppHostsFound" xml:space="preserve">
     <value>No candidate AppHosts found.</value>
   </data>

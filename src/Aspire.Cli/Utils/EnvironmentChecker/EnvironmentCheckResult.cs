@@ -10,6 +10,7 @@ namespace Aspire.Cli.Utils.EnvironmentChecker;
 /// <summary>
 /// Represents the result of a prerequisite check.
 /// </summary>
+// `aspire doctor --format json` uses this shape; keep docs/specs/cli-output-formats.md in sync when changing it.
 internal sealed class EnvironmentCheckResult
 {
     /// <summary>
@@ -117,6 +118,7 @@ internal sealed class LowercaseEnumConverter : JsonConverter<EnvironmentCheckSta
 /// <summary>
 /// Represents the JSON output for the doctor command.
 /// </summary>
+// `aspire doctor --format json` uses this wrapper; keep docs/specs/cli-output-formats.md in sync when changing it.
 internal sealed class DoctorCheckResponse
 {
     /// <summary>
@@ -135,6 +137,7 @@ internal sealed class DoctorCheckResponse
 /// <summary>
 /// Represents the summary of doctor check results.
 /// </summary>
+// `aspire doctor --format json` uses this shape; keep docs/specs/cli-output-formats.md in sync when changing it.
 internal sealed class DoctorCheckSummary
 {
     /// <summary>

@@ -111,6 +111,18 @@ namespace Aspire.Cli.Resources {
             }
         }
 
+        internal static string LsStreamOptionDescription {
+            get {
+                return ResourceManager.GetString("LsStreamOptionDescription", resourceCulture);
+            }
+        }
+
+        internal static string LsStreamRequiresJson {
+            get {
+                return ResourceManager.GetString("LsStreamRequiresJson", resourceCulture);
+            }
+        }
+
         internal static string LsNoCandidateAppHostsFound {
             get {
                 return ResourceManager.GetString("LsNoCandidateAppHostsFound", resourceCulture);

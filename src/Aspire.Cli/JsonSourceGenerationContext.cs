@@ -49,9 +49,11 @@ namespace Aspire.Cli;
 [JsonSerializable(typeof(IntegrationSearchResult[]))]
 [JsonSerializable(typeof(string[]))]
 [JsonSerializable(typeof(List<CandidateAppHostDisplayInfo>))]
+[JsonSerializable(typeof(LsJsonStreamEvent))]
 internal partial class JsonSourceGenerationContext : JsonSerializerContext
 {
     private static JsonSourceGenerationContext? s_relaxedEscaping;
+    private static JsonSourceGenerationContext? s_streaming;
 
     /// <summary>
     /// Gets a context configured with relaxed JSON escaping that preserves non-ASCII characters
@@ -61,6 +63,20 @@ internal partial class JsonSourceGenerationContext : JsonSerializerContext
     public static JsonSourceGenerationContext RelaxedEscaping => s_relaxedEscaping ??= new(new JsonSerializerOptions
     {
         WriteIndented = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        AllowTrailingCommas = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    });
+
+    /// <summary>
+    /// Gets a context configured for newline-delimited JSON output.
+    /// </summary>
+    public static JsonSourceGenerationContext Streaming => s_streaming ??= new(new JsonSerializerOptions
+    {
+        WriteIndented = false,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         AllowTrailingCommas = true,
         ReadCommentHandling = JsonCommentHandling.Skip,

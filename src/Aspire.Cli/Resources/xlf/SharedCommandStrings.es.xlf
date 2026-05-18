@@ -72,6 +72,16 @@
         <target state="new">No candidate AppHosts found.</target>
         <note />
       </trans-unit>
+      <trans-unit id="LsStreamOptionDescription">
+        <source>Stream newline-delimited JSON discovery events. Requires --format json</source>
+        <target state="new">Stream newline-delimited JSON discovery events. Requires --format json</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="LsStreamRequiresJson">
+        <source>The --stream option requires --format json.</source>
+        <target state="new">The --stream option requires --format json.</target>
+        <note />
+      </trans-unit>
       <trans-unit id="MultipleInScopeAppHosts">
         <source>Multiple running AppHosts found in the current directory. Select from running AppHosts.</source>
         <target state="new">Multiple running AppHosts found in the current directory. Select from running AppHosts.</target>

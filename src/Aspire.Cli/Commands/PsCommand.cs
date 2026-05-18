@@ -21,6 +21,7 @@ namespace Aspire.Cli.Commands;
 /// Represents information about a running AppHost for JSON serialization.
 /// Aligned with AppHostListInfo from ListAppHostsTool.
 /// </summary>
+// `aspire ps --format json` uses this shape; keep docs/specs/cli-output-formats.md in sync when changing it.
 internal sealed class AppHostDisplayInfo
 {
     public required string AppHostPath { get; init; }
