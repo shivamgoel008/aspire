@@ -106,9 +106,6 @@
     <trans-unit id="aspire-vscode.strings.resourceCommandContinue">
       <source xml:lang="en">Continue</source>
     </trans-unit>
-    <trans-unit id="aspire-vscode.strings.resourceCommandDontShowAgain">
-      <source xml:lang="en">Don't show again</source>
-    </trans-unit>
     <trans-unit id="configuration.aspire.enableAspireDashboardAutoLaunch">
       <source xml:lang="en">Controls what happens with the Aspire Dashboard when debugging starts.</source>
     </trans-unit>
@@ -168,6 +165,9 @@
     </trans-unit>
     <trans-unit id="aspire-vscode.strings.doYouWantToSetDefaultApphost">
       <source xml:lang="en">Do you want to set {0} as the default AppHost for this workspace?</source>
+    </trans-unit>
+    <trans-unit id="aspire-vscode.strings.resourceCommandDontShowAgain">
+      <source xml:lang="en">Don&apos;t show again</source>
     </trans-unit>
     <trans-unit id="aspire-vscode.strings.dontShowAgainLabel">
       <source xml:lang="en">Don&apos;t show again</source>
