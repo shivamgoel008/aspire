@@ -424,14 +424,13 @@ public sealed class DashboardWebApplication : IAsyncDisposable
             if (frontendEndpointInfo != null)
             {
                 var options = _app.Services.GetRequiredService<IOptionsMonitor<DashboardOptions>>().CurrentValue;
-                if (options.Frontend.AuthMode == FrontendAuthMode.BrowserToken)
-                {
-                    // DOTNET_RUNNING_IN_CONTAINER is a well-known environment variable added by official .NET images.
-                    // https://learn.microsoft.com/dotnet/core/tools/dotnet-environment-variables#dotnet_running_in_container-and-dotnet_running_in_containers
-                    var isContainer = _app.Configuration.GetBool("DOTNET_RUNNING_IN_CONTAINER") ?? false;
+                // DOTNET_RUNNING_IN_CONTAINER is a well-known environment variable added by official .NET images.
+                // https://learn.microsoft.com/dotnet/core/tools/dotnet-environment-variables#dotnet_running_in_container-and-dotnet_running_in_containers
+                var isContainer = _app.Configuration.GetBool("DOTNET_RUNNING_IN_CONTAINER") ?? false;
 
-                    LoggingHelpers.WriteDashboardUrl(_logger, frontendEndpointInfo.GetResolvedAddress(replaceIPAnyWithLocalhost: true), options.Frontend.BrowserToken, isContainer);
-                }
+                // Always print the dashboard URL. When using browser token auth, include the login token.
+                var token = options.Frontend.AuthMode == FrontendAuthMode.BrowserToken ? options.Frontend.BrowserToken : null;
+                LoggingHelpers.WriteDashboardUrl(_logger, frontendEndpointInfo.GetResolvedAddress(replaceIPAnyWithLocalhost: true), token, isContainer);
             }
 
             // One-off async initialization of telemetry service.
