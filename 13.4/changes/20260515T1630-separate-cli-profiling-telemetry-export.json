@@ -5,16 +5,17 @@
   "breaking": false,
   "changeType": "Improvements",
   "communityContributors": [],
-  "description": "CLI startup profiling now works end-to-end via a hidden `--capture-profile` flag that stops the AppHost after startup, waits for profiling spans to settle, and exports a dashboard trace zip archive. A dedicated OTLP provider captures process spans for aspire.exe, npm, npx, and guest processes, making it possible to diagnose startup bottlenecks in release builds without custom external tooling.",
+  "description": "The hidden `--capture-profile` flag captures end-to-end startup profiling traces spanning the CLI, AppHost (including lifecycle hooks, DCP operations, and resource creation), TypeScript AppHost managed server, and DCP startup scopes. A dedicated OTLP provider exports all spans to a dashboard archive (`traces/profile.json`), making it possible to diagnose startup bottlenecks across the entire stack.",
   "docsPrs": [],
   "docsRequired": false,
   "emoji": "📡",
   "firstMergedAt": "2026-05-15T16:30:16Z",
-  "lastMergedAt": "2026-05-18T04:58:04Z",
+  "lastMergedAt": "2026-05-18T21:52:51Z",
   "name": "CLI startup self-profiling with trace export",
   "owner": "davidfowl",
   "prs": [
     17099,
-    17177
+    17177,
+    17165
   ]
 }

@@ -1,0 +1,9 @@
+{
+  "author": "joperezr",
+  "comment": "Follow-ups to the chained release workflow, driven by feedback from the first real chained release (13.3.3). Improves ReleaseVersion derivation, NuGet push retry, and GitHub release creation.",
+  "mergedAt": "2026-05-18T22:00:23Z",
+  "number": 17150,
+  "runDate": "2026-05-18T22:24:20Z",
+  "status": "included",
+  "title": "Release pipeline follow-ups after first chained release"
+}

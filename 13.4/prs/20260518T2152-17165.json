@@ -1,0 +1,9 @@
+{
+  "author": "davidfowl",
+  "comment": "Adds managed AppHost startup profiling: extends the CLI --capture-profile flow to cover AppHost, DCP, and TypeScript AppHost spans end-to-end.",
+  "mergedAt": "2026-05-18T21:52:51Z",
+  "number": 17165,
+  "runDate": "2026-05-18T22:24:20Z",
+  "status": "included",
+  "title": "Add managed AppHost startup profiling"
+}
