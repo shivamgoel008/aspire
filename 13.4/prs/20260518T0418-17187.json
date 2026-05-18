@@ -1,0 +1,9 @@
+{
+  "author": "davidfowl",
+  "comment": "VS Code extension now prompts for resource command arguments using native QuickInput controls",
+  "mergedAt": "2026-05-18T04:18:59Z",
+  "number": 17187,
+  "runDate": "2026-05-18T05:24:36Z",
+  "status": "included",
+  "title": "Support VS Code resource command arguments"
+}

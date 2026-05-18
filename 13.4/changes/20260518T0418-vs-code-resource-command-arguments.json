@@ -1,0 +1,19 @@
+{
+  "area": "Extensions",
+  "areaEmoji": "🧩",
+  "backport": false,
+  "breaking": false,
+  "changeType": "New features",
+  "communityContributors": [],
+  "description": "The VS Code extension now prompts for resource command argument inputs using native QuickInput controls when invoking commands that require arguments. Both the resource tree view and CodeLens command paths collect argument values and pass them through to `aspire resource`.",
+  "docsPrs": [],
+  "docsRequired": true,
+  "emoji": "⌨️",
+  "firstMergedAt": "2026-05-18T04:18:59Z",
+  "lastMergedAt": "2026-05-18T04:18:59Z",
+  "name": "VS Code resource command argument inputs",
+  "owner": "davidfowl",
+  "prs": [
+    17187
+  ]
+}

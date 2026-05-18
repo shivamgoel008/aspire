@@ -1,0 +1,9 @@
+{
+  "author": "davidfowl",
+  "comment": "New deployment agent skill for aspire agent init - guides deployment workflows for Docker Compose, Kubernetes, Azure, AWS",
+  "mergedAt": "2026-05-18T04:15:58Z",
+  "number": 17182,
+  "runDate": "2026-05-18T05:24:36Z",
+  "status": "included",
+  "title": "Add Aspire deployment agent skill"
+}

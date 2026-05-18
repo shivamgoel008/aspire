@@ -1,0 +1,9 @@
+{
+  "author": "davidfowl",
+  "comment": "Adds hidden --capture-profile CLI flag for startup profiling; grouped with existing startup profiling telemetry entry",
+  "mergedAt": "2026-05-18T04:58:04Z",
+  "number": 17177,
+  "runDate": "2026-05-18T05:24:36Z",
+  "status": "included",
+  "title": "Add hidden CLI self-profile capture"
+}

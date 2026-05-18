@@ -1,0 +1,19 @@
+{
+  "area": "CLI",
+  "areaEmoji": "💻",
+  "backport": false,
+  "breaking": false,
+  "changeType": "New features",
+  "communityContributors": [],
+  "description": "A dedicated Aspire deployment skill is now bundled with `aspire agent init`, providing guided deployment workflows for Docker Compose, Kubernetes, Azure, and AWS. The skill includes target selection, preflight checks, CI/CD guidance, and GitHub Actions workflow templates.",
+  "docsPrs": [],
+  "docsRequired": true,
+  "emoji": "🛸",
+  "firstMergedAt": "2026-05-18T04:15:58Z",
+  "lastMergedAt": "2026-05-18T04:15:58Z",
+  "name": "Aspire deployment agent skill",
+  "owner": "davidfowl",
+  "prs": [
+    17182
+  ]
+}

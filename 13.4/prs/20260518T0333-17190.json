@@ -1,0 +1,9 @@
+{
+  "author": "davidfowl",
+  "comment": "Routine Component Governance warning fixes: SDK version bump and dependency cleanup, no meaningful user-facing change",
+  "mergedAt": "2026-05-18T03:33:49Z",
+  "number": 17190,
+  "runDate": "2026-05-18T05:24:36Z",
+  "status": "excluded",
+  "title": "Fix Component Governance warnings"
+}

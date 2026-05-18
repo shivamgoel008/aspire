@@ -5,15 +5,16 @@
   "breaking": false,
   "changeType": "Improvements",
   "communityContributors": [],
-  "description": "CLI startup profiling now works end-to-end for release builds using a dedicated OTLP provider that listens only to the profiling activity source. Process spans for aspire.exe, npm, npx, and guest processes are included in the trace with consistent tags, making it possible to diagnose startup bottlenecks without a debug build.",
+  "description": "CLI startup profiling now works end-to-end via a hidden `--capture-profile` flag that stops the AppHost after startup, waits for profiling spans to settle, and exports a dashboard trace zip archive. A dedicated OTLP provider captures process spans for aspire.exe, npm, npx, and guest processes, making it possible to diagnose startup bottlenecks in release builds without custom external tooling.",
   "docsPrs": [],
   "docsRequired": false,
   "emoji": "📡",
   "firstMergedAt": "2026-05-15T16:30:16Z",
-  "lastMergedAt": "2026-05-15T16:30:16Z",
-  "name": "Startup profiling telemetry for release CLI builds",
+  "lastMergedAt": "2026-05-18T04:58:04Z",
+  "name": "CLI startup self-profiling with trace export",
   "owner": "davidfowl",
   "prs": [
-    17099
+    17099,
+    17177
   ]
 }
