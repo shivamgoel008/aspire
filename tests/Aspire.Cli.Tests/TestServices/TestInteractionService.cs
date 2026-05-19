@@ -225,7 +225,10 @@ internal sealed class TestInteractionService : IInteractionService
 
     public void DisplayCancellationMessage(ConsoleOutput? consoleOverride = null)
     {
-        DisplayedCancellations.Add(consoleOverride);
+        lock (_displayLock)
+        {
+            DisplayedCancellations.Add(consoleOverride);
+        }
     }
 
     public Task<bool> PromptConfirmAsync(string promptText, PromptBinding<bool>? binding = null, CancellationToken cancellationToken = default)
