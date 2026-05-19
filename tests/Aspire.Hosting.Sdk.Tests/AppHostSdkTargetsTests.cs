@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics;
+using System.Reflection;
 using System.Security;
 using Xunit;
 
@@ -22,6 +23,35 @@ public class AppHostSdkTargetsTests
 
     [Fact]
     public async Task AddReferenceToDashboardAndDcpUsesSdkRidSelectionTask()
+    {
+        var packageReferences = await RunAddReferenceToDashboardAndDcpAsync(extraProjectXml: null);
+
+        Assert.Contains("UseSdkPickBestRid=true", packageReferences);
+        AssertDashboardAndOrchestrationReferences(packageReferences);
+    }
+
+    [Fact]
+    public async Task AddReferenceToDashboardAndDcpFallsBackToRuntimeIdentifierToolForOlderSdks()
+    {
+        // Force the pre-.NET 10 code path by disabling the in-proc PickBestRid task and pointing the
+        // Exec call at the locally-built Aspire.RuntimeIdentifier.Tool assembly (which is normally
+        // resolved out of the packed SDK's tools folder).
+        var ridToolPath = GetAspireRuntimeIdentifierToolPath();
+
+        var extraProjectXml = $"""
+              <PropertyGroup>
+                <_AspireUseSdkPickBestRid>false</_AspireUseSdkPickBestRid>
+                <AspireRidToolExecutable>{SecurityElement.Escape(ridToolPath)}</AspireRidToolExecutable>
+              </PropertyGroup>
+            """;
+
+        var packageReferences = await RunAddReferenceToDashboardAndDcpAsync(extraProjectXml);
+
+        Assert.Contains("UseSdkPickBestRid=false", packageReferences);
+        AssertDashboardAndOrchestrationReferences(packageReferences);
+    }
+
+    private static async Task<string[]> RunAddReferenceToDashboardAndDcpAsync(string? extraProjectXml)
     {
         var repoRoot = GetRepoRoot();
         using var tempDirectory = new TestTempDirectory();
@@ -47,6 +77,8 @@ public class AppHostSdkTargetsTests
 
               <Import Project="{{sdkTargetsPath}}" />
 
+            {{extraProjectXml}}
+
               <Target Name="WritePackageReferences" DependsOnTargets="AddReferenceToDashboardAndDCP">
                 <WriteLinesToFile File="$(BaseIntermediateOutputPath)package-references.txt"
                                   Lines="UseSdkPickBestRid=$(_AspireUseSdkPickBestRid);@(PackageReference->'%(Identity)=%(Version)')"
@@ -60,9 +92,11 @@ public class AppHostSdkTargetsTests
 
         Assert.True(result.ExitCode == 0, result.Output);
 
-        var packageReferences = await File.ReadAllLinesAsync(packageReferencesPath);
-        Assert.Contains("UseSdkPickBestRid=true", packageReferences);
+        return await File.ReadAllLinesAsync(packageReferencesPath);
+    }
 
+    private static void AssertDashboardAndOrchestrationReferences(string[] packageReferences)
+    {
         var dashboardReference = Assert.Single(packageReferences, static packageReference => packageReference.StartsWith("Aspire.Dashboard.Sdk.", StringComparison.Ordinal));
         var orchestrationReference = Assert.Single(packageReferences, static packageReference => packageReference.StartsWith("Aspire.Hosting.Orchestration.", StringComparison.Ordinal));
 
@@ -73,6 +107,20 @@ public class AppHostSdkTargetsTests
         Assert.Contains(dashboardRid, s_supportedRids);
         Assert.Equal($"Aspire.Dashboard.Sdk.{dashboardRid}=13.4.0", dashboardReference);
         Assert.Equal($"Aspire.Hosting.Orchestration.{dashboardRid}=13.4.0", orchestrationReference);
+    }
+
+    private static string GetAspireRuntimeIdentifierToolPath()
+    {
+        // The path to the locally-built RID tool is baked into the test assembly via AssemblyMetadata
+        // so the test can locate it regardless of the configuration the test was built with.
+        var assembly = typeof(AppHostSdkTargetsTests).Assembly;
+        var toolPath = assembly
+            .GetCustomAttributes<AssemblyMetadataAttribute>()
+            .Single(a => string.Equals(a.Key, "AspireRuntimeIdentifierToolPath", StringComparison.Ordinal))
+            .Value;
+        Assert.False(string.IsNullOrEmpty(toolPath), "AspireRuntimeIdentifierToolPath assembly metadata is not set.");
+        Assert.True(File.Exists(toolPath), $"Aspire.RuntimeIdentifier.Tool was not built at '{toolPath}'. Build the test project to produce it.");
+        return toolPath!;
     }
 
     private static string GetPackageRid(string packageReference, string prefix)
