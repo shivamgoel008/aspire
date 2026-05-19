@@ -62,7 +62,7 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["overrideStagingFeed"] = "https://example.com/nuget/v3/index.json"
+                [PackagingService.OverrideStagingFeedConfigKey] = "https://example.com/nuget/v3/index.json"
             })
             .Build();
         var packagingService = new PackagingService(executionContext, new FakeNuGetPackageCache(), new TestFeatures(), configuration, NullLogger<PackagingService>.Instance);
@@ -204,7 +204,7 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["overrideStagingFeed"] = overrideUrl
+                [PackagingService.OverrideStagingFeedConfigKey] = overrideUrl
             })
             .Build();
         var packagingService = new PackagingService(executionContext, new FakeNuGetPackageCache(), new TestFeatures(), configuration, NullLogger<PackagingService>.Instance);
@@ -259,7 +259,7 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["overrideStagingFeed"] = "https://example.com/staging/v3/index.json"
+                [PackagingService.OverrideStagingFeedConfigKey] = "https://example.com/staging/v3/index.json"
             })
             .Build();
 
@@ -332,7 +332,7 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["overrideStagingFeed"] = testFeedUrl
+                [PackagingService.OverrideStagingFeedConfigKey] = testFeedUrl
             })
             .Build();
 
@@ -375,7 +375,7 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["overrideStagingFeed"] = customFeedUrl
+                [PackagingService.OverrideStagingFeedConfigKey] = customFeedUrl
             })
             .Build();
 
@@ -407,7 +407,7 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["overrideStagingFeed"] = azureDevOpsFeedUrl
+                [PackagingService.OverrideStagingFeedConfigKey] = azureDevOpsFeedUrl
             })
             .Build();
 
@@ -439,7 +439,7 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["overrideStagingFeed"] = invalidFeedUrl
+                [PackagingService.OverrideStagingFeedConfigKey] = invalidFeedUrl
             })
             .Build();
 
@@ -469,7 +469,7 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["overrideStagingFeed"] = "https://example.com/nuget/v3/index.json",
+                [PackagingService.OverrideStagingFeedConfigKey] = "https://example.com/nuget/v3/index.json",
                 ["overrideStagingQuality"] = "Prerelease"
             })
             .Build();
@@ -499,7 +499,7 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["overrideStagingFeed"] = "https://example.com/nuget/v3/index.json",
+                [PackagingService.OverrideStagingFeedConfigKey] = "https://example.com/nuget/v3/index.json",
                 ["overrideStagingQuality"] = "Both"
             })
             .Build();
@@ -529,7 +529,7 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["overrideStagingFeed"] = "https://example.com/nuget/v3/index.json",
+                [PackagingService.OverrideStagingFeedConfigKey] = "https://example.com/nuget/v3/index.json",
                 ["overrideStagingQuality"] = "InvalidValue"
             })
             .Build();
@@ -559,7 +559,7 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["overrideStagingFeed"] = "https://example.com/nuget/v3/index.json"
+                [PackagingService.OverrideStagingFeedConfigKey] = "https://example.com/nuget/v3/index.json"
             })
             .Build();
 
@@ -586,7 +586,7 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["overrideStagingFeed"] = "https://pkgs.dev.azure.com/dnceng/public/_packaging/darc-pub-microsoft-aspire-48a11dae/nuget/v3/index.json"
+                [PackagingService.OverrideStagingFeedConfigKey] = "https://pkgs.dev.azure.com/dnceng/public/_packaging/darc-pub-microsoft-aspire-48a11dae/nuget/v3/index.json"
             })
             .Build();
 
@@ -644,7 +644,7 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["overrideStagingFeed"] = "https://example.com/nuget/v3/index.json"
+                [PackagingService.OverrideStagingFeedConfigKey] = "https://example.com/nuget/v3/index.json"
             })
             .Build();
 
@@ -807,7 +807,7 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["overrideStagingQuality"] = "Prerelease",
-                ["overrideStagingFeed"] = customFeed
+                [PackagingService.OverrideStagingFeedConfigKey] = customFeed
             })
             .Build();
 
@@ -947,7 +947,7 @@ public class PackagingServiceTests(ITestOutputHelper outputHelper)
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["overrideStagingFeed"] = "https://example.com/nuget/v3/index.json",
+                [PackagingService.OverrideStagingFeedConfigKey] = "https://example.com/nuget/v3/index.json",
                 ["stagingPinToCliVersion"] = "true"
             })
             .Build();

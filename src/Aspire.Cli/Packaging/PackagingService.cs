@@ -36,6 +36,12 @@ internal interface IPackagingService
 
 internal class PackagingService : IPackagingService
 {
+    // Configuration key used to override the staging feed URL. When non-empty,
+    // PackagingService treats staging as available regardless of the CLI's
+    // identity channel (see IsStagingChannelSynthesisAllowed). Surfaced from
+    // tests via InternalsVisibleTo so a single literal change can't drift.
+    internal const string OverrideStagingFeedConfigKey = "overrideStagingFeed";
+
     private readonly CliExecutionContext _executionContext;
     private readonly INuGetPackageCache _nuGetPackageCache;
     private readonly IFeatures _features;
@@ -155,7 +161,7 @@ internal class PackagingService : IPackagingService
         }
 
         var stagingQuality = GetStagingQuality(defaultQuality);
-        var hasExplicitFeedOverride = !string.IsNullOrEmpty(_configuration["overrideStagingFeed"]);
+        var hasExplicitFeedOverride = !string.IsNullOrEmpty(_configuration[OverrideStagingFeedConfigKey]);
 
         // When quality is Prerelease or Both and no explicit feed override is set,
         // use the shared daily feed instead of the SHA-specific feed. SHA-specific
@@ -214,7 +220,7 @@ internal class PackagingService : IPackagingService
     {
         // Explicit feed override always wins: the caller has told us exactly which feed to use,
         // so we don't need to infer one from the CLI identity.
-        if (!string.IsNullOrEmpty(_configuration["overrideStagingFeed"]))
+        if (!string.IsNullOrEmpty(_configuration[OverrideStagingFeedConfigKey]))
         {
             return true;
         }
@@ -241,7 +247,7 @@ internal class PackagingService : IPackagingService
     private string? GetStagingFeedUrl(bool useSharedFeed)
     {
         // Check for _configuration override first
-        var overrideFeed = _configuration["overrideStagingFeed"];
+        var overrideFeed = _configuration[OverrideStagingFeedConfigKey];
         if (!string.IsNullOrEmpty(overrideFeed))
         {
             // Validate that the override URL is well-formed
