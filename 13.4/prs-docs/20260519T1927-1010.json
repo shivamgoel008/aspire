@@ -1,0 +1,9 @@
+{
+  "author": "IEvangelist",
+  "comment": "CI workflow change - raise max-patch-size cap for Integration Data Updater, not a product doc change",
+  "mergedAt": "2026-05-19T19:27:55Z",
+  "number": 1010,
+  "runDate": "2026-05-19T20:47:40Z",
+  "status": "excluded",
+  "title": "chore: raise max-patch-size cap for Integration Data Updater"
+}

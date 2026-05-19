@@ -1,0 +1,19 @@
+{
+  "area": "CLI",
+  "areaEmoji": "💻",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "Fixed a bug where running `aspire run` from a parent directory would create a duplicate `aspire.config.json` instead of updating the existing config file nearest the AppHost.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🔍",
+  "firstMergedAt": "2026-05-19T19:36:03Z",
+  "lastMergedAt": "2026-05-19T19:36:03Z",
+  "name": "Fix config discovery for nested AppHost",
+  "owner": "adamint",
+  "prs": [
+    17147
+  ]
+}

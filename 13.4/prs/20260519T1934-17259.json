@@ -1,0 +1,9 @@
+{
+  "author": "davidfowl",
+  "comment": "Performance improvement: AppHost warm builds faster via cached RID selection",
+  "mergedAt": "2026-05-19T19:34:45Z",
+  "number": 17259,
+  "runDate": "2026-05-19T20:47:40Z",
+  "status": "included",
+  "title": "Optimize AppHost RID selection"
+}

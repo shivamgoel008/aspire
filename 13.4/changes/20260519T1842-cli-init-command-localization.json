@@ -1,0 +1,19 @@
+{
+  "area": "CLI",
+  "areaEmoji": "💻",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Improvements",
+  "communityContributors": [],
+  "description": "All user-facing messages in the `aspire init` command are now stored in a localization resource file, enabling proper translation into supported languages. The emoji shown when a file already exists was also updated.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🌐",
+  "firstMergedAt": "2026-05-19T18:42:32Z",
+  "lastMergedAt": "2026-05-19T18:42:32Z",
+  "name": "CLI init command localization",
+  "owner": "JamesNK",
+  "prs": [
+    17260
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "area": "Dashboard",
+  "areaEmoji": "📊",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "Fixed a stack overflow (maximum call stack size exceeded) that occurred when opening the Text Visualizer dialog from the notification center. The notification center dialog is now hidden while a child dialog is open, preventing infinite focus-trap recursion.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🐛",
+  "firstMergedAt": "2026-05-19T19:28:11Z",
+  "lastMergedAt": "2026-05-19T19:28:11Z",
+  "name": "Fix stack overflow when opening dialogs from notification center",
+  "owner": "JamesNK",
+  "prs": [
+    17261
+  ]
+}

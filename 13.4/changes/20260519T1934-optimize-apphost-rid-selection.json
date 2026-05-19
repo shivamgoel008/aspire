@@ -1,0 +1,19 @@
+{
+  "area": "AppHost",
+  "areaEmoji": "🏠",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Improvements",
+  "communityContributors": [],
+  "description": "Warm AppHost builds are now faster because RID selection for Dashboard and DCP packages uses the .NET SDK's built-in task instead of launching an external process on every build.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "⚡",
+  "firstMergedAt": "2026-05-19T19:34:45Z",
+  "lastMergedAt": "2026-05-19T19:34:45Z",
+  "name": "Faster AppHost warm builds via optimized RID selection",
+  "owner": "davidfowl",
+  "prs": [
+    17259
+  ]
+}

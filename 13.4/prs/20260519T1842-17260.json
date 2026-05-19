@@ -1,0 +1,9 @@
+{
+  "author": "JamesNK",
+  "comment": "CLI init command localization - moved hardcoded strings to resource file",
+  "mergedAt": "2026-05-19T18:42:32Z",
+  "number": 17260,
+  "runDate": "2026-05-19T20:47:40Z",
+  "status": "included",
+  "title": "Move InitCommand hardcoded strings to resource file for localization"
+}

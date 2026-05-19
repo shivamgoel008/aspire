@@ -1,0 +1,9 @@
+{
+  "author": "IEvangelist",
+  "comment": "Dependency security update (brace-expansion), not a product doc change",
+  "mergedAt": "2026-05-19T19:31:11Z",
+  "number": 1009,
+  "runDate": "2026-05-19T20:47:40Z",
+  "status": "excluded",
+  "title": "build(deps): override brace-expansion to >=5.0.6 (GHSA-jxxr-4gwj-5jf2)"
+}

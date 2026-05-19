@@ -1,0 +1,9 @@
+{
+  "author": "adamint",
+  "comment": "Bug fix: aspire start in VS Code terminal properly integrates with debug session",
+  "mergedAt": "2026-05-19T19:58:23Z",
+  "number": 17240,
+  "runDate": "2026-05-19T20:47:40Z",
+  "status": "included",
+  "title": "Fix aspire start in VS Code terminal"
+}

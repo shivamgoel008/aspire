@@ -1,0 +1,9 @@
+{
+  "author": "JamesNK",
+  "comment": "Bug fix: stack overflow when opening child dialog from notification center",
+  "mergedAt": "2026-05-19T19:28:11Z",
+  "number": 17261,
+  "runDate": "2026-05-19T20:47:40Z",
+  "status": "included",
+  "title": "Fix stack overflow when opening child dialog from notification center"
+}

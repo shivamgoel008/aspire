@@ -1,0 +1,9 @@
+{
+  "author": "adamint",
+  "comment": "Bug fix: CLI config discovery for nested AppHost below cwd",
+  "mergedAt": "2026-05-19T19:36:03Z",
+  "number": 17147,
+  "runDate": "2026-05-19T20:47:40Z",
+  "status": "included",
+  "title": "Fix CLI config discovery for nested AppHost"
+}

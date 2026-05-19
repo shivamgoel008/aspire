@@ -1,0 +1,19 @@
+{
+  "area": "CLI",
+  "areaEmoji": "💻",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "Fixed `aspire start` launched from the Aspire terminal in VS Code to properly integrate with the debug session lifecycle, enabling DCP resources to be associated with the extension's registered debug session and auto-attach to work correctly.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🔗",
+  "firstMergedAt": "2026-05-19T19:58:23Z",
+  "lastMergedAt": "2026-05-19T19:58:23Z",
+  "name": "Fix aspire start in VS Code terminal",
+  "owner": "adamint",
+  "prs": [
+    17240
+  ]
+}
