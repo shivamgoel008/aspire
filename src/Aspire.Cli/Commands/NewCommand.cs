@@ -347,7 +347,7 @@ internal sealed class NewCommand : BaseCommand, IPackageMetaPrefetchingCommand
                     string errorMessage;
                     if (string.IsNullOrWhiteSpace(configuredChannelName))
                     {
-                        errorMessage = "No package channels are available.";
+                        errorMessage = NewCommandStrings.NoPackageChannelsAvailable;
                     }
                     else if (string.Equals(configuredChannelName, PackageChannelNames.Staging, StringComparison.OrdinalIgnoreCase)
                         && _packagingService.GetStagingChannelUnavailableReason() is { } stagingReason)
@@ -360,7 +360,11 @@ internal sealed class NewCommand : BaseCommand, IPackageMetaPrefetchingCommand
                     }
                     else
                     {
-                        errorMessage = $"No channel found matching '{configuredChannelName}'. Valid options are: {string.Join(", ", channels.Select(c => c.Name))}";
+                        errorMessage = string.Format(
+                            CultureInfo.CurrentCulture,
+                            NewCommandStrings.NoChannelFoundMatching,
+                            configuredChannelName,
+                            string.Join(", ", channels.Select(c => c.Name)));
                     }
 
                     return new ResolveTemplateVersionResult { ErrorMessage = errorMessage };
