@@ -729,7 +729,7 @@ public class Program
         // Setup handling of CTRL-C and SIGTERM as early as possible so that if
         // we get a signal anywhere that is not handled by Spectre Console
         // already that we know to trigger cancellation.
-        using var cancellationManager = new ConsoleCancellationManager();
+        using var cancellationManager = new ConsoleCancellationManager(processTerminationTimeout: TimeSpan.FromSeconds(5));
 
         Console.OutputEncoding = Encoding.UTF8;
 
@@ -788,7 +788,9 @@ public class Program
         var invokeConfig = new InvocationConfiguration()
         {
             // Disable default exception handler so we can log exceptions to telemetry.
-            EnableDefaultExceptionHandler = false
+            EnableDefaultExceptionHandler = false,
+            // Set timeout to null so that System.Commandline doesn't manage cancellation tokens or timeouts for us.
+            ProcessTerminationTimeout = null
         };
 
         app.Services.GetRequiredService<CliExecutionContext>();
@@ -833,7 +835,15 @@ public class Program
                         profileCommandActivity = profilingTelemetry.StartCommand(commandName);
                     }
 
-                    exitCode = await parseResult.InvokeAsync(invokeConfig, cancellationManager.Token);
+                    // Parse commandline and invoke the handler.
+                    var handlerTask = parseResult.InvokeAsync(invokeConfig, cancellationManager.Token);
+                    cancellationManager.SetStartedHandler(handlerTask);
+
+                    // Wait for either the handler to complete or a termination signal to trigger cancellation and timeout.
+                    var firstCompletedTask = await Task.WhenAny(handlerTask, cancellationManager.ProcessTerminationCompletionSource.Task);
+                    exitCode = await firstCompletedTask; // return the result or propagate the exception
+
+                    // Set telemetry tags based on how the command completed.
                     profileCommandActivity.SetProcessExitCode(exitCode);
                     if (exitCode != CliExitCodes.Success)
                     {
