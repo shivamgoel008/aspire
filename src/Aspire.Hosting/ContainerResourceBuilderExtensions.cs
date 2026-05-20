@@ -24,7 +24,7 @@ namespace Aspire.Hosting;
 public static class ContainerResourceBuilderExtensions
 {
     /// <summary>
-    /// Set whether a resource can use proxied endpoints or whether they should be disabled for all endpoints belonging to the resource.
+    /// Set whether a container resource can use proxied endpoints or whether they should be disabled for all endpoints belonging to the resource.
     /// </summary>
     /// <typeparam name="T">The resource type.</typeparam>
     /// <param name="builder">The resource builder.</param>
@@ -37,14 +37,10 @@ public static class ContainerResourceBuilderExtensions
     /// endpoints, Aspire will allocate the target port as the host port, which will increase the chance of port conflicts.
     /// </remarks>
     // Keep this method on ContainerResourceBuilderExtensions for binary compatibility; moving it changes the declaring type in metadata.
-    [AspireExport(Description = "Configures endpoint proxy support")]
-    public static IResourceBuilder<T> WithEndpointProxySupport<T>(this IResourceBuilder<T> builder, bool proxyEnabled) where T : IResourceWithEndpoints
+    [AspireExportIgnore(Reason = "Binary compatibility shim for the resource-level WithEndpointProxySupport overload.")]
+    public static IResourceBuilder<T> WithEndpointProxySupport<T>(this IResourceBuilder<T> builder, bool proxyEnabled) where T : ContainerResource
     {
-        ArgumentNullException.ThrowIfNull(builder);
-
-        builder.WithAnnotation(new ProxySupportAnnotation { ProxyEnabled = proxyEnabled }, ResourceAnnotationMutationBehavior.Replace);
-
-        return builder;
+        return ResourceBuilderExtensions.SetEndpointProxySupport(builder, proxyEnabled);
     }
 
     /// <summary>

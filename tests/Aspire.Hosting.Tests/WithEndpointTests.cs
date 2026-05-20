@@ -64,11 +64,15 @@ public class WithEndpointTests
             typeof(string),
             typeof(bool)));
 
-        Assert.NotNull(GetPublicStaticMethod(
+        var withEndpointProxySupport = GetPublicStaticMethod(
             typeof(ContainerResourceBuilderExtensions),
             nameof(ContainerResourceBuilderExtensions.WithEndpointProxySupport),
             typeof(IResourceBuilder<>),
-            typeof(bool)));
+            typeof(bool));
+
+        Assert.NotNull(withEndpointProxySupport);
+        var constraint = Assert.Single(withEndpointProxySupport.GetGenericArguments()[0].GetGenericParameterConstraints());
+        Assert.Equal(typeof(ContainerResource), constraint);
 
         Assert.NotNull(GetPublicConstructor(
             typeof(EndpointAnnotation),
