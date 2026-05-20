@@ -30,7 +30,7 @@ public static class ContainerResourceBuilderExtensions
     /// <param name="builder">The resource builder.</param>
     /// <param name="proxyEnabled">Should endpoints for the resource support using a proxy?</param>
     /// <returns>The <see cref="IResourceBuilder{T}"/>.</returns>
-    [AspireExport("withContainerEndpointProxySupport", MethodName = "withEndpointProxySupport", Description = "Configures endpoint proxy support")]
+    [AspireExportIgnore(Reason = "Binary compatibility shim for the resource-level WithEndpointProxySupport overload.")]
     public static IResourceBuilder<T> WithEndpointProxySupport<T>(IResourceBuilder<T> builder, bool proxyEnabled) where T : ContainerResource
     {
         return ResourceBuilderExtensions.WithEndpointProxySupport(builder, proxyEnabled);
