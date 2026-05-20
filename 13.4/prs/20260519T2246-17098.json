@@ -1,0 +1,9 @@
+{
+  "author": "sebastienros",
+  "comment": "Bug fix for DTO collection type mapping in polyglot SDK code generation (TypeScript, Go, Java, Python)",
+  "mergedAt": "2026-05-19T22:46:59Z",
+  "number": 17098,
+  "runDate": "2026-05-20T00:39:13Z",
+  "status": "included",
+  "title": "Fix DTO collection inputs in polyglot SDKs"
+}

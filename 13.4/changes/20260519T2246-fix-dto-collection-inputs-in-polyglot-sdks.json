@@ -1,0 +1,19 @@
+{
+  "area": "AppHost",
+  "areaEmoji": "🏠",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "Fixed DTO property collection type mapping in TypeScript, Go, Java, and Python polyglot SDKs, where mutable collection properties incorrectly generated handle-backed wrappers (e.g., AspireList<T>) instead of plain JSON input types, preventing callers from using collection literals.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🐛",
+  "firstMergedAt": "2026-05-19T22:46:59Z",
+  "lastMergedAt": "2026-05-19T22:46:59Z",
+  "name": "Fix DTO collection inputs in polyglot SDKs",
+  "owner": "sebastienros",
+  "prs": [
+    17098
+  ]
+}

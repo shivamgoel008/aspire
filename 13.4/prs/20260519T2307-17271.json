@@ -1,0 +1,9 @@
+{
+  "author": "DamianEdwards",
+  "comment": "Routine release notes workflow fix - wrong event type trigger (released vs published)",
+  "mergedAt": "2026-05-19T23:07:18Z",
+  "number": 17271,
+  "runDate": "2026-05-20T00:39:13Z",
+  "status": "excluded",
+  "title": "Fix release notes workflow trigger"
+}

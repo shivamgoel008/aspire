@@ -1,0 +1,9 @@
+{
+  "author": "app/dependabot",
+  "comment": "Dependabot npm package bump in docs site - not product documentation",
+  "mergedAt": "2026-05-19T23:26:05Z",
+  "number": 1012,
+  "runDate": "2026-05-20T00:39:13Z",
+  "status": "excluded",
+  "title": "build(deps): bump the npm-all group across 1 directory with 6 updates"
+}

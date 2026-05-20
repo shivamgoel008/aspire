@@ -1,0 +1,9 @@
+{
+  "author": "JamesNK",
+  "comment": "Dashboard UI bug fix - button overlap in Settings dialog at high zoom",
+  "mergedAt": "2026-05-19T23:02:42Z",
+  "number": 17258,
+  "runDate": "2026-05-20T00:39:13Z",
+  "status": "included",
+  "title": "Fix Manage button overlapping Close button in Settings dialog at high zoom"
+}

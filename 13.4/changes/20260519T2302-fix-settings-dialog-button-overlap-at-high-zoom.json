@@ -1,0 +1,19 @@
+{
+  "area": "Dashboard",
+  "areaEmoji": "📊",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "Fixed the Manage button overlapping the Close button in the Settings dialog when the browser is at high zoom levels.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🔍",
+  "firstMergedAt": "2026-05-19T23:02:42Z",
+  "lastMergedAt": "2026-05-19T23:02:42Z",
+  "name": "Fix Settings dialog button overlap at high zoom",
+  "owner": "JamesNK",
+  "prs": [
+    17258
+  ]
+}
