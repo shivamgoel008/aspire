@@ -176,6 +176,65 @@ public class TelemetryApiServiceTests
         }
     }
 
+    [Theory]
+    [InlineData("747261636531", 1)]
+    [InlineData("7472616", 1)]
+    [InlineData("747261", 0)]
+    public void GetSpans_WithTraceIdFilter_MatchesShortenedIds(string traceIdFilter, int expectedCount)
+    {
+        var repository = CreateRepository();
+        var traceId = Encoding.UTF8.GetString(Convert.FromHexString("747261636531"));
+
+        AddSpansToRepository(repository, [
+            CreateSpan(traceId: traceId, spanId: "matching-span", startTime: s_testTime, endTime: s_testTime.AddMinutes(1)),
+            CreateSpan(traceId: "other-trace", spanId: "other-span", startTime: s_testTime.AddMinutes(2), endTime: s_testTime.AddMinutes(3))
+        ]);
+
+        var service = CreateService(repository);
+
+        var result = service.GetSpans(resourceNames: null, traceId: traceIdFilter, hasError: null, limit: null);
+
+        Assert.NotNull(result);
+        Assert.Equal(expectedCount, result.ReturnedCount);
+
+        var json = System.Text.Json.JsonSerializer.Serialize(result.Data);
+        if (expectedCount > 0)
+        {
+            Assert.Contains("matching-span", json);
+        }
+        else
+        {
+            Assert.DoesNotContain("matching-span", json);
+        }
+        Assert.DoesNotContain("other-span", json);
+    }
+
+    [Fact]
+    public async Task FollowSpansAsync_WithTraceIdFilter_MatchesShortenedIds()
+    {
+        var repository = CreateRepository();
+        var traceId = Encoding.UTF8.GetString(Convert.FromHexString("747261636531"));
+
+        AddSpansToRepository(repository, [
+            CreateSpan(traceId: traceId, spanId: "matching-span", startTime: s_testTime, endTime: s_testTime.AddMinutes(1)),
+            CreateSpan(traceId: "other-trace", spanId: "other-span", startTime: s_testTime.AddMinutes(2), endTime: s_testTime.AddMinutes(3))
+        ]);
+
+        var service = CreateService(repository);
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var receivedItems = new List<string>();
+        await foreach (var streamedItem in service.FollowSpansAsync(null, "7472616", null, null, cts.Token))
+        {
+            receivedItems.Add(streamedItem);
+            break;
+        }
+
+        var receivedItem = Assert.Single(receivedItems);
+        Assert.Contains("matching-span", receivedItem);
+        Assert.DoesNotContain("other-span", receivedItem);
+    }
+
     [Fact]
     public void GetTrace_WithMinimumDurationMs_FiltersShortSpans()
     {

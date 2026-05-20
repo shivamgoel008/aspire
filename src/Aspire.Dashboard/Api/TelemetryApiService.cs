@@ -64,7 +64,7 @@ internal sealed class TelemetryApiService(
         // Filter by traceId
         if (!string.IsNullOrEmpty(traceId))
         {
-            spans = spans.Where(s => OtlpHelpers.MatchTelemetryId(s.TraceId, traceId)).ToList();
+            spans = spans.Where(s => OtlpHelpers.MatchTelemetryId(traceId, s.TraceId)).ToList();
         }
 
         // Filter by hasError
@@ -332,7 +332,7 @@ internal sealed class TelemetryApiService(
             }
 
             // Apply traceId filter
-            if (!string.IsNullOrEmpty(traceId) && !OtlpHelpers.MatchTelemetryId(span.TraceId, traceId))
+            if (!string.IsNullOrEmpty(traceId) && !OtlpHelpers.MatchTelemetryId(traceId, span.TraceId))
             {
                 continue;
             }
