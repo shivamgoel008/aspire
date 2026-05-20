@@ -23,6 +23,8 @@ public sealed class EndpointAnnotation : IResourceAnnotation
     private int? _targetPort;
     private bool _targetPortSetToNull;
     private bool? _tlsEnabled;
+    private bool _isProxied = true;
+    private bool? _isExplicitlyProxied;
     private readonly NetworkIdentifier _networkID;
 
     /// <summary>
@@ -133,7 +135,7 @@ public sealed class EndpointAnnotation : IResourceAnnotation
         _port = port;
         _targetPort = targetPort;
         IsExternal = isExternal ?? false;
-        IsProxied = isProxied;
+        IsExplicitlyProxied = isProxied;
         _networkID = networkID ?? KnownNetworkIdentifiers.LocalhostNetwork;
 #pragma warning disable CS0618 // Type or member is obsolete
         AllAllocatedEndpoints.TryAdd(_networkID, AllocatedEndpointSnapshot);
@@ -198,7 +200,7 @@ public sealed class EndpointAnnotation : IResourceAnnotation
         // It also depends on what the EndpointAnnotation is applied to.
         // In the Container case the TargetPort is the port that the process listens on inside the container,
         //  and the Port is the host interface port, so it is fine for them to be different.
-        get => _port ?? (IsProxied.GetValueOrDefault(true) || _portSetToNull ? null : _targetPort);
+        get => _port ?? (IsProxied || _portSetToNull ? null : _targetPort);
         set
         {
             _port = value;
@@ -217,7 +219,7 @@ public sealed class EndpointAnnotation : IResourceAnnotation
     public int? TargetPort
     {
         // See comment on the Port setter, as this is the reciprocal logic
-        get => _targetPort ?? (IsProxied.GetValueOrDefault(true) || _targetPortSetToNull ? null : _port);
+        get => _targetPort ?? (IsProxied || _targetPortSetToNull ? null : _port);
         set
         {
             _targetPort = value;
@@ -251,10 +253,43 @@ public sealed class EndpointAnnotation : IResourceAnnotation
 
     /// <summary>
     /// Indicates that this endpoint should be managed by DCP. This means it can be replicated and use a different port internally than the one publicly exposed.
-    /// Setting to false means the endpoint will be handled and exposed by the resource.
+    /// Setting to <see langword="false"/> means the endpoint will be handled and exposed by the resource.
     /// </summary>
-    /// <remarks>Defaults to <see langword="null"/>. The effective default is computed from the resource that owns the endpoint.</remarks>
-    public bool? IsProxied { get; set; }
+    /// <remarks>
+    /// Defaults to <see langword="true"/> until DCP resolves the effective value from <see cref="IsExplicitlyProxied"/>
+    /// and the resource that owns the endpoint. Read this value after endpoint allocation or another late lifecycle
+    /// callback when code needs the resolved value.
+    /// </remarks>
+    public bool IsProxied
+    {
+        get => _isProxied;
+        set
+        {
+            _isProxied = value;
+            _isExplicitlyProxied = value;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this endpoint was explicitly configured to be proxied.
+    /// </summary>
+    /// <remarks>
+    /// A <see langword="null"/> value means the effective proxy mode is resolved from the resource that owns the endpoint.
+    /// </remarks>
+    public bool? IsExplicitlyProxied
+    {
+        get => _isExplicitlyProxied;
+        set
+        {
+            _isExplicitlyProxied = value;
+            _isProxied = value ?? true;
+        }
+    }
+
+    internal void SetResolvedIsProxied(bool isProxied)
+    {
+        _isProxied = isProxied;
+    }
 
     /// <summary>
     /// Gets or sets a value indicating whether this endpoint is excluded from the default set when referencing the resource's endpoints

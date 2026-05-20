@@ -38,7 +38,7 @@ internal static class DcpModelUtilities
                     throw new InvalidOperationException($"The endpoint '{ea.Name}' for container resource '{modelResourceName}' must specify the {nameof(EndpointAnnotation.TargetPort)} value");
                 }
             }
-            else if (!ea.IsProxied.GetValueOrDefault())
+            else if (!ea.IsProxied)
             {
                 if (HasMultipleReplicas(appResource.DcpResource))
                 {
@@ -52,7 +52,7 @@ internal static class DcpModelUtilities
             }
             else
             {
-                Debug.Assert(ea.IsProxied.GetValueOrDefault());
+                Debug.Assert(ea.IsProxied);
 
                 if (ea.TargetPort is int && ea.Port is int && ea.TargetPort == ea.Port)
                 {
@@ -157,7 +157,7 @@ internal static class DcpModelUtilities
             return true;
         }
 
-        if (!svc.HasCompleteAddress && sp.EndpointAnnotation.IsProxied.GetValueOrDefault())
+        if (!svc.HasCompleteAddress && sp.EndpointAnnotation.IsProxied)
         {
             if (allowPending)
             {
@@ -169,7 +169,7 @@ internal static class DcpModelUtilities
             throw new InvalidDataException($"Service {svc.Metadata.Name} should have valid address at this point");
         }
 
-        if (!sp.EndpointAnnotation.IsProxied.GetValueOrDefault() && svc.AllocatedPort is null)
+        if (!sp.EndpointAnnotation.IsProxied && svc.AllocatedPort is null)
         {
             if (allowPending)
             {
@@ -261,7 +261,7 @@ internal static class DcpModelUtilities
         where TDcpResource : CustomResource, IKubernetesStaticMetadata
     {
         return resource.DcpResource is Container &&
-            !sp.EndpointAnnotation.IsProxied.GetValueOrDefault() &&
+            !sp.EndpointAnnotation.IsProxied &&
             sp.EndpointAnnotation.SpecifiedPort is null;
     }
 

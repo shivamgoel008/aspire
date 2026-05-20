@@ -657,17 +657,17 @@ internal sealed partial class DcpExecutor : IDcpExecutor, IDcpObjectFactory, IAs
 
                 var svc = Service.Create(serviceName);
 
-                endpoint.IsProxied = GetEffectiveIsProxied(sp.ModelResource, endpoint);
+                endpoint.SetResolvedIsProxied(GetEffectiveIsProxied(sp.ModelResource, endpoint));
 
                 int? port;
-                if (_options.Value.RandomizePorts && endpoint.IsProxied.Value && endpoint.Port != null)
+                if (_options.Value.RandomizePorts && endpoint.IsProxied && endpoint.Port != null)
                 {
                     port = null;
                     _logger.LogDebug("Randomizing port for {ServiceName}. Original port: {OriginalPort}", serviceName, endpoint.Port);
                 }
                 else
                 {
-                    port = sp.ModelResource.IsContainer() && !endpoint.IsProxied.Value
+                    port = sp.ModelResource.IsContainer() && !endpoint.IsProxied
                         ? endpoint.SpecifiedPort
                         : endpoint.Port;
                 }
@@ -682,7 +682,7 @@ internal sealed partial class DcpExecutor : IDcpExecutor, IDcpObjectFactory, IAs
                     svc.Spec.Address = endpoint.TargetHost;
                 }
 
-                if (!endpoint.IsProxied.Value)
+                if (!endpoint.IsProxied)
                 {
                     svc.Spec.AddressAllocationMode = AddressAllocationModes.Proxyless;
                 }
@@ -703,7 +703,7 @@ internal sealed partial class DcpExecutor : IDcpExecutor, IDcpObjectFactory, IAs
                 return false;
             }
 
-            if (endpoint.IsProxied is bool isProxied)
+            if (endpoint.IsExplicitlyProxied is bool isProxied)
             {
                 return isProxied;
             }

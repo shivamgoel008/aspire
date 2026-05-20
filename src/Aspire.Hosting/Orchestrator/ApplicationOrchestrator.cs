@@ -503,11 +503,17 @@ internal sealed class ApplicationOrchestrator
     private async Task OnResourceEndpointsAllocated(OnResourceEndpointsAllocatedContext context)
     {
         await PublishResourceEndpointUrls(context.Resource, context.CancellationToken).ConfigureAwait(false);
+
+        // ResourceEndpointsAllocatedEvent can be published by DCP or by integrations. DCP has already
+        // processed URLs through this awaited internal event, so mark the following DCP public event
+        // to skip while still allowing integration-generated public events to process URLs.
         _skipNextPublicEndpointUrlProcessing.TryAdd(context.Resource.Name, 0);
     }
 
     private async Task OnPublicResourceEndpointsAllocated(ResourceEndpointsAllocatedEvent @event, CancellationToken cancellationToken)
     {
+        // Skip DCP-generated public events because their URLs were already processed by the internal
+        // event path. Public events from integrations do not have this marker and still need processing.
         if (_skipNextPublicEndpointUrlProcessing.TryRemove(@event.Resource.Name, out _))
         {
             return;

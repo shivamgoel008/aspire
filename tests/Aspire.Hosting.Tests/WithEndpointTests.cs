@@ -92,6 +92,10 @@ public class WithEndpointTests
             typeof(int?),
             typeof(bool?),
             typeof(bool)));
+
+        var isProxiedProperty = typeof(EndpointAnnotation).GetProperty(nameof(EndpointAnnotation.IsProxied), BindingFlags.Public | BindingFlags.Instance);
+        Assert.NotNull(isProxiedProperty);
+        Assert.Equal(typeof(bool), isProxiedProperty.PropertyType);
     }
 
     [Fact]
@@ -99,7 +103,8 @@ public class WithEndpointTests
     {
         var endpoint = new EndpointAnnotation(ProtocolType.Tcp);
 
-        Assert.Null(endpoint.IsProxied);
+        Assert.True(endpoint.IsProxied);
+        Assert.Null(endpoint.IsExplicitlyProxied);
     }
 
     [Fact]
@@ -119,6 +124,7 @@ public class WithEndpointTests
         var endpoint = Assert.IsType<EndpointAnnotation>(constructor!.Invoke([ProtocolType.Tcp, "http", null, "http", null, null, null, true]));
 
         Assert.True(endpoint.IsProxied);
+        Assert.True(endpoint.IsExplicitlyProxied);
     }
 
     [Fact]
@@ -130,7 +136,8 @@ public class WithEndpointTests
             .WithHttpEndpoint(name: "http");
 
         var endpoint = Assert.Single(container.Resource.Annotations.OfType<EndpointAnnotation>());
-        Assert.Null(endpoint.IsProxied);
+        Assert.True(endpoint.IsProxied);
+        Assert.Null(endpoint.IsExplicitlyProxied);
     }
 
     [Fact]
@@ -143,6 +150,7 @@ public class WithEndpointTests
 
         var endpoint = Assert.Single(container.Resource.Annotations.OfType<EndpointAnnotation>());
         Assert.True(endpoint.IsProxied);
+        Assert.True(endpoint.IsExplicitlyProxied);
     }
 
     [Fact]

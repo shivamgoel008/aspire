@@ -1562,7 +1562,7 @@ public static class ResourceBuilderExtensions
 
             if (isProxied is not null)
             {
-                existing.IsProxied = isProxied;
+                existing.IsExplicitlyProxied = isProxied;
             }
 
             ConfigureEndpointEnvironmentVariable(builder, existing, env);
