@@ -1177,7 +1177,7 @@ public static class ResourceExtensions
     }
 
     /// <summary>
-    /// Determines whether a resource has proxy support enabled or not. Container resources may have a <see cref="ProxySupportAnnotation"/> setting that disables proxying for their
+    /// Determines whether a resource has proxy support enabled or not. Resources may have a <see cref="ProxySupportAnnotation"/> setting that disables proxying for their
     /// endpoints regardless of the endpoint proxy configuration.
     /// </summary>
     /// <param name="resource">The resource to get proxy support for.</param>
