@@ -62,7 +62,41 @@ public sealed class EndpointAnnotation : IResourceAnnotation
     /// Initializes a new instance of <see cref="EndpointAnnotation"/>.
     /// </summary>
     /// <param name="protocol">Network protocol: TCP or UDP are supported today, others possibly in future.</param>
+    /// <param name="uriScheme">If a service is URI-addressable, this is the URI scheme to use for constructing service URI.</param>
+    /// <param name="transport">Transport that is being used (e.g. http, http2, http3 etc).</param>
+    /// <param name="name">Name of the service.</param>
+    /// <param name="port">Desired port for the service.</param>
+    /// <param name="targetPort">This is the port the resource is listening on. If the endpoint is used for the container, it is the container port.</param>
+    /// <param name="isExternal">Indicates that this endpoint should be exposed externally at publish time.</param>
+    /// <param name="isProxied">Specifies if the endpoint will be proxied by DCP.</param>
+    public EndpointAnnotation(
+        ProtocolType protocol,
+        string? uriScheme,
+        string? transport,
+        [EndpointName] string? name,
+        int? port,
+        int? targetPort,
+        bool? isExternal,
+        bool isProxied
+    ) : this(
+        protocol,
+        null,
+        uriScheme,
+        transport,
+        name,
+        port,
+        targetPort,
+        isExternal,
+        isProxied
+    )
+    { }
+
+    /// <summary>
+    /// Initializes a new instance of <see cref="EndpointAnnotation"/>.
+    /// </summary>
+    /// <param name="protocol">Network protocol: TCP or UDP are supported today, others possibly in future.</param>
     /// <param name="networkID">The ID of the network that is the "default" network for the Endpoint.
+    /// Clients connected to the same network can reach the endpoint without any routing or network address translation.</param>
     /// <param name="uriScheme">If a service is URI-addressable, this is the URI scheme to use for constructing service URI.</param>
     /// <param name="transport">Transport that is being used (e.g. http, http2, http3 etc).</param>
     /// <param name="name">Name of the service.</param>
@@ -70,7 +104,6 @@ public sealed class EndpointAnnotation : IResourceAnnotation
     /// <param name="targetPort">This is the port the resource is listening on. If the endpoint is used for the container, it is the container port.</param>
     /// <param name="isExternal">Indicates that this endpoint should be exposed externally at publish time.</param>
     /// <param name="isProxied">Specifies if the endpoint will be proxied by DCP. Defaults to <see langword="null"/>.</param>
-    /// Clients connected to the same network can reach the endpoint without any routing or network address translation.</param>
     public EndpointAnnotation(
         ProtocolType protocol,
         NetworkIdentifier? networkID,
@@ -106,6 +139,42 @@ public sealed class EndpointAnnotation : IResourceAnnotation
         AllAllocatedEndpoints.TryAdd(_networkID, AllocatedEndpointSnapshot);
 #pragma warning restore CS0618 // Type or member is obsolete
     }
+
+    /// <summary>
+    /// Initializes a new instance of <see cref="EndpointAnnotation"/>.
+    /// </summary>
+    /// <param name="protocol">Network protocol: TCP or UDP are supported today, others possibly in future.</param>
+    /// <param name="networkID">The ID of the network that is the "default" network for the Endpoint.
+    /// Clients connected to the same network can reach the endpoint without any routing or network address translation.</param>
+    /// <param name="uriScheme">If a service is URI-addressable, this is the URI scheme to use for constructing service URI.</param>
+    /// <param name="transport">Transport that is being used (e.g. http, http2, http3 etc).</param>
+    /// <param name="name">Name of the service.</param>
+    /// <param name="port">Desired port for the service.</param>
+    /// <param name="targetPort">This is the port the resource is listening on. If the endpoint is used for the container, it is the container port.</param>
+    /// <param name="isExternal">Indicates that this endpoint should be exposed externally at publish time.</param>
+    /// <param name="isProxied">Specifies if the endpoint will be proxied by DCP.</param>
+    public EndpointAnnotation(
+        ProtocolType protocol,
+        NetworkIdentifier? networkID,
+        string? uriScheme,
+        string? transport,
+        [EndpointName] string? name,
+        int? port,
+        int? targetPort,
+        bool? isExternal,
+        bool isProxied
+    ) : this(
+        protocol,
+        networkID,
+        uriScheme,
+        transport,
+        name,
+        port,
+        targetPort,
+        isExternal,
+        (bool?)isProxied
+    )
+    { }
 
     /// <summary>
     ///  Name of the service

@@ -69,6 +69,56 @@ public class WithEndpointTests
             nameof(ContainerResourceBuilderExtensions.WithEndpointProxySupport),
             typeof(IResourceBuilder<>),
             typeof(bool)));
+
+        Assert.NotNull(GetPublicConstructor(
+            typeof(EndpointAnnotation),
+            typeof(ProtocolType),
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(int?),
+            typeof(int?),
+            typeof(bool?),
+            typeof(bool)));
+
+        Assert.NotNull(GetPublicConstructor(
+            typeof(EndpointAnnotation),
+            typeof(ProtocolType),
+            typeof(NetworkIdentifier),
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(int?),
+            typeof(int?),
+            typeof(bool?),
+            typeof(bool)));
+    }
+
+    [Fact]
+    public void EndpointAnnotationConstructorOmissionLeavesProxySettingUnset()
+    {
+        var endpoint = new EndpointAnnotation(ProtocolType.Tcp);
+
+        Assert.Null(endpoint.IsProxied);
+    }
+
+    [Fact]
+    public void EndpointAnnotationBoolCompatibilityConstructorPreservesExplicitProxySetting()
+    {
+        var constructor = GetPublicConstructor(
+            typeof(EndpointAnnotation),
+            typeof(ProtocolType),
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(int?),
+            typeof(int?),
+            typeof(bool?),
+            typeof(bool));
+
+        var endpoint = Assert.IsType<EndpointAnnotation>(constructor!.Invoke([ProtocolType.Tcp, "http", null, "http", null, null, null, true]));
+
+        Assert.True(endpoint.IsProxied);
     }
 
     [Fact]
@@ -118,6 +168,13 @@ public class WithEndpointTests
             .SingleOrDefault(method =>
                 method.Name == methodName &&
                 method.GetParameters().Select(parameter => NormalizeGenericParameterType(parameter.ParameterType)).SequenceEqual(parameterTypes));
+    }
+
+    private static ConstructorInfo? GetPublicConstructor(Type declaringType, params Type[] parameterTypes)
+    {
+        return declaringType.GetConstructors(BindingFlags.Public | BindingFlags.Instance)
+            .SingleOrDefault(constructor =>
+                constructor.GetParameters().Select(parameter => parameter.ParameterType).SequenceEqual(parameterTypes));
     }
 
     private static Type NormalizeGenericParameterType(Type parameterType)
