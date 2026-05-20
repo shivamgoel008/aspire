@@ -865,18 +865,6 @@ public class Program
                 // Log exit code for debugging
                 logger.LogInformation("Exit code: {ExitCode}", exitCode);
             }
-            catch (OperationCanceledException ex) when (cancellationManager.IsCancellationRequested || ex is ExtensionOperationCanceledException)
-            {
-                exitCode = CliExitCodes.Cancelled;
-            }
-            catch (Exception ex)
-            {
-                exitCode = CliExitCodes.InvalidCommand;
-
-                logger.LogError(ex, "An unexpected error occurred.");
-                telemetry.RecordError("An unexpected error occurred.", ex);
-                errorWriter.WriteLine(string.Format(CultureInfo.CurrentCulture, InteractionServiceStrings.UnexpectedErrorOccurred, ex.Message));
-            }
             finally
             {
                 mainActivity?.SetTag(TelemetryConstants.Tags.ProcessExitCode, exitCode);
