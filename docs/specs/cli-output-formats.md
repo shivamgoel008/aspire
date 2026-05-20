@@ -6,6 +6,8 @@ This document is the source of truth for machine-readable Aspire CLI output form
 
 Commands that support `--format json` emit JSON intended for tooling. Snapshot commands emit one JSON document after the command has finished collecting data. Streaming commands emit newline-delimited JSON (NDJSON), where each line is a complete JSON document that can be parsed independently.
 
+Streaming output should be the streamed form of the command's JSON content rather than a separate lifecycle protocol. Unless a command documents a different shape, each NDJSON line is an item or batch of items that would otherwise appear in the non-streaming JSON output. Completion is represented by the process exiting and the stream reaching end-of-file, not by a synthetic `complete` event.
+
 Most JSON output uses camel-case property names. Properties whose values are not available can be omitted or written as `null`, depending on the command-specific serializer.
 
 ## AppHost discovery and lifecycle
@@ -42,7 +44,7 @@ Use `--format json --stream` to receive discovery results as NDJSON, with one co
 {"path":"/path/to/ts-app/apphost.ts","language":"TypeScript","status":"possibly-unbuildable"}
 ```
 
-If discovery finds no AppHost candidates, the stream emits no lines.
+If discovery finds no AppHost candidates, the stream emits no lines. The stream does not emit `started`, `complete`, or `canceled` control records; use the command's exit code and end-of-file to detect stream completion.
 
 #### AppHost candidate fields
 
