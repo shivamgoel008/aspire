@@ -1,0 +1,19 @@
+{
+  "area": "Engineering",
+  "areaEmoji": "🔧",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Improvements",
+  "communityContributors": [],
+  "description": "Release stabilization is now a single-line change in eng/Versions.props (flipping StabilizePackageVersion to true) — no more hand-editing package version files, CI job overrides, or SKIP lists. A new Stabilization Check CI job validates stable packing, CLI tests, and template smoke tests on every PR, catching NU5104 and restore regressions before stabilization time.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "⚙️",
+  "firstMergedAt": "2026-05-21T22:08:39Z",
+  "lastMergedAt": "2026-05-21T22:08:39Z",
+  "name": "Automated release stabilization with dynamic package version computation",
+  "owner": "joperezr",
+  "prs": [
+    15681
+  ]
+}

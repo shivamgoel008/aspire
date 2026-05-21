@@ -1,0 +1,9 @@
+{
+  "author": "joperezr",
+  "comment": "Engineering improvement: automates release stabilization with dynamic version computation",
+  "mergedAt": "2026-05-21T22:08:39Z",
+  "number": 15681,
+  "runDate": "2026-05-21T22:34:02Z",
+  "status": "included",
+  "title": "Automate version stabilization: dynamically compute package versions for Helix testing"
+}
