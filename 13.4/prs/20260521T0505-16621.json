@@ -1,0 +1,9 @@
+{
+  "author": "afscrome",
+  "comment": "AppHost improvement: aspire ps no longer hangs indefinitely when the dashboard is unavailable; community contribution",
+  "mergedAt": "2026-05-21T05:05:44Z",
+  "number": 16621,
+  "runDate": "2026-05-21T05:30:21Z",
+  "status": "included",
+  "title": "Make `aspire ps` work when dashboard is unavailable."
+}

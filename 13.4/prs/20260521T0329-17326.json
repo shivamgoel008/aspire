@@ -1,0 +1,9 @@
+{
+  "author": "joperezr",
+  "comment": "Internal back-merge of v13.3.4 release into main; changes already shipped in v13.3.x",
+  "mergedAt": "2026-05-21T03:29:02Z",
+  "number": 17326,
+  "runDate": "2026-05-21T05:30:21Z",
+  "status": "excluded",
+  "title": "Merge v13.3.4 to main (replaces #17139)"
+}

@@ -1,0 +1,19 @@
+{
+  "area": "CLI",
+  "areaEmoji": "💻",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "Fixed `aspire run` failing on Linux with .NET SDK 10.0.300 due to a named-pipe timeout when the CLI forced MSBuild server usage. The CLI no longer sets `DOTNET_CLI_USE_MSBUILD_SERVER`, letting the .NET SDK manage MSBuild server behavior.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🔧",
+  "firstMergedAt": "2026-05-21T04:44:38Z",
+  "lastMergedAt": "2026-05-21T04:44:38Z",
+  "name": "Fix aspire run MSBuild server timeout on Linux",
+  "owner": "davidfowl",
+  "prs": [
+    17313
+  ]
+}

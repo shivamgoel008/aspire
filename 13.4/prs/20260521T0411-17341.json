@@ -1,0 +1,9 @@
+{
+  "author": "radical",
+  "comment": "Engineering bug fix: CLI archive verifier was calling aspire-managed --help which exits 1, breaking the signed build pipeline",
+  "mergedAt": "2026-05-21T04:11:21Z",
+  "number": 17341,
+  "runDate": "2026-05-21T05:30:21Z",
+  "status": "included",
+  "title": "Fix internal build break: 'aspire-managed --help' in CLI archive verifier returns exit 1"
+}

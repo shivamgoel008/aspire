@@ -1,0 +1,21 @@
+{
+  "area": "AppHost",
+  "areaEmoji": "🏠",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Improvements",
+  "communityContributors": [
+    "@afscrome"
+  ],
+  "description": "Fixed `aspire ps` hanging indefinitely when the dashboard resource is unavailable. The command now fails fast in this scenario, making it usable with `DistributedApplicationTestingBuilder` to inspect a running app even when the dashboard is not configured.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🔍",
+  "firstMergedAt": "2026-05-21T05:05:44Z",
+  "lastMergedAt": "2026-05-21T05:05:44Z",
+  "name": "Fix aspire ps hang when dashboard is unavailable",
+  "owner": "davidfowl",
+  "prs": [
+    16621
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "area": "Engineering",
+  "areaEmoji": "🔧",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "Fixed a build break in the signed pipeline where the CLI archive verifier called `aspire-managed --help`, which exits with code 1 since `--help` is not a supported subcommand. The verifier now uses a supported invocation so the pipeline no longer fails on all three RIDs.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🔨",
+  "firstMergedAt": "2026-05-21T04:11:21Z",
+  "lastMergedAt": "2026-05-21T04:11:21Z",
+  "name": "Fix CLI archive verifier build break",
+  "owner": "radical",
+  "prs": [
+    17341
+  ]
+}
