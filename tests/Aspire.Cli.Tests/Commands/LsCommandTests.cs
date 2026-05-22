@@ -236,7 +236,7 @@ public class LsCommandTests(ITestOutputHelper outputHelper)
 
         // Stderr should not contain JSON data
         var stderrText = errorWriter.ToString();
-        Assert.DoesNotContain("path", stderrText, StringComparison.Ordinal);
+        Assert.Equal("", stderrText);
     }
 
     [Fact]
