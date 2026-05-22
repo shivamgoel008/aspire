@@ -1821,36 +1821,22 @@ public class DotNetCliRunnerTests(ITestOutputHelper outputHelper)
         var services = CliTestHelper.CreateServiceCollection(workspace, outputHelper);
         var provider = services.BuildServiceProvider();
         var executionContext = CreateExecutionContext(workspace.WorkspaceRoot);
-        var invocationCount = 0;
-        var runner = DotNetCliRunnerTestHelper.Create(
+        var observedArgs = new List<string[]>();
+        var (runner, factory) = DotNetCliRunnerTestHelper.CreateWithRetry(
             provider,
             executionContext,
-            (args, _, workingDirectory, _) =>
+            (attempt, _) =>
             {
-                invocationCount++;
-                Assert.Equal(workspace.WorkspaceRoot.FullName, workingDirectory.FullName);
-                Assert.Equal("new", args[0]);
-
-                switch (invocationCount)
+                // Install must report success via the standard "Success: ..." line; otherwise
+                // the runner now treats a silent exit-0 as FailedToInstallTemplates.
+                return attempt switch
                 {
-                    case 1:
-                        Assert.Equal("uninstall", args[1]);
-                        Assert.Equal("Aspire.ProjectTemplates", args[2]);
-                        Assert.DoesNotContain("--force", args);
-                        Assert.DoesNotContain("--nuget-source", args);
-                        break;
-                    case 2:
-                        Assert.Equal("install", args[1]);
-                        Assert.Equal(packagePath, args[2]);
-                        Assert.DoesNotContain("--force", args);
-                        Assert.DoesNotContain("--nuget-source", args);
-                        break;
-                    default:
-                        Assert.Fail($"Unexpected dotnet invocation {invocationCount}.");
-                        break;
-                }
-            },
-            0);
+                    1 => (0, null), // uninstall
+                    2 => (0, $"Success: Aspire.ProjectTemplates@{packageVersion} installed the following templates:"),
+                    _ => (1, null),
+                };
+            });
+        factory.AssertionCallback = (args, _, _, _) => observedArgs.Add(args);
 
         var result = await runner.InstallTemplateAsync(
             "Aspire.ProjectTemplates",
@@ -1863,7 +1849,55 @@ public class DotNetCliRunnerTests(ITestOutputHelper outputHelper)
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal(packageVersion, result.TemplateVersion);
-        Assert.Equal(2, invocationCount);
+        Assert.Equal(2, observedArgs.Count);
+        Assert.Equal(["new", "uninstall", "Aspire.ProjectTemplates"], observedArgs[0]);
+        Assert.Equal("new", observedArgs[1][0]);
+        Assert.Equal("install", observedArgs[1][1]);
+        Assert.Equal(packagePath, observedArgs[1][2]);
+        Assert.DoesNotContain("--force", observedArgs[1]);
+        Assert.DoesNotContain("--nuget-source", observedArgs[1]);
+    }
+
+    [Fact]
+    public async Task InstallTemplateAsync_LocalPath_ExitZeroWithEmptyStdout_TreatedAsFailedInstall()
+    {
+        // Regression guard for CI silent no-op: some host SDKs return exit 0 with no
+        // stdout when `dotnet new install <path>.nupkg` is given a filename that does
+        // not follow the canonical <PackageId>.<Version>.nupkg shape. Without a stdout
+        // probe the CLI would falsely report install success and then fail later at
+        // `dotnet new <id>` with a confusing exit 103.
+        using var workspace = TemporaryWorkspace.Create(outputHelper);
+
+        var packageVersion = "13.3.0-local.1";
+        var packagesDirectory = workspace.WorkspaceRoot.CreateSubdirectory("packages");
+        var packagePath = Path.Combine(packagesDirectory.FullName, $"Aspire.ProjectTemplates.{packageVersion}.nupkg");
+        await File.WriteAllTextAsync(packagePath, string.Empty);
+
+        var services = CliTestHelper.CreateServiceCollection(workspace, outputHelper);
+        var provider = services.BuildServiceProvider();
+        var executionContext = CreateExecutionContext(workspace.WorkspaceRoot);
+
+        // force: false => only the install invocation happens (no preceding uninstall).
+        var (runner, _) = DotNetCliRunnerTestHelper.CreateWithRetry(
+            provider,
+            executionContext,
+            (attempt, _) =>
+            {
+                Assert.Equal(1, attempt);
+                return (0, null);
+            });
+
+        var result = await runner.InstallTemplateAsync(
+            "Aspire.ProjectTemplates",
+            packageVersion,
+            nugetConfigFile: null,
+            nugetSource: "packages",
+            force: false,
+            new ProcessInvocationOptions(),
+            CancellationToken.None);
+
+        Assert.Equal(CliExitCodes.FailedToInstallTemplates, result.ExitCode);
+        Assert.Null(result.TemplateVersion);
     }
 
     [Theory]

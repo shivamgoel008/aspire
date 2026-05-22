@@ -22,7 +22,7 @@ namespace Aspire.Cli.Templating;
 /// </para>
 /// <para>
 /// Extraction is lazy and idempotent. The nupkg is written to
-/// <c>{AspireHomeDirectory}/templates/{cli-version}/Aspire.ProjectTemplates.nupkg</c>
+/// <c>{AspireHomeDirectory}/templates/{cli-version}/Aspire.ProjectTemplates.{cli-version}.nupkg</c>
 /// the first time it is requested and reused on every subsequent invocation of the
 /// same CLI build. Concurrent extractions from multiple processes are safe because
 /// the final rename is atomic and equally-versioned binaries write byte-identical
@@ -36,7 +36,7 @@ internal sealed class EmbeddedTemplatePackageProvider(
     // Must match the LogicalName in Aspire.Cli.csproj (_ResolveEmbeddedTemplatesNupkg target).
     private const string EmbeddedResourceName = "Aspire.ProjectTemplates.nupkg";
 
-    private const string PackageFileName = "Aspire.ProjectTemplates.nupkg";
+    private const string PackageId = "Aspire.ProjectTemplates";
 
     /// <summary>
     /// Returns the on-disk path to the embedded templates nupkg, extracting it on the
@@ -61,7 +61,16 @@ internal sealed class EmbeddedTemplatePackageProvider(
             executionContext.AspireHomeDirectory.FullName,
             "templates",
             versionDirName));
-        var targetPath = Path.Combine(cacheDir.FullName, PackageFileName);
+
+        // dotnet new install relies on the on-disk filename matching the canonical
+        // <PackageId>.<Version>.nupkg shape for local-path installs. When the file is
+        // named just "<PackageId>.nupkg", some host SDKs silently no-op the install
+        // (exit 0, no stdout, no templates registered) which then surfaces as a
+        // confusing "No templates or subcommands found matching <id>" exit 103 from
+        // the subsequent `dotnet new <id>` invocation. Always emit the versioned
+        // filename to avoid that footgun.
+        var packageFileName = $"{PackageId}.{cliVersion}.nupkg";
+        var targetPath = Path.Combine(cacheDir.FullName, packageFileName);
 
         if (File.Exists(targetPath))
         {

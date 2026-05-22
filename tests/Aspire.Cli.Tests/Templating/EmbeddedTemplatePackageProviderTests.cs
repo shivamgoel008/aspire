@@ -21,10 +21,11 @@ public class EmbeddedTemplatePackageProviderTests(ITestOutputHelper outputHelper
         var extracted = await provider.EnsureExtractedAsync(CancellationToken.None).DefaultTimeout();
 
         Assert.True(extracted.Exists, $"Expected extracted nupkg at {extracted.FullName}");
-        Assert.Equal("Aspire.ProjectTemplates.nupkg", extracted.Name);
-
-        // Path layout: {AspireHomeDirectory}/templates/{cli-version}/Aspire.ProjectTemplates.nupkg
         var expectedVersionDir = VersionHelper.GetDefaultTemplateVersion().Replace('+', '_');
+        var expectedFileName = $"Aspire.ProjectTemplates.{VersionHelper.GetDefaultTemplateVersion()}.nupkg";
+        Assert.Equal(expectedFileName, extracted.Name);
+
+        // Path layout: {AspireHomeDirectory}/templates/{cli-version}/Aspire.ProjectTemplates.{cli-version}.nupkg
         var parentDir = extracted.Directory!;
         Assert.Equal(expectedVersionDir, parentDir.Name);
         Assert.Equal("templates", parentDir.Parent!.Name);

@@ -808,17 +808,20 @@ internal sealed class DotNetCliRunner(
         }
         else
         {
-            if (localPackagePath is not null)
-            {
-                return (exitCode, version);
-            }
-
             if (stdout is null)
             {
                 logger.LogError("Failed to read stdout from the process. This should never happen.");
                 return (CliExitCodes.FailedToInstallTemplates, null);
             }
 
+            // Treat exit code 0 with no "Success: ..." line as a failed install. Some
+            // host SDKs silently no-op `dotnet new install <path>.nupkg` (exit 0, no
+            // stdout, nothing registered) when the local file's name doesn't follow
+            // the canonical <PackageId>.<Version>.nupkg shape. Without this check we
+            // would report success to the caller and then fail later at
+            // `dotnet new <id>` with a confusing "No templates or subcommands found"
+            // exit 103. Surface the silent no-op here instead.
+            //
             // NOTE: This parsing logic is hopefully temporary and in the future we'll
             //       have structured output:
             //
@@ -826,6 +829,17 @@ internal sealed class DotNetCliRunner(
             //
             if (!TryParsePackageVersionFromStdout(stdout, out var parsedVersion))
             {
+                if (localPackagePath is not null)
+                {
+                    logger.LogError(
+                        "dotnet new install reported success for local template package {LocalPackagePath} but the expected \"Success: {PackageName}\" line was not present in stdout; treating as a failed install. Stdout: {Stdout}, Stderr: {Stderr}",
+                        localPackagePath.FullName,
+                        packageName,
+                        stdout,
+                        stderr);
+                    return (CliExitCodes.FailedToInstallTemplates, null);
+                }
+
                 logger.LogError("Failed to parse template version from stdout.");
 
                 // Throwing here because this should never happen - we don't want to return
