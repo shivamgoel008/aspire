@@ -466,7 +466,7 @@ internal class DotNetTemplateFactory(
             {
                 extractedTemplatesNupkg = await embeddedTemplatePackageProvider.EnsureExtractedAsync(cancellationToken);
             }
-            catch (InvalidOperationException ex)
+            catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
             {
                 interactionService.DisplayError(ex.Message);
                 return new TemplateResult(CliExitCodes.FailedToCreateNewProject);

@@ -360,7 +360,7 @@ internal sealed class InitCommand : BaseCommand
         {
             extractedTemplatesNupkg = await _embeddedTemplatePackageProvider.EnsureExtractedAsync(cancellationToken);
         }
-        catch (InvalidOperationException ex)
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
         {
             InteractionService.DisplayError(ex.Message);
             return CliExitCodes.FailedToInstallTemplates;

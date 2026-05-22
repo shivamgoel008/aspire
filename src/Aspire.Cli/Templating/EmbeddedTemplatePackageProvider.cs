@@ -36,14 +36,6 @@ internal sealed class EmbeddedTemplatePackageProvider(CliExecutionContext execut
     private const string PackageFileName = "Aspire.ProjectTemplates.nupkg";
 
     /// <summary>
-    /// Gets <see langword="true"/> if the templates nupkg is embedded in the CLI assembly.
-    /// Returns <see langword="false"/> on inner-loop builds that were produced with
-    /// <c>SkipEmbeddedTemplatesNupkg=true</c> (rare; primarily a build-time escape hatch).
-    /// </summary>
-    public static bool HasEmbeddedPackage { get; } =
-        typeof(EmbeddedTemplatePackageProvider).Assembly.GetManifestResourceInfo(EmbeddedResourceName) is not null;
-
-    /// <summary>
     /// Returns the on-disk path to the embedded templates nupkg, extracting it on the
     /// first call. The path is stable for the lifetime of the running CLI binary, keyed
     /// by the CLI's informational version so a different CLI build never reuses another
