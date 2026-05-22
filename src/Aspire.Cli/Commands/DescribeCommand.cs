@@ -77,8 +77,6 @@ internal sealed class DescribeCommand : BaseCommand
 {
     internal override HelpGroup HelpGroup => HelpGroup.Monitoring;
 
-    protected override bool UpdateNotificationsEnabled => true;
-
     private readonly IInteractionService _interactionService;
     private readonly AppHostConnectionResolver _connectionResolver;
     private readonly ResourceColorMap _resourceColorMap;

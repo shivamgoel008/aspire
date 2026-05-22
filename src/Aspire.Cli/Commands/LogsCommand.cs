@@ -79,8 +79,6 @@ internal sealed class LogsCommand : BaseCommand
 {
     internal override HelpGroup HelpGroup => HelpGroup.Monitoring;
 
-    protected override bool UpdateNotificationsEnabled => true;
-
     private readonly IInteractionService _interactionService;
     private readonly ICliHostEnvironment _hostEnvironment;
     private readonly AppHostConnectionResolver _connectionResolver;

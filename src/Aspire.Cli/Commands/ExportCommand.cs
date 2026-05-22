@@ -26,8 +26,6 @@ internal sealed class ExportCommand : BaseCommand
 {
     internal override HelpGroup HelpGroup => HelpGroup.Monitoring;
 
-    protected override bool UpdateNotificationsEnabled => true;
-
     private readonly IInteractionService _interactionService;
     private readonly AppHostConnectionResolver _connectionResolver;
     private readonly ILogger<ExportCommand> _logger;
