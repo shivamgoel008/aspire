@@ -1,0 +1,9 @@
+{
+  "author": "adamint",
+  "comment": "Dashboard performance improvement: eliminates unnecessary resource collection materialization in waiting-dependency tooltip path",
+  "mergedAt": "2026-05-21T23:56:37Z",
+  "number": 17353,
+  "runDate": "2026-05-22T00:42:15Z",
+  "status": "included",
+  "title": "Avoid waiting dependency tooltip allocations"
+}

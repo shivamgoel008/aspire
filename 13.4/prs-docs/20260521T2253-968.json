@@ -1,0 +1,9 @@
+{
+  "author": "sebastienros",
+  "comment": "Updates Node.js LTS version references in TypeScript AppHost docs; no matching changelog entry",
+  "mergedAt": "2026-05-21T22:53:35Z",
+  "number": 968,
+  "runDate": "2026-05-22T00:42:15Z",
+  "status": "excluded",
+  "title": "Update TypeScript AppHost Node support docs"
+}

@@ -1,0 +1,9 @@
+{
+  "author": "sebastienros",
+  "comment": "Extends resource command service for polyglot AppHosts to support resource handles and optional command arguments",
+  "mergedAt": "2026-05-22T00:15:52Z",
+  "number": 17358,
+  "runDate": "2026-05-22T00:42:15Z",
+  "status": "included",
+  "title": "Support resource command handles in polyglot apphosts"
+}

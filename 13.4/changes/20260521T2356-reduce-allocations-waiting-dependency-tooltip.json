@@ -1,0 +1,19 @@
+{
+  "area": "Dashboard",
+  "areaEmoji": "📊",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Improvements",
+  "communityContributors": [],
+  "description": "Optimizes the waiting-dependency tooltip resolution path in the Dashboard by eliminating unnecessary resource collection materialization. Resources are now enumerated directly instead of being copied to an array on each hover, reducing per-hover allocations.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "⚡",
+  "firstMergedAt": "2026-05-21T23:56:37Z",
+  "lastMergedAt": "2026-05-21T23:56:37Z",
+  "name": "Reduce allocations in waiting-dependency tooltip",
+  "owner": "adamint",
+  "prs": [
+    17353
+  ]
+}
