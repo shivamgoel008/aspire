@@ -1,0 +1,9 @@
+{
+  "author": "JamesNK",
+  "comment": "Improvement to CLI update notification behavior: opt-in default and suppression for JSON output",
+  "mergedAt": "2026-05-22T08:57:17Z",
+  "number": 17350,
+  "runDate": "2026-05-22T09:13:16Z",
+  "status": "included",
+  "title": "CLI: Make update notifications opt-in and suppress when --format json"
+}

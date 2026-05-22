@@ -1,0 +1,19 @@
+{
+  "area": "CLI",
+  "areaEmoji": "💻",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Improvements",
+  "communityContributors": [],
+  "description": "Update notifications are now opt-in — only user-facing interactive commands display them. Notifications are also suppressed when `--format json` is used, ensuring machine-readable stdout is never polluted with banner text.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🔕",
+  "firstMergedAt": "2026-05-22T08:57:17Z",
+  "lastMergedAt": "2026-05-22T08:57:17Z",
+  "name": "CLI update notifications are now opt-in",
+  "owner": "JamesNK",
+  "prs": [
+    17350
+  ]
+}
