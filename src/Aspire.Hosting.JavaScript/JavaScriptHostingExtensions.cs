@@ -317,6 +317,212 @@ public static class JavaScriptHostingExtensions
                 return Task.CompletedTask;
             });
 
+    // The default Docker image used for AddBunApp build and runtime stages.
+    // Pinned to the major version tag to keep generated Dockerfiles deterministic
+    // while still picking up patch updates. The image provides a non-root `bun` user.
+    private const string DefaultBunImage = "oven/bun:1";
+
+    /// <summary>
+    /// Adds a Bun application to the application model. Bun should be available on the PATH.
+    /// </summary>
+    /// <param name="builder">The <see cref="IDistributedApplicationBuilder"/> to add the resource to.</param>
+    /// <param name="name">The name of the resource.</param>
+    /// <param name="appDirectory">The path to the directory containing the Bun application.</param>
+    /// <param name="scriptPath">The path to the script (for example, <c>server.ts</c>) relative to <paramref name="appDirectory"/> to run.</param>
+    /// <returns>A reference to the <see cref="IResourceBuilder{T}"/>.</returns>
+    /// <ats-returns>The resource builder.</ats-returns>
+    /// <remarks>
+    /// This method executes the script directly using <c>bun &lt;script&gt;</c>. Bun natively runs JavaScript and TypeScript
+    /// files so no transpile step is required.
+    ///
+    /// If the application directory contains a <c>package.json</c> file, Bun will be added as the default package manager.
+    /// When publishing to a container, the default base image is <c>oven/bun:1</c> for both the build and runtime stages.
+    /// </remarks>
+    /// <example>
+    /// Add a Bun app to the application model:
+    /// <code lang="csharp">
+    /// var builder = DistributedApplication.CreateBuilder(args);
+    ///
+    /// builder.AddBunApp("api", "../api", "server.ts");
+    ///
+    /// builder.Build().Run();
+    /// </code>
+    /// </example>
+    [AspireExport]
+    public static IResourceBuilder<BunAppResource> AddBunApp(this IDistributedApplicationBuilder builder, [ResourceName] string name, string appDirectory, string scriptPath)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentException.ThrowIfNullOrEmpty(scriptPath);
+
+        appDirectory = Path.GetFullPath(appDirectory, builder.AppHostDirectory);
+        var resource = new BunAppResource(name, "bun", appDirectory);
+
+        var resourceBuilder = builder.AddResource(resource)
+            .WithBunDefaults()
+            .WithArgs(c =>
+            {
+                // If the JavaScriptRunScriptAnnotation is present, use that to run the app
+                if (c.Resource.TryGetLastAnnotation<JavaScriptRunScriptAnnotation>(out var runCommand) &&
+                    c.Resource.TryGetLastAnnotation<JavaScriptPackageManagerAnnotation>(out var packageManager))
+                {
+                    if (!string.IsNullOrEmpty(packageManager.ScriptCommand))
+                    {
+                        c.Args.Add(packageManager.ScriptCommand);
+                    }
+
+                    c.Args.Add(runCommand.ScriptName);
+
+                    foreach (var arg in runCommand.Args)
+                    {
+                        c.Args.Add(arg);
+                    }
+                }
+                else
+                {
+                    c.Args.Add(scriptPath);
+                }
+            })
+            .WithIconName("CodeJsRectangle")
+            .PublishAsDockerFile(c =>
+            {
+                // Only generate a Dockerfile if one doesn't already exist in the app directory
+                if (File.Exists(Path.Combine(resource.WorkingDirectory, "Dockerfile")))
+                {
+                    return;
+                }
+
+                c.WithDockerfileBuilder(resource.WorkingDirectory, dockerfileContext =>
+                {
+                    // Get custom base image from annotation, if present
+                    dockerfileContext.Resource.TryGetLastAnnotation<DockerfileBaseImageAnnotation>(out var baseImageAnnotation);
+
+                    // Bun ships its own runtime, so both stages default to the same Bun image rather than
+                    // using a node-based image as in AddNodeApp.
+                    var baseBuildImage = baseImageAnnotation?.BuildImage ?? DefaultBunImage;
+                    var builderStage = dockerfileContext.Builder
+                        .From(baseBuildImage, "build")
+                        .EmptyLine()
+                        .WorkDir("/app");
+
+                    if (resource.TryGetLastAnnotation<JavaScriptPackageManagerAnnotation>(out var packageManager))
+                    {
+                        // Initialize the Docker build stage with package manager-specific setup commands.
+                        packageManager.InitializeDockerBuildStage?.Invoke(builderStage);
+
+                        var copiedAllSource = false;
+                        if (resource.TryGetLastAnnotation<JavaScriptInstallCommandAnnotation>(out var installCommand))
+                        {
+                            // Copy package files first for better layer caching
+                            if (packageManager.PackageFilesPatterns.Count > 0)
+                            {
+                                foreach (var packageFilePattern in packageManager.PackageFilesPatterns)
+                                {
+                                    builderStage.Copy(packageFilePattern.Source, packageFilePattern.Destination);
+                                }
+                            }
+                            else
+                            {
+                                builderStage.Copy(".", ".");
+                                copiedAllSource = true;
+                            }
+
+                            builderStage.AddInstallCommand(packageManager, installCommand);
+                        }
+
+                        if (!copiedAllSource)
+                        {
+                            builderStage.Copy(".", ".");
+                        }
+
+                        if (resource.TryGetLastAnnotation<JavaScriptBuildScriptAnnotation>(out var buildCommand))
+                        {
+                            var commandArgs = new List<string>() { packageManager.ExecutableName };
+                            if (!string.IsNullOrEmpty(packageManager.ScriptCommand))
+                            {
+                                commandArgs.Add(packageManager.ScriptCommand);
+                            }
+                            commandArgs.Add(buildCommand.ScriptName);
+                            commandArgs.AddRange(buildCommand.Args);
+
+                            builderStage.EmptyLine()
+                                .Run(string.Join(' ', commandArgs));
+                        }
+                    }
+                    else
+                    {
+                        // No package manager, just copy everything
+                        builderStage.Copy(".", ".");
+                    }
+
+                    var logger = dockerfileContext.Services.GetService<ILogger<JavaScriptAppResource>>();
+                    dockerfileContext.Builder.AddContainerFilesStages(dockerfileContext.Resource, logger);
+
+                    var baseRuntimeImage = baseImageAnnotation?.RuntimeImage ?? DefaultBunImage;
+                    var runtimeBuilder = dockerfileContext.Builder
+                        .From(baseRuntimeImage, "runtime")
+                            .EmptyLine()
+                            .WorkDir("/app")
+                            .CopyFrom("build", "/app", "/app")
+                            .AddContainerFiles(dockerfileContext.Resource, "/app", logger)
+                            .EmptyLine()
+                            .Env("NODE_ENV", "production")
+                            .EmptyLine()
+                            // The official oven/bun images provide a non-root `bun` user (UID 1000).
+                            // See https://hub.docker.com/r/oven/bun
+                            .User("bun")
+                            .EmptyLine()
+                            .Entrypoint([resource.Command, scriptPath]);
+                });
+            });
+
+        // Configure pipeline to ensure container file sources are built first
+        resourceBuilder.WithPipelineConfiguration(context =>
+        {
+            if (resourceBuilder.Resource.TryGetAnnotationsOfType<ContainerFilesDestinationAnnotation>(out var containerFilesAnnotations))
+            {
+                var buildSteps = context.GetSteps(resourceBuilder.Resource, WellKnownPipelineTags.BuildCompute);
+
+                foreach (var containerFile in containerFilesAnnotations)
+                {
+                    buildSteps.DependsOn(context.GetSteps(containerFile.Source, WellKnownPipelineTags.BuildCompute));
+                }
+            }
+        });
+
+        if (File.Exists(Path.Combine(appDirectory, "package.json")))
+        {
+            // Automatically add bun as the package manager if a package.json file exists
+            resourceBuilder.WithBun();
+        }
+
+        if (builder.ExecutionContext.IsRunMode)
+        {
+            builder.OnBeforeStart((_, _) =>
+            {
+                // Set the command to the package manager executable if a WithRunScript was configured.
+                // For the default Bun package manager this is a no-op (executable is "bun"), but it correctly
+                // handles cases where a user opts into a different package manager (e.g., WithYarn).
+                if (resourceBuilder.Resource.TryGetLastAnnotation<JavaScriptRunScriptAnnotation>(out _) &&
+                    resourceBuilder.Resource.TryGetLastAnnotation<JavaScriptPackageManagerAnnotation>(out var packageManager))
+                {
+                    resourceBuilder.WithCommand(packageManager.ExecutableName);
+                }
+
+                return Task.CompletedTask;
+            });
+        }
+
+        return resourceBuilder;
+    }
+
+    private static IResourceBuilder<TResource> WithBunDefaults<TResource>(this IResourceBuilder<TResource> builder) where TResource : JavaScriptAppResource =>
+        builder.WithOtlpExporter()
+            .WithRequiredCommand("bun", "https://bun.sh/docs/installation")
+            // Bun honors NODE_ENV for module resolution and runtime mode the same way Node does.
+            // See https://bun.com/docs/runtime/env
+            .WithEnvironment("NODE_ENV", builder.ApplicationBuilder.Environment.IsDevelopment() ? "development" : "production");
+
     /// <summary>
     /// Adds a JavaScript application resource to the distributed application using the specified app directory and
     /// run script.
