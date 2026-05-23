@@ -1,0 +1,9 @@
+{
+  "author": "afscrome",
+  "comment": "AppHost improvement making OTLP and resource service configuration optional; community contribution",
+  "mergedAt": "2026-05-23T05:58:14Z",
+  "number": 16046,
+  "runDate": "2026-05-23T06:57:30Z",
+  "status": "included",
+  "title": "Make OTLP and resource service config optional in app host"
+}

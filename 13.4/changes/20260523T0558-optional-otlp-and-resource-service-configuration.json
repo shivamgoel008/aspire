@@ -1,0 +1,21 @@
+{
+  "area": "AppHost",
+  "areaEmoji": "🏠",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Improvements",
+  "communityContributors": [
+    "@afscrome"
+  ],
+  "description": "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL and ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL no longer need to be configured in launchSettings.json — ports are now assigned dynamically. This simplifies app host setup and makes it easier to enable the dashboard in tests.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🔧",
+  "firstMergedAt": "2026-05-23T05:58:14Z",
+  "lastMergedAt": "2026-05-23T05:58:14Z",
+  "name": "Optional OTLP and resource service configuration in app host",
+  "owner": "JamesNK",
+  "prs": [
+    16046
+  ]
+}

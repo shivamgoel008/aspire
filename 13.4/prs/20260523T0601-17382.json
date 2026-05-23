@@ -1,0 +1,9 @@
+{
+  "author": "davidfowl",
+  "comment": "Breaking rename of JavaScript publish API from PublishAsNpmPackageScript to PublishAsPackageScript",
+  "mergedAt": "2026-05-23T06:01:41Z",
+  "number": 17382,
+  "runDate": "2026-05-23T06:57:30Z",
+  "status": "included",
+  "title": "Rename JavaScript package script publish API"
+}
