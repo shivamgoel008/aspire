@@ -1043,7 +1043,7 @@ suite('JsTsAppHostParser', () => {
             "import { createBuilder } from './.aspire/modules/aspire.js';\nconst builder = await createBuilder();",
             '/test/apphost.ts'
         );
-        assert.strictEqual(await parser.isAppHostFile(doc), true);
+        assert.strictEqual(parser.isAppHostFile(doc), true);
     });
 
     test('detects AppHost via legacy .modules aspire module import', async () => {
