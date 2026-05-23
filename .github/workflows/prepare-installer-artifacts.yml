@@ -27,6 +27,16 @@ jobs:
           path: ${{ github.workspace }}/native-archives
           merge-multiple: false
 
+      # The embedded templates baked into the CLI pin Aspire.AppHost.Sdk to the CLI's
+      # build version (a PR build like 13.4.0-pr.<n>.g<sha>), which only exists in the
+      # per-build feed — not on nuget.org. Download that feed so the smoke step can
+      # source-map Aspire* to it for `aspire restore`.
+      - name: Download built nugets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: built-nugets
+          path: ${{ github.workspace }}/built-nugets
+
       - name: Prepare WinGet manifest artifact
         if: ${{ inputs.installer == 'winget' }}
         shell: pwsh
@@ -76,7 +86,21 @@ jobs:
           # preceding step in this job. The runner shell that started before the install
           # does not yet have that directory on PATH, so prepend it here.
           $env:PATH = "$env:LOCALAPPDATA\Microsoft\WinGet\Links;" + $env:PATH
-          & "$env:GITHUB_WORKSPACE/eng/scripts/smoke-installed-cli.ps1"
+          # Resolve the shipping dir that actually contains the canonical Aspire .nupkgs.
+          # built-nugets extracts to Debug/Shipping under typical PR CI; fall back gracefully.
+          $candidates = @(
+            (Join-Path $env:GITHUB_WORKSPACE 'built-nugets/Debug/Shipping'),
+            (Join-Path $env:GITHUB_WORKSPACE 'built-nugets/Release/Shipping'),
+            (Join-Path $env:GITHUB_WORKSPACE 'built-nugets')
+          )
+          $shippingDir = $candidates | Where-Object {
+            (Test-Path $_) -and (Get-ChildItem -Path $_ -Filter 'Aspire.Hosting.AppHost.*.nupkg' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1)
+          } | Select-Object -First 1
+          if (-not $shippingDir) {
+            Write-Error "Could not locate Aspire.Hosting.AppHost.*.nupkg under $env:GITHUB_WORKSPACE/built-nugets"
+            exit 1
+          }
+          & "$env:GITHUB_WORKSPACE/eng/scripts/smoke-installed-cli.ps1" -NuGetSource $shippingDir
 
       - name: Smoke test installed CLI (aspire new + restore)
         if: ${{ inputs.installer == 'homebrew' }}
@@ -84,7 +108,23 @@ jobs:
         run: |
           set -euo pipefail
           # brew linked the binary into /opt/homebrew/bin which is already on PATH.
-          eng/scripts/smoke-installed-cli.sh
+          # Resolve the shipping dir that actually contains the canonical Aspire .nupkgs.
+          # built-nugets extracts to Debug/Shipping under typical PR CI; fall back gracefully.
+          SHIPPING_DIR=""
+          for candidate in \
+              "${GITHUB_WORKSPACE}/built-nugets/Debug/Shipping" \
+              "${GITHUB_WORKSPACE}/built-nugets/Release/Shipping" \
+              "${GITHUB_WORKSPACE}/built-nugets"; do
+            if [ -d "$candidate" ] && find "$candidate" -maxdepth 4 -name "Aspire.Hosting.AppHost.*.nupkg" -print -quit 2>/dev/null | grep -q .; then
+              SHIPPING_DIR="$candidate"
+              break
+            fi
+          done
+          if [ -z "$SHIPPING_DIR" ]; then
+            echo "ERROR: Could not locate Aspire.Hosting.AppHost.*.nupkg under ${GITHUB_WORKSPACE}/built-nugets" >&2
+            exit 1
+          fi
+          eng/scripts/smoke-installed-cli.sh --nuget-source "$SHIPPING_DIR"
 
       - name: Collect Aspire CLI logs (Windows)
         if: ${{ always() && inputs.installer == 'winget' }}

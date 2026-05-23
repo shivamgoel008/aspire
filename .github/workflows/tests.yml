@@ -93,6 +93,7 @@ jobs:
     name: Prepare WinGet installer artifacts
     uses: ./.github/workflows/prepare-installer-artifacts.yml
     needs: [
+      build_packages,
       build_cli_archive_windows,
       build_cli_archive_windows_arm64,
     ]
@@ -103,6 +104,7 @@ jobs:
     name: Prepare Homebrew installer artifacts
     uses: ./.github/workflows/prepare-installer-artifacts.yml
     needs: [
+      build_packages,
       build_cli_archive_macos,
       build_cli_archive_macos_x64,
     ]

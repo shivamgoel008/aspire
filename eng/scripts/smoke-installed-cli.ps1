@@ -16,7 +16,8 @@
 param(
     [string]$WorkDir,
     [string]$ProjectName = 'SmokeApp',
-    [string]$LogLevel = 'trace'
+    [string]$LogLevel = 'trace',
+    [string]$NuGetSource
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,6 +41,39 @@ aspire --version
 
 Push-Location $scaffoldDir
 try {
+    # When -NuGetSource is given, stage a source-mapped NuGet.config in CWD before
+    # `aspire new`/`aspire restore`. Required for CI installer smokes (Homebrew/WinGet)
+    # because the embedded templates pin Aspire.AppHost.Sdk to the CLI build version
+    # (e.g. 13.4.0-pr.<n>.g<sha>) which only exists in the per-build feed, not nuget.org.
+    if (-not [string]::IsNullOrWhiteSpace($NuGetSource)) {
+        Write-Host "Writing source-mapped NuGet.config (Aspire* -> $NuGetSource; everything else -> nuget.org)"
+        $nugetConfig = @"
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <fallbackPackageFolders>
+    <clear />
+  </fallbackPackageFolders>
+  <packageSources>
+    <clear />
+    <add key="local-pr" value="$NuGetSource" />
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+  </packageSources>
+  <packageSourceMapping>
+    <packageSource key="local-pr">
+      <package pattern="Aspire*" />
+    </packageSource>
+    <packageSource key="nuget.org">
+      <package pattern="*" />
+    </packageSource>
+  </packageSourceMapping>
+  <disabledPackageSources>
+    <clear />
+  </disabledPackageSources>
+</configuration>
+"@
+        Set-Content -Path (Join-Path $scaffoldDir 'NuGet.config') -Value $nugetConfig -Encoding utf8
+    }
+
     aspire --log-level $LogLevel new aspire-starter --name $ProjectName --output . --non-interactive --nologo --suppress-agent-init
     aspire --log-level $LogLevel restore --non-interactive --nologo
 }
