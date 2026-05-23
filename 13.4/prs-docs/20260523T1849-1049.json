@@ -1,0 +1,9 @@
+{
+  "author": "sebastienros",
+  "comment": "Documents TypeScript AppHost changes: apphost.mts scaffold, .aspire/modules structure, aspire init --language typescript with nested aspire-apphost/ package",
+  "mergedAt": "2026-05-23T18:49:38Z",
+  "number": 1049,
+  "runDate": "2026-05-23T20:19:08Z",
+  "status": "included",
+  "title": "Update TypeScript AppHost documentation"
+}
