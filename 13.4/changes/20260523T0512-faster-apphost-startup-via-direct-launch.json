@@ -1,0 +1,19 @@
+{
+  "area": "CLI",
+  "areaEmoji": "💻",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Improvements",
+  "communityContributors": [],
+  "description": "The CLI now caches the SDK-provided run metadata (RunCommand, RunArguments, RunWorkingDirectory) during AppHost resolution and launches the AppHost executable directly, skipping the post-build dotnet run --no-build overhead and saving approximately 1.3 seconds per startup. Users can opt out via aspire config set dotnetAppHostDirectLaunchDisabled true.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "⚡",
+  "firstMergedAt": "2026-05-23T05:12:41Z",
+  "lastMergedAt": "2026-05-23T05:12:41Z",
+  "name": "Faster AppHost startup via direct launch",
+  "owner": "davidfowl",
+  "prs": [
+    17335
+  ]
+}

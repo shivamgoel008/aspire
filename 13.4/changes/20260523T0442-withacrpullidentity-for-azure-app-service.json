@@ -1,0 +1,19 @@
+{
+  "area": "AppHost",
+  "areaEmoji": "🏠",
+  "backport": false,
+  "breaking": false,
+  "changeType": "New features",
+  "communityContributors": [],
+  "description": "AzureAppServiceEnvironmentResource now supports WithAcrPullIdentity(), allowing a user-assigned managed identity to be specified for pulling container images from Azure Container Registry, mirroring the existing WithAcrPullIdentity() on Container Apps environments.",
+  "docsPrs": [],
+  "docsRequired": true,
+  "emoji": "🔐",
+  "firstMergedAt": "2026-05-23T04:42:13Z",
+  "lastMergedAt": "2026-05-23T04:42:13Z",
+  "name": "WithAcrPullIdentity for Azure App Service Environment",
+  "owner": "davidfowl",
+  "prs": [
+    17379
+  ]
+}

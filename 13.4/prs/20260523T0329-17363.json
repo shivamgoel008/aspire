@@ -1,0 +1,9 @@
+{
+  "author": "danegsta",
+  "comment": "Bug fix: surfaces concrete AppHost startup errors instead of generic RPC failure",
+  "mergedAt": "2026-05-23T03:29:54Z",
+  "number": 17363,
+  "runDate": "2026-05-23T05:19:45Z",
+  "status": "included",
+  "title": "Surface polyglot AppHost startup errors"
+}

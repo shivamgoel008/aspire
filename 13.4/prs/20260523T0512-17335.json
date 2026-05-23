@@ -1,0 +1,9 @@
+{
+  "author": "davidfowl",
+  "comment": "Performance improvement: ~1.3s faster AppHost startup via direct launch",
+  "mergedAt": "2026-05-23T05:12:41Z",
+  "number": 17335,
+  "runDate": "2026-05-23T05:19:45Z",
+  "status": "included",
+  "title": "Optimize AppHost startup launch"
+}

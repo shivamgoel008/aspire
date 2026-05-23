@@ -1,0 +1,19 @@
+{
+  "area": "AppHost",
+  "areaEmoji": "🏠",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "Applying AsExisting() or PublishAsExisting() to AzureAppServiceEnvironmentResource now correctly carries through the full publish pipeline, emitting the App Service Plan as an existing resource in generated Bicep rather than attempting to create it. A related fix prevents Aspire from printing a dashboard URL when .WithDashboard(false) is used.",
+  "docsPrs": [],
+  "docsRequired": true,
+  "emoji": "🏗️",
+  "firstMergedAt": "2026-05-23T04:42:13Z",
+  "lastMergedAt": "2026-05-23T04:42:13Z",
+  "name": "Existing Azure App Service Plan support",
+  "owner": "davidfowl",
+  "prs": [
+    17379
+  ]
+}

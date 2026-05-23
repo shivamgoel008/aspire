@@ -1,0 +1,19 @@
+{
+  "area": "CLI",
+  "areaEmoji": "💻",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "When a polyglot AppHost starts but fails immediately (e.g., an unproxied endpoint without a port), aspire run and aspire start now surface the concrete AppHost error instead of the generic RPC/backchannel connection failure.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🚨",
+  "firstMergedAt": "2026-05-23T03:29:54Z",
+  "lastMergedAt": "2026-05-23T03:29:54Z",
+  "name": "Surface polyglot AppHost startup errors",
+  "owner": "danegsta",
+  "prs": [
+    17363
+  ]
+}

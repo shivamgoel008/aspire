@@ -1,0 +1,9 @@
+{
+  "author": "davidfowl",
+  "comment": "Bug fix + new feature: existing App Service Plan support and WithAcrPullIdentity for App Service Environment",
+  "mergedAt": "2026-05-23T04:42:13Z",
+  "number": 17379,
+  "runDate": "2026-05-23T05:19:45Z",
+  "status": "included",
+  "title": "Honor existing Azure App Service plans"
+}
