@@ -1,0 +1,9 @@
+{
+  "author": "Victor-johnsson",
+  "comment": "CLI improvement: buffers console logs during interactive prompts to keep prompt UI readable",
+  "mergedAt": "2026-05-23T08:37:44Z",
+  "number": 15959,
+  "runDate": "2026-05-23T08:44:26Z",
+  "status": "included",
+  "title": "Buffer console logs during interactive prompts"
+}

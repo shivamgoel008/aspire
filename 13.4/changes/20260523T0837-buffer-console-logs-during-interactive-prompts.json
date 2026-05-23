@@ -1,0 +1,21 @@
+{
+  "area": "CLI",
+  "areaEmoji": "💻",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Improvements",
+  "communityContributors": [
+    "@Victor-johnsson"
+  ],
+  "description": "Pauses terminal debug logging while interactive CLI prompts are active so the prompt UI stays readable, then replays buffered lines when the prompt completes.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🔇",
+  "firstMergedAt": "2026-05-23T08:37:44Z",
+  "lastMergedAt": "2026-05-23T08:37:44Z",
+  "name": "Buffer console logs during interactive prompts",
+  "owner": "JamesNK",
+  "prs": [
+    15959
+  ]
+}
