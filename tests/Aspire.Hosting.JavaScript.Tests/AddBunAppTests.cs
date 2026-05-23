@@ -79,10 +79,17 @@ public class AddBunAppTests
             RUN --mount=type=cache,target=/root/.bun/install/cache bun install
             COPY . .
 
+            FROM oven/bun:1 AS prod-deps
+
+            WORKDIR /app
+            COPY package.json ./
+            RUN --mount=type=cache,target=/root/.bun/install/cache bun install --production
+
             FROM oven/bun:1 AS runtime
 
             WORKDIR /app
-            COPY --from=build /app /app
+            COPY --from=prod-deps /app/node_modules ./node_modules
+            COPY . .
 
             ENV NODE_ENV=production
 
@@ -241,5 +248,63 @@ public class AddBunAppTests
     {
         var builder = DistributedApplication.CreateBuilder();
         Assert.Throws<ArgumentException>(() => builder.AddBunApp("bunapp", ".", ""));
+    }
+
+    [Fact]
+    public async Task AddBunApp_ConfiguresCertificateTrustForAppendScope()
+    {
+        var builder = DistributedApplication.CreateBuilder();
+        var bunApp = builder.AddBunApp("bunapp", ".", "server.ts");
+
+        Assert.True(bunApp.Resource.TryGetLastAnnotation<CertificateTrustConfigurationCallbackAnnotation>(out var annotation));
+
+        var envVars = new Dictionary<string, object>();
+        var bundle = ReferenceExpression.Create($"/etc/ssl/aspire/bundle.crt");
+        var dirs = ReferenceExpression.Create($"/etc/ssl/aspire/certs");
+        var ctx = new CertificateTrustConfigurationCallbackAnnotationContext
+        {
+            ExecutionContext = new DistributedApplicationExecutionContext(DistributedApplicationOperation.Run),
+            Resource = bunApp.Resource,
+            Arguments = [],
+            EnvironmentVariables = envVars,
+            CertificateBundlePath = bundle,
+            CertificateDirectoriesPath = dirs,
+            Scope = CertificateTrustScope.Append,
+            CancellationToken = default,
+        };
+
+        await annotation.Callback(ctx);
+
+        // Bun 1.3+ honors NODE_EXTRA_CA_CERTS for both fetch() and node:https/node:tls
+        // so the Append scope simply points Bun at the Aspire-provided bundle.
+        Assert.Same(bundle, envVars["NODE_EXTRA_CA_CERTS"]);
+    }
+
+    [Fact]
+    public async Task AddBunApp_ConfiguresCertificateTrustForOverrideScope()
+    {
+        var builder = DistributedApplication.CreateBuilder();
+        var bunApp = builder.AddBunApp("bunapp", ".", "server.ts");
+
+        Assert.True(bunApp.Resource.TryGetLastAnnotation<CertificateTrustConfigurationCallbackAnnotation>(out var annotation));
+
+        var envVars = new Dictionary<string, object>();
+        var ctx = new CertificateTrustConfigurationCallbackAnnotationContext
+        {
+            ExecutionContext = new DistributedApplicationExecutionContext(DistributedApplicationOperation.Run),
+            Resource = bunApp.Resource,
+            Arguments = [],
+            EnvironmentVariables = envVars,
+            CertificateBundlePath = ReferenceExpression.Create($"/etc/ssl/aspire/bundle.crt"),
+            CertificateDirectoriesPath = ReferenceExpression.Create($"/etc/ssl/aspire/certs"),
+            Scope = CertificateTrustScope.Override,
+            CancellationToken = default,
+        };
+
+        await annotation.Callback(ctx);
+
+        // Override/System scopes route TLS verification through the OS trust store via the
+        // --use-openssl-ca flag, which Bun reads from NODE_OPTIONS for Node compatibility.
+        Assert.Equal("--use-openssl-ca", envVars["NODE_OPTIONS"]);
     }
 }
