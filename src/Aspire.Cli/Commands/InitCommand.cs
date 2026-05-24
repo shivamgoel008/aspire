@@ -291,7 +291,14 @@ internal sealed class InitCommand : BaseCommand
         // in aspire.config.json — newly generated, or pre-existing if the file already
         // had a `profiles` section. Use the SAME ports for apphost.run.json so the two
         // files always agree on dashboard / OTLP / resource service endpoints.
-        var (configResult, effectivePorts) = DropAspireConfig(workingDirectory, "apphost.cs", language: null, ports);
+        //
+        // Persist the running CLI's identity channel (e.g. `daily`, `staging`, `pr-<N>`,
+        // `local`) so subsequent commands like `aspire add` resolve packages against the
+        // matching channel rather than defaulting to the implicit nuget.org channel.
+        // Mirrors what `aspire new` writes via its template path; without this, a daily
+        // CLI scaffolds a project pinned to no channel and `aspire add` falls back to
+        // stable nuget.org versions that don't line up with the CLI build.
+        var (configResult, effectivePorts) = DropAspireConfig(workingDirectory, "apphost.cs", language: null, _executionContext.IdentityChannel, ports);
         if (configResult != CliExitCodes.Success)
         {
             return configResult;
@@ -467,7 +474,11 @@ internal sealed class InitCommand : BaseCommand
             return CliExitCodes.Success;
         }
 
-        var context = new ScaffoldContext(language, workingDirectory, workingDirectory.Name);
+        // Pass the running CLI's identity channel through to the scaffolder so it lands
+        // in aspire.config.json#channel. Without this, subsequent `aspire add` calls on
+        // a non-stable CLI (daily/staging/pr-<N>/local) fall back to implicit nuget.org
+        // versions that don't line up with the channel the apphost was scaffolded for.
+        var context = new ScaffoldContext(language, workingDirectory, workingDirectory.Name, Channel: _executionContext.IdentityChannel);
         var scaffolded = await _scaffoldingService.ScaffoldAsync(context, cancellationToken);
         if (!scaffolded)
         {
@@ -478,7 +489,7 @@ internal sealed class InitCommand : BaseCommand
         return CliExitCodes.Success;
     }
 
-    private (int ExitCode, AppHostProfilePorts EffectivePorts) DropAspireConfig(DirectoryInfo directory, string appHostPath, string? language, AppHostProfilePorts? ports = null)
+    private (int ExitCode, AppHostProfilePorts EffectivePorts) DropAspireConfig(DirectoryInfo directory, string appHostPath, string? language, string? channel, AppHostProfilePorts? ports = null)
     {
         var configPath = Path.Combine(directory.FullName, AspireConfigFile.FileName);
 
@@ -525,6 +536,16 @@ internal sealed class InitCommand : BaseCommand
         if (language is not null && appHost["language"] is null)
         {
             appHost["language"] = language;
+        }
+
+        // Persist the channel at the top level so `aspire add` / `integration list` /
+        // `integration search` resolve packages against the channel the CLI scaffolded
+        // for. Only write when not already present so a user-edited value wins. Leaving
+        // the channel unset on a non-stable CLI causes downstream commands to fall back
+        // to implicit nuget.org versions that don't line up with the CLI build.
+        if (!string.IsNullOrEmpty(channel) && settings["channel"] is null)
+        {
+            settings["channel"] = channel;
         }
 
         // Resolve the effective ports. Three cases:

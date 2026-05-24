@@ -986,6 +986,77 @@ public class InitCommandTests(ITestOutputHelper outputHelper)
     }
 
     /// <summary>
+    /// Regression for the daily-CLI scenario: when `aspire init` runs under a non-stable
+    /// CLI identity (<c>daily</c>, <c>staging</c>, <c>pr-{N}</c>, <c>local</c>, or <c>stable</c>), the produced
+    /// `aspire.config.json` must carry that channel at the top level. Without it,
+    /// subsequent `aspire add` / `integration list` / `integration search` calls have no
+    /// channel context and silently fall back to implicit nuget.org versions that don't
+    /// line up with the CLI build the user is dogfooding.
+    /// </summary>
+    [Theory]
+    [InlineData("stable")]
+    [InlineData("staging")]
+    [InlineData("daily")]
+    [InlineData("pr-12345")]
+    [InlineData("local")]
+    public async Task InitCommand_SingleFileMode_WritesIdentityChannelIntoAspireConfig(string contextChannel)
+    {
+        using var workspace = TemporaryWorkspace.Create(outputHelper);
+
+        var services = CliTestHelper.CreateServiceCollection(workspace, outputHelper, options =>
+        {
+            options.CliExecutionContextFactory = _ => CreateExecutionContextForChannel(workspace.WorkspaceRoot, contextChannel);
+            options.PackagingServiceFactory = _ => CreateNamedChannelPackagingService(contextChannel);
+        });
+
+        var serviceProvider = services.BuildServiceProvider();
+        var initCommand = serviceProvider.GetRequiredService<InitCommand>();
+
+        var parseResult = initCommand.Parse("init");
+        var exitCode = await parseResult.InvokeAsync().DefaultTimeout();
+
+        Assert.Equal(CliExitCodes.Success, exitCode);
+
+        var configPath = Path.Combine(workspace.WorkspaceRoot.FullName, AspireConfigFile.FileName);
+        Assert.True(File.Exists(configPath));
+
+        var config = JsonNode.Parse(File.ReadAllText(configPath))!.AsObject();
+        Assert.Equal(contextChannel, config["channel"]!.GetValue<string>());
+    }
+
+    /// <summary>
+    /// A pre-existing `aspire.config.json#channel` must not be overwritten by init. Users
+    /// who hand-edit the channel (or migrate a project from a different CLI build) own
+    /// that value; init should only fill it in when absent.
+    /// </summary>
+    [Fact]
+    public async Task InitCommand_SingleFileMode_PreservesExistingChannelInAspireConfig()
+    {
+        using var workspace = TemporaryWorkspace.Create(outputHelper);
+
+        var configPath = Path.Combine(workspace.WorkspaceRoot.FullName, AspireConfigFile.FileName);
+        var existing = new JsonObject { ["channel"] = "pr-99999" };
+        await File.WriteAllTextAsync(configPath, existing.ToJsonString());
+
+        var services = CliTestHelper.CreateServiceCollection(workspace, outputHelper, options =>
+        {
+            options.CliExecutionContextFactory = _ => CreateExecutionContextForChannel(workspace.WorkspaceRoot, "daily");
+            options.PackagingServiceFactory = _ => CreateNamedChannelPackagingService("daily");
+        });
+
+        var serviceProvider = services.BuildServiceProvider();
+        var initCommand = serviceProvider.GetRequiredService<InitCommand>();
+
+        var parseResult = initCommand.Parse("init");
+        var exitCode = await parseResult.InvokeAsync().DefaultTimeout();
+
+        Assert.Equal(CliExitCodes.Success, exitCode);
+
+        var config = JsonNode.Parse(await File.ReadAllTextAsync(configPath))!.AsObject();
+        Assert.Equal("pr-99999", config["channel"]!.GetValue<string>());
+    }
+
+    /// <summary>
     /// Negative-shape tripwire: <c>aspire init</c> must never read the <c>channel</c> key from
     /// the global <see cref="IConfigurationService"/>. The injected configuration service throws
     /// on any <c>GetConfigurationAsync(key, ...)</c> or <c>GetConfigurationFromDirectoryAsync</c>
