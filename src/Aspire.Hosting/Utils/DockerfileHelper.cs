@@ -33,6 +33,7 @@ internal static class DockerfileHelper
             };
 
             await annotation.MaterializeDockerfileAsync(context, cancellationToken).ConfigureAwait(false);
+            await annotation.EmitBuildContextIgnoreAsync(annotation.DockerfilePath, cancellationToken).ConfigureAwait(false);
 
             var executionContext = serviceProvider.GetRequiredService<DistributedApplicationExecutionContext>();
 

@@ -353,6 +353,8 @@ public sealed class AzurePublishingContext(
                     var resourceDockerfilePath = Path.Combine(outputPath, $"{resource.Name}.Dockerfile");
                     Directory.CreateDirectory(outputPath);
                     File.Copy(dockerfileBuildAnnotation.DockerfilePath, resourceDockerfilePath, overwrite: true);
+
+                    await dockerfileBuildAnnotation.EmitBuildContextIgnoreAsync(resourceDockerfilePath, cancellationToken).ConfigureAwait(false);
                 }
 
                 var task = await step.CreateTaskAsync(

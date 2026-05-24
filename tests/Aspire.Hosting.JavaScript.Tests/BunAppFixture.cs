@@ -41,11 +41,11 @@ public class BunAppFixture(IMessageSink diagnosticMessageSink) : IAsyncLifetime
 
         _app = _builder.Build();
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        using var startCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        await _app.StartAsync(startCts.Token);
 
-        await _app.StartAsync(cts.Token);
-
-        await WaitReadyStateAsync(cts.Token);
+        using var readinessCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        await WaitReadyStateAsync(readinessCts.Token);
     }
 
     public async ValueTask DisposeAsync()

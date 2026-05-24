@@ -188,18 +188,22 @@ public class AddBunAppTests
         Directory.CreateDirectory(appDir);
         File.WriteAllText(Path.Combine(appDir, "package.json"), "{}");
 
-        // User has authored their own .dockerignore at the context root. BuildKit gives
-        // per-Dockerfile ignore files precedence, so Aspire must skip emitting its sibling to
-        // honor the user's file.
-        var userIgnorePath = Path.Combine(appDir, ".dockerignore");
-        var userIgnoreContents = "# user-authored\nsecrets/\n";
-        File.WriteAllText(userIgnorePath, userIgnoreContents);
-
         var bunApp = builder.AddBunApp("js", appDir, "server.ts");
 
         await ManifestUtils.GetManifest(bunApp.Resource, tempDir.Path);
 
         var perDockerfileIgnorePath = Path.Combine(tempDir.Path, "js.Dockerfile.dockerignore");
+        Assert.True(File.Exists(perDockerfileIgnorePath));
+
+        // User has authored their own .dockerignore at the context root after a previous publish.
+        // BuildKit gives per-Dockerfile ignore files precedence, so Aspire must remove the stale
+        // generated sibling to honor the user's file on the next publish to the same output path.
+        var userIgnorePath = Path.Combine(appDir, ".dockerignore");
+        var userIgnoreContents = "# user-authored\nsecrets/\n";
+        File.WriteAllText(userIgnorePath, userIgnoreContents);
+
+        await ManifestUtils.GetManifest(bunApp.Resource, tempDir.Path);
+
         Assert.False(File.Exists(perDockerfileIgnorePath), "Aspire should not shadow a user-authored context-root .dockerignore.");
 
         // User file is untouched.

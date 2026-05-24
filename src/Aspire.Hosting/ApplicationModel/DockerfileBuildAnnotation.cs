@@ -73,9 +73,9 @@ public class DockerfileBuildAnnotation(string contextPath, string dockerfilePath
     /// </summary>
     /// <remarks>
     /// When the build context root already contains a <c>.dockerignore</c> authored by the user,
-    /// no per-Dockerfile file is emitted so the user's file is honored — BuildKit gives per-Dockerfile
-    /// ignore files precedence over the context-root file, so emitting both would silently shadow
-    /// a user override. See https://docs.docker.com/build/concepts/context/#filename-and-location.
+    /// no per-Dockerfile file remains in the output so the user's file is honored — BuildKit gives
+    /// per-Dockerfile ignore files precedence over the context-root file, so emitting both would
+    /// silently shadow a user override. See https://docs.docker.com/build/concepts/context/#filename-and-location.
     /// </remarks>
     public string? BuildContextIgnoreContent { get; set; }
 
@@ -127,27 +127,35 @@ public class DockerfileBuildAnnotation(string contextPath, string dockerfilePath
     /// <c>&lt;outputDir&gt;/&lt;resource-name&gt;.Dockerfile</c>). The sibling
     /// <c>&lt;resourceDockerfilePath&gt;.dockerignore</c> is written next to it.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     /// <remarks>
-    /// Skipped when <see cref="BuildContextIgnoreContent"/> is null. Also skipped when the build
-    /// context root already contains a <c>.dockerignore</c> authored by the user — BuildKit gives
-    /// per-Dockerfile ignore files precedence over the context-root file, so emitting both would
-    /// silently shadow a user override. See
+    /// Skipped when <see cref="BuildContextIgnoreContent"/> is null. When the build context root
+    /// already contains a <c>.dockerignore</c> authored by the user, any existing per-Dockerfile
+    /// sibling is removed from the output so a stale generated file does not shadow the user's file.
+    /// BuildKit gives per-Dockerfile ignore files precedence over the context-root file. See
     /// https://docs.docker.com/build/concepts/context/#filename-and-location.
     /// </remarks>
     public async Task EmitBuildContextIgnoreAsync(string resourceDockerfilePath, CancellationToken cancellationToken)
     {
+        ArgumentException.ThrowIfNullOrEmpty(resourceDockerfilePath);
+
         if (BuildContextIgnoreContent is not { } content)
         {
             return;
         }
 
+        var perDockerfileIgnore = $"{resourceDockerfilePath}.dockerignore";
         var contextRootIgnore = Path.Combine(ContextPath, ".dockerignore");
         if (File.Exists(contextRootIgnore))
         {
+            if (File.Exists(perDockerfileIgnore))
+            {
+                File.Delete(perDockerfileIgnore);
+            }
+
             return;
         }
 
-        var perDockerfileIgnore = $"{resourceDockerfilePath}.dockerignore";
         await File.WriteAllTextAsync(perDockerfileIgnore, content, cancellationToken).ConfigureAwait(false);
     }
 }

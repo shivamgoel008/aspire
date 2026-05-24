@@ -96,6 +96,8 @@ internal sealed class KubernetesPublishingContext(
                     var resourceDockerfilePath = Path.Combine(OutputPath, $"{serviceResource.TargetResource.Name}.Dockerfile");
                     Directory.CreateDirectory(OutputPath);
                     File.Copy(dockerfileBuildAnnotation.DockerfilePath, resourceDockerfilePath, overwrite: true);
+
+                    await dockerfileBuildAnnotation.EmitBuildContextIgnoreAsync(resourceDockerfilePath, cancellationToken).ConfigureAwait(false);
                 }
 
                 if (serviceResource.TargetResource.TryGetAnnotationsOfType<KubernetesServiceCustomizationAnnotation>(out var annotations))
