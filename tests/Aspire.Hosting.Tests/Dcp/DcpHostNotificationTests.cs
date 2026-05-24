@@ -483,16 +483,14 @@ public sealed class DcpHostNotificationTests
     }
 
     [Fact]
-    public async Task CreateDcpProcessSpec_WithTlsCertThumbprint_IncludesThumbprintArgument()
+    public async Task CreateDcpProcessSpec_WithDcpDeveloperCertificateDefault_IncludesDeveloperCertificateArguments()
     {
-        // Arrange
         var activities = new ConcurrentBag<Activity>();
         using var listener = CreateActivityListener(ProfilingTelemetry.ActivitySourceName, activities.Add);
         using var certificate = CreateExportableCertificate();
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                [KnownConfigNames.DcpDeveloperCertificate] = "true",
                 [KnownConfigNames.ProfilingEnabled] = "true"
             })
             .Build();
@@ -533,10 +531,16 @@ public sealed class DcpHostNotificationTests
     [Fact]
     public async Task CreateDcpProcessSpec_WithDcpDeveloperCertificateDisabled_DoesNotIncludeThumbprintArgument()
     {
-        // Arrange - config not set, so PrepareDcpTlsCertificateAsync should not set the thumbprint
         using var certificate = CreateUntrustedCertificate();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                [KnownConfigNames.DcpDeveloperCertificate] = "false"
+            })
+            .Build();
         var dcpHost = CreateDcpHostForProcessSpecTests(
-            developerCertificateService: new TestDeveloperCertificateService([certificate], false, false, false));
+            developerCertificateService: new TestDeveloperCertificateService([certificate], false, false, false),
+            configuration: configuration);
         var locations = CreateTestLocations();
 
         await dcpHost.PrepareDcpTlsCertificateAsync(CancellationToken.None);
@@ -544,7 +548,7 @@ public sealed class DcpHostNotificationTests
         // Act
         var processSpec = dcpHost.CreateDcpProcessSpec(locations);
 
-        // Assert - thumbprint should not appear because config is not enabled
+        // Assert - thumbprint should not appear because config is explicitly disabled
         Assert.DoesNotContain("--tls-cert-thumbprint", processSpec.Arguments);
         Assert.DoesNotContain("--tls-cert-file", processSpec.Arguments);
         Assert.DoesNotContain("--tls-key-file", processSpec.Arguments);

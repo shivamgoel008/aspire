@@ -184,8 +184,9 @@ internal sealed class DcpHost
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        // Using the ASP.NET dev cert for DCP TLS is opt-in; by default DCP uses its own ephemeral certificate.
-        if (!_configuration.GetBool(KnownConfigNames.DcpDeveloperCertificate, defaultValue: false))
+        // DCP uses the ASP.NET dev cert for TLS by default. The environment variable remains
+        // available as an opt-out if users need DCP's ephemeral certificate behavior.
+        if (!_configuration.GetBool(KnownConfigNames.DcpDeveloperCertificate, defaultValue: true))
         {
             return;
         }
