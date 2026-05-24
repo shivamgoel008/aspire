@@ -230,13 +230,7 @@ internal class DeveloperCertificateService : IDeveloperCertificateService
         }
 
         // For dev certs we prefer reading from cache to avoid repeated keychain access prompts
-        var lookup = certificate.Thumbprint;
-        if (password is not null)
-        {
-            lookup += $"-{password}";
-        }
-
-        lookup = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(lookup)));
+        var lookup = GetKeyMaterialCacheLookup(certificate, password);
 
         // Ensure only one thread at a time is resolving certificates to avoid concurrent cache misses
         // all trying to update the cache at the same time.
@@ -263,7 +257,14 @@ internal class DeveloperCertificateService : IDeveloperCertificateService
             // Always produce both formats for caching, even if the caller only needs one.
             var result = ExportFromPrivateKey(certificate, password, needKeyPem: true, needPfx: true);
 
-            WriteCacheFiles(pfxFileName, result.pfxBytes, keyFileName, result.keyPem);
+            await WriteCacheFilesAsync(
+                certificateFileName: null,
+                certificatePem: null,
+                pfxFileName,
+                result.pfxBytes,
+                keyFileName,
+                result.keyPem,
+                cancellationToken).ConfigureAwait(false);
 
             return (needKeyPem ? result.keyPem : null, needPfx ? result.pfxBytes : null);
         }
@@ -271,6 +272,72 @@ internal class DeveloperCertificateService : IDeveloperCertificateService
         {
             s_certificateCacheSemaphore.Release();
         }
+    }
+
+    /// <summary>
+    /// Returns cached PEM certificate and key file paths for the specified developer certificate.
+    /// </summary>
+    /// <param name="certificate">The developer certificate to cache file material for.</param>
+    /// <param name="password">The password for the private key, or <c>null</c> for unencrypted export.</param>
+    /// <param name="cancellationToken">A token that can be used to cancel the operation.</param>
+    /// <returns>Cached PEM certificate and key file paths.</returns>
+    internal static async Task<(string certificateFilePath, string keyFilePath)> GetCertificateFilePathsAsync(
+        X509Certificate2 certificate,
+        string? password,
+        CancellationToken cancellationToken)
+    {
+        var lookup = GetKeyMaterialCacheLookup(certificate, password);
+        var certificateFileName = Path.Join(s_userDevCertificateLocation, $"{lookup}.crt");
+        var keyFileName = Path.Join(s_userDevCertificateLocation, $"{lookup}.key");
+
+        var (keyPem, _) = await GetKeyMaterialAsync(
+            certificate,
+            password,
+            needKeyPem: true,
+            needPfx: false,
+            cancellationToken).ConfigureAwait(false);
+
+        try
+        {
+            if (keyPem is null)
+            {
+                throw new InvalidOperationException("Failed to export the developer certificate private key.");
+            }
+
+            await WriteCacheFilesAsync(
+                certificateFileName,
+                Encoding.UTF8.GetBytes(certificate.ExportCertificatePem()),
+                pfxFileName: null,
+                pfxBytes: null,
+                keyFileName,
+                keyPem,
+                cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (keyPem is not null)
+            {
+                Array.Clear(keyPem);
+            }
+        }
+
+        if (TryReadCacheFile(certificateFileName) is null || TryReadCacheFile(keyFileName) is null)
+        {
+            throw new IOException($"Failed to cache developer certificate files in '{s_userDevCertificateLocation}'.");
+        }
+
+        return (certificateFileName, keyFileName);
+    }
+
+    private static string GetKeyMaterialCacheLookup(X509Certificate2 certificate, string? password)
+    {
+        var lookup = certificate.Thumbprint;
+        if (password is not null)
+        {
+            lookup += $"-{password}";
+        }
+
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(lookup)));
     }
 
     /// <summary>
@@ -353,9 +420,16 @@ internal class DeveloperCertificateService : IDeveloperCertificateService
     }
 
     /// <summary>
-    /// Writes PFX and PEM key cache files. Best-effort; failures are silently ignored.
+    /// Writes certificate, PFX, and PEM key cache files. Best-effort; failures are silently ignored.
     /// </summary>
-    private static void WriteCacheFiles(string pfxFileName, byte[]? pfxBytes, string keyFileName, char[]? keyPem)
+    private static async Task WriteCacheFilesAsync(
+        string? certificateFileName,
+        byte[]? certificatePem,
+        string? pfxFileName,
+        byte[]? pfxBytes,
+        string? keyFileName,
+        char[]? keyPem,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -368,19 +442,56 @@ internal class DeveloperCertificateService : IDeveloperCertificateService
                 Directory.CreateDirectory(s_userDevCertificateLocation, UnixFileMode.UserExecute | UnixFileMode.UserWrite | UnixFileMode.UserRead);
             }
 
-            if (pfxBytes is not null)
+            if (certificateFileName is not null && certificatePem is not null)
             {
-                File.WriteAllBytes(pfxFileName, pfxBytes);
+                await WriteCacheFileAsync(certificateFileName, certificatePem, cancellationToken).ConfigureAwait(false);
             }
 
-            if (keyPem is not null)
+            if (pfxFileName is not null && pfxBytes is not null)
             {
-                File.WriteAllBytes(keyFileName, Encoding.UTF8.GetBytes(keyPem));
+                await WriteCacheFileAsync(pfxFileName, pfxBytes, cancellationToken).ConfigureAwait(false);
             }
+
+            if (keyFileName is not null && keyPem is not null)
+            {
+                var keyBytes = Encoding.UTF8.GetBytes(keyPem);
+                try
+                {
+                    await WriteCacheFileAsync(keyFileName, keyBytes, cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    CryptographicOperations.ZeroMemory(keyBytes);
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch
         {
             // Best-effort caching operation.
         }
+    }
+
+    private static async Task WriteCacheFileAsync(string path, ReadOnlyMemory<byte> contents, CancellationToken cancellationToken)
+    {
+        var options = new FileStreamOptions
+        {
+            Mode = FileMode.Create,
+            Access = FileAccess.Write,
+            Share = FileShare.Read,
+            Options = FileOptions.Asynchronous
+        };
+
+        if (!OperatingSystem.IsWindows())
+        {
+            options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        }
+
+        using var stream = new FileStream(path, options);
+
+        await stream.WriteAsync(contents, cancellationToken).ConfigureAwait(false);
     }
 }

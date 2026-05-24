@@ -177,7 +177,6 @@ internal sealed class ProfilingTelemetry(IConfiguration configuration)
         public const string DashboardUrlSourceConfiguration = "configuration";
         public const string DcpTlsCertificateModeFiles = "files";
         public const string DcpTlsCertificateModeThumbprint = "thumbprint";
-        public const string DcpTlsCertificateResultKeyExportFailed = "key_export_failed";
         public const string DcpTlsCertificateResultMissingThumbprint = "missing_thumbprint";
         public const string DcpTlsCertificateResultNoCertificate = "no_certificate";
         public const string DcpTlsCertificateResultNoPrivateKeyCertificate = "no_private_key_certificate";

@@ -5,7 +5,6 @@ using System.Buffers;
 using System.Collections;
 using System.IO.Pipelines;
 using System.Net.Sockets;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Aspire.Dashboard.Utils;
@@ -238,53 +237,18 @@ internal sealed class DcpHost
             return;
         }
 
-        var (keyPem, _) = await DeveloperCertificateService.GetKeyMaterialAsync(
+        var (certificatePath, keyPath) = await DeveloperCertificateService.GetCertificateFilePathsAsync(
             certificate,
             password: null,
-            needKeyPem: true,
-            needPfx: false,
             cancellationToken).ConfigureAwait(false);
 
-        if (keyPem is null || keyPem.Length == 0)
-        {
-            _logger.LogWarning("Failed to export the developer certificate private key. DCP will use its default certificate.");
-            _dcpTlsCertThumbprint = null;
-            activity.SetDcpTlsCertificateResult(ProfilingTelemetry.Values.DcpTlsCertificateResultKeyExportFailed);
-            return;
-        }
-
-        try
-        {
-            var certificateDirectory = Path.Combine(_locations.DcpSessionDir, "tls");
-            Directory.CreateDirectory(certificateDirectory, UnixFileMode.UserExecute | UnixFileMode.UserWrite | UnixFileMode.UserRead);
-
-            var certificatePath = Path.Combine(certificateDirectory, "dcp-tls.crt");
-            var keyPath = Path.Combine(certificateDirectory, "dcp-tls.key");
-
-            await WriteFileWithUserOnlyPermissionsAsync(certificatePath, Encoding.UTF8.GetBytes(certificate.ExportCertificatePem()), cancellationToken).ConfigureAwait(false);
-
-            var keyBytes = Encoding.UTF8.GetBytes(keyPem);
-            try
-            {
-                await WriteFileWithUserOnlyPermissionsAsync(keyPath, keyBytes, cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                CryptographicOperations.ZeroMemory(keyBytes);
-            }
-
-            _dcpTlsCertFile = certificatePath;
-            _dcpTlsKeyFile = keyPath;
-            activity.SetDcpTlsCertificateResult(
-                ProfilingTelemetry.Values.DcpTlsCertificateResultPrepared,
-                ProfilingTelemetry.Values.DcpTlsCertificateModeFiles,
-                prepared: true);
-            _logger.LogDebug("Prepared DCP TLS certificate files for thumbprint {Thumbprint}.", thumbprint);
-        }
-        finally
-        {
-            Array.Clear(keyPem);
-        }
+        _dcpTlsCertFile = certificatePath;
+        _dcpTlsKeyFile = keyPath;
+        activity.SetDcpTlsCertificateResult(
+            ProfilingTelemetry.Values.DcpTlsCertificateResultPrepared,
+            ProfilingTelemetry.Values.DcpTlsCertificateModeFiles,
+            prepared: true);
+        _logger.LogDebug("Prepared DCP TLS certificate files for thumbprint {Thumbprint}.", thumbprint);
     }
 
     public async Task StopAsync()
@@ -398,26 +362,6 @@ internal sealed class DcpHost
         }
 
         return dcpProcessSpec;
-    }
-
-    private static async Task WriteFileWithUserOnlyPermissionsAsync(string path, ReadOnlyMemory<byte> contents, CancellationToken cancellationToken)
-    {
-        var options = new FileStreamOptions
-        {
-            Mode = FileMode.Create,
-            Access = FileAccess.Write,
-            Share = FileShare.Read,
-            Options = FileOptions.Asynchronous
-        };
-
-        if (!OperatingSystem.IsWindows())
-        {
-            options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
-        }
-
-        using var stream = new FileStream(path, options);
-
-        await stream.WriteAsync(contents, cancellationToken).ConfigureAwait(false);
     }
 
     private void SetDcpProfilingEnvironment(IDictionary<string, string> environmentVariables)
