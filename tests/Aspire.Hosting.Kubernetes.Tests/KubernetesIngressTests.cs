@@ -8,7 +8,7 @@ namespace Aspire.Hosting.Kubernetes.Tests;
 public class KubernetesIngressTests
 {
     [Fact]
-    public async Task AddIngress_WithRoute_GeneratesIngressYaml()
+    public async Task AddIngress_WithPath_GeneratesIngressYaml()
     {
         using var tempDir = new TestTempDirectory();
         var builder = TestDistributedApplicationBuilder.Create(DistributedApplicationOperation.Publish, tempDir.Path);
@@ -21,7 +21,7 @@ public class KubernetesIngressTests
             .WithHttpEndpoint(targetPort: 8080)
             .WithExternalHttpEndpoints();
 
-        ingress.WithRoute("/api", api.GetEndpoint("http"));
+        ingress.WithPath("/api", api.GetEndpoint("http"));
 
         var app = builder.Build();
         app.Run();
@@ -40,7 +40,7 @@ public class KubernetesIngressTests
     }
 
     [Fact]
-    public async Task AddIngress_WithHostRoute_GeneratesHostRule()
+    public async Task AddIngress_WithHostAndPath_GeneratesHostRule()
     {
         using var tempDir = new TestTempDirectory();
         var builder = TestDistributedApplicationBuilder.Create(DistributedApplicationOperation.Publish, tempDir.Path);
@@ -52,7 +52,7 @@ public class KubernetesIngressTests
             .WithHttpEndpoint(targetPort: 8080)
             .WithExternalHttpEndpoints();
 
-        ingress.WithRoute("api.example.com", "/", api.GetEndpoint("http"));
+        ingress.WithPath("api.example.com", "/", api.GetEndpoint("http"));
 
         var app = builder.Build();
         app.Run();
@@ -79,7 +79,7 @@ public class KubernetesIngressTests
             .WithExternalHttpEndpoints();
 
         ingress
-            .WithRoute("api.example.com", "/", api.GetEndpoint("http"))
+            .WithPath("api.example.com", "/", api.GetEndpoint("http"))
             .WithHostname("api.example.com").WithTls("my-tls-secret");
 
         var app = builder.Build();
@@ -107,7 +107,7 @@ public class KubernetesIngressTests
             .WithExternalHttpEndpoints();
 
         ingress
-            .WithRoute("api.example.com", "/", api.GetEndpoint("http"))
+            .WithPath("api.example.com", "/", api.GetEndpoint("http"))
             .WithTls("my-tls-secret")
             .WithHostname("api.example.com");
 
@@ -141,8 +141,8 @@ public class KubernetesIngressTests
             .WithExternalHttpEndpoints();
 
         // Two routes on the same host
-        ingress.WithRoute("example.com", "/api", api.GetEndpoint("http"));
-        ingress.WithRoute("example.com", "/", web.GetEndpoint("http"));
+        ingress.WithPath("example.com", "/api", api.GetEndpoint("http"));
+        ingress.WithPath("example.com", "/", web.GetEndpoint("http"));
 
         var app = builder.Build();
         app.Run();
@@ -170,7 +170,7 @@ public class KubernetesIngressTests
             .WithHttpEndpoint(targetPort: 8080)
             .WithExternalHttpEndpoints();
 
-        ingress.WithRoute("/", api.GetEndpoint("http"));
+        ingress.WithPath("/", api.GetEndpoint("http"));
 
         var app = builder.Build();
         app.Run();
@@ -194,7 +194,7 @@ public class KubernetesIngressTests
             .WithHttpEndpoint(targetPort: 8080)
             .WithExternalHttpEndpoints();
 
-        ingress.WithRoute("/exact", api.GetEndpoint("http"), IngressPathType.Exact);
+        ingress.WithPath("/exact", api.GetEndpoint("http"), IngressPathType.Exact);
 
         var app = builder.Build();
         app.Run();
@@ -270,8 +270,8 @@ public class KubernetesIngressTests
             .WithHttpEndpoint(targetPort: 9090)
             .WithExternalHttpEndpoints();
 
-        publicIngress.WithRoute("/", api.GetEndpoint("http"));
-        internalIngress.WithRoute("/admin", admin.GetEndpoint("http"));
+        publicIngress.WithPath("/", api.GetEndpoint("http"));
+        internalIngress.WithPath("/admin", admin.GetEndpoint("http"));
 
         var app = builder.Build();
         app.Run();
@@ -340,7 +340,7 @@ public class KubernetesIngressTests
 
         // Explicit route for the TLS host ΓÇö should NOT auto-generate another one
         ingress
-            .WithRoute("app.example.com", "/", web.GetEndpoint("http"))
+            .WithPath("app.example.com", "/", web.GetEndpoint("http"))
             .WithDefaultBackend(web.GetEndpoint("http"))
             .WithHostname("app.example.com").WithTls("my-tls-secret");
 
@@ -357,7 +357,7 @@ public class KubernetesIngressTests
     }
 
     [Fact]
-    public void WithRoute_InvalidPath_Throws()
+    public void WithPath_InvalidPath_Throws()
     {
         var builder = TestDistributedApplicationBuilder.Create(DistributedApplicationOperation.Publish);
         var k8s = builder.AddKubernetesEnvironment("env");
@@ -367,7 +367,7 @@ public class KubernetesIngressTests
             .WithHttpEndpoint(targetPort: 8080);
 
         Assert.Throws<ArgumentException>(() =>
-            ingress.WithRoute("no-leading-slash", api.GetEndpoint("http")));
+            ingress.WithPath("no-leading-slash", api.GetEndpoint("http")));
     }
 
     [Fact]
@@ -395,7 +395,7 @@ public class KubernetesIngressTests
     }
 
     [Fact]
-    public void AddIngress_WithRoute_NonExternalEndpoint_ThrowsOnPublish()
+    public void AddIngress_WithPath_NonExternalEndpoint_ThrowsOnPublish()
     {
         using var tempDir = new TestTempDirectory();
         var builder = TestDistributedApplicationBuilder.Create(DistributedApplicationOperation.Publish, tempDir.Path);
@@ -408,7 +408,7 @@ public class KubernetesIngressTests
         var api = builder.AddContainer("myapi", "nginx")
             .WithHttpEndpoint(targetPort: 8080);
 
-        ingress.WithRoute("/", api.GetEndpoint("http"));
+        ingress.WithPath("/", api.GetEndpoint("http"));
 
         var app = builder.Build();
         var aggregate = Assert.Throws<AggregateException>(app.Run);
@@ -443,7 +443,7 @@ public class KubernetesIngressTests
     }
 
     [Fact]
-    public async Task AddIngress_WithRoute_ExternalEndpoint_Succeeds()
+    public async Task AddIngress_WithPath_ExternalEndpoint_Succeeds()
     {
         using var tempDir = new TestTempDirectory();
         var builder = TestDistributedApplicationBuilder.Create(DistributedApplicationOperation.Publish, tempDir.Path);
@@ -451,12 +451,12 @@ public class KubernetesIngressTests
         var k8s = builder.AddKubernetesEnvironment("env");
         var ingress = k8s.AddIngress("public");
 
-        // WithExternalHttpEndpoints applied AFTER WithRoute to demonstrate that
+        // WithExternalHttpEndpoints applied AFTER WithPath to demonstrate that
         // authoring order does not matter: validation runs at publish time.
         var api = builder.AddContainer("myapi", "nginx")
             .WithHttpEndpoint(targetPort: 8080);
 
-        ingress.WithRoute("/", api.GetEndpoint("http"));
+        ingress.WithPath("/", api.GetEndpoint("http"));
 
         api.WithExternalHttpEndpoints();
 
