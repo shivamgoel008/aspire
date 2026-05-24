@@ -159,7 +159,7 @@ internal sealed class KubernetesPublishingContext(
     {
         foreach (var captured in environment.CapturedHelmValues)
         {
-            if (_helmValues[captured.Section] is not Dictionary<string, object> section)
+            if (!_helmValues.TryGetValue(captured.Section, out var section))
             {
                 continue;
             }

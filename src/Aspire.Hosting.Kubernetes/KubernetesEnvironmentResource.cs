@@ -605,14 +605,13 @@ public sealed class KubernetesEnvironmentResource : Resource, IComputeEnvironmen
                 : valueKey.ToHelmParameterExpression(owningResourceName);
         }
 
-        try
-        {
-            return (await valueProvider.GetValueAsync(cancellationToken).ConfigureAwait(false)) ?? string.Empty;
-        }
-        catch (MissingParameterValueException)
-        {
-            return string.Empty;
-        }
+        // For non-ParameterResource providers (string literals, endpoint references, etc.)
+        // resolve normally. If a nested provider throws MissingParameterValueException
+        // we intentionally let it propagate: silently substituting an empty string here
+        // would produce invalid Kubernetes manifest fields (e.g., `secretName: ""`,
+        // `hosts: [""]`) that only fail loudly at deploy time. Letting it throw surfaces
+        // the unresolved-parameter problem during publish.
+        return (await valueProvider.GetValueAsync(cancellationToken).ConfigureAwait(false)) ?? string.Empty;
     }
 
     private async Task ProcessIngressResources(DistributedApplicationModel model, Dictionary<IResource, KubernetesResource> deploymentTargets, ILogger logger, CancellationToken cancellationToken)
