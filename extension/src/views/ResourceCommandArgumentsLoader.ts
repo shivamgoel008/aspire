@@ -14,16 +14,16 @@ import {
 } from './ResourceCommandArguments';
 
 export interface ResourceCommandArgumentLoaderContext {
-    terminalProvider: AspireTerminalProvider;
+    cliExecutionProvider: AspireTerminalProvider;
     resourceName: string;
     commandName: string;
     appHostPath?: string;
 }
 
-// Builds a loader that shells out to `aspire resource <name> <command> --load-arguments` so that
-// callers (tree view, code lens, etc.) share a single implementation of dynamic argument loading.
-// Returns undefined when the CLI invocation fails so collectResourceCommandArguments can abort
-// the prompt flow.
+// Builds a loader that runs `aspire resource <name> <command> --load-arguments` as a hidden
+// child process from the extension host, not through the visible VS Code terminal. The
+// AspireTerminalProvider dependency is only used for CLI path/environment resolution; final
+// user-visible command execution still goes through sendAspireCommandToAspireTerminal.
 export function createResourceCommandArgumentLoader(context: ResourceCommandArgumentLoaderContext): ResourceCommandArgumentLoader {
     return values => loadResourceCommandArgumentInputs(context, values);
 }
@@ -44,7 +44,7 @@ async function loadResourceCommandArgumentInputs(
         { location: vscode.ProgressLocation.Window, title: resourceCommandLoadingDynamicInputs },
         async () => {
             try {
-                const cliPath = await context.terminalProvider.getAspireCliExecutablePath();
+                const cliPath = await context.cliExecutionProvider.getAspireCliExecutablePath();
                 const args = ['resource', context.resourceName, context.commandName, '--load-arguments', '--apphost', context.appHostPath!];
                 args.push(...buildResourceCommandCliArgs(values));
 
@@ -59,7 +59,7 @@ async function loadResourceCommandArgumentInputs(
                         }
                     };
 
-                    const child = spawnCliProcess(context.terminalProvider, cliPath, args, {
+                    const child = spawnCliProcess(context.cliExecutionProvider, cliPath, args, {
                         noExtensionVariables: true,
                         stdoutCallback: data => {
                             stdout += data;
@@ -87,8 +87,8 @@ async function loadResourceCommandArgumentInputs(
 
                                 extensionLogOutputChannel.warn('aspire resource --load-arguments returned JSON that was not resource command argument metadata.');
                             } catch (error) {
-                                // This command is a hidden machine-readable contract. If anything besides
-                                // the JSON metadata is written to stdout, fail the load so the CLI bug is
+                                // This hidden command is a machine-readable contract: stdout must be only
+                                // the JSON metadata payload. If it is not, fail the load so the CLI bug is
                                 // visible instead of silently accepting a partial parse.
                                 extensionLogOutputChannel.warn(`aspire resource --load-arguments returned invalid JSON stdout: ${error}`);
                             }

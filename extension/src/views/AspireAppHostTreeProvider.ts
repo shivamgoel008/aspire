@@ -794,7 +794,7 @@ export class AspireAppHostTreeProvider implements vscode.TreeDataProvider<TreeEl
             : this._findAppHostForResource(element)?.appHostPath;
 
         const loader = createResourceCommandArgumentLoader({
-            terminalProvider: this._terminalProvider,
+            cliExecutionProvider: this._terminalProvider,
             resourceName: element.resource.name,
             commandName,
             appHostPath: appHostPath ?? undefined,

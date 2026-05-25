@@ -141,7 +141,7 @@ export async function activate(context: vscode.ExtensionContext) {
     const commandArguments = await collectResourceCommandArguments(action, resourceCommand, {
       secretWarningState: context.globalState,
       loadDynamicArguments: createResourceCommandArgumentLoader({
-        terminalProvider,
+        cliExecutionProvider: terminalProvider,
         resourceName,
         commandName: action,
         appHostPath: appHostPath || undefined,

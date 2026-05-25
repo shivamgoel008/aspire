@@ -380,7 +380,7 @@ suite('ResourceCommandArguments', () => {
 
         try {
             const loader = createResourceCommandArgumentLoader({
-                terminalProvider,
+                cliExecutionProvider: terminalProvider,
                 resourceName: 'argument-commands',
                 commandName: 'dependent-arguments',
                 appHostPath: '/repo/AppHost.csproj',
@@ -432,7 +432,7 @@ suite('ResourceCommandArguments', () => {
 
         try {
             const loader = createResourceCommandArgumentLoader({
-                terminalProvider,
+                cliExecutionProvider: terminalProvider,
                 resourceName: 'argument-commands',
                 commandName: 'dependent-arguments',
                 appHostPath: '/repo/AppHost.csproj',
@@ -461,7 +461,7 @@ suite('ResourceCommandArguments', () => {
 
         try {
             const loader = createResourceCommandArgumentLoader({
-                terminalProvider,
+                cliExecutionProvider: terminalProvider,
                 resourceName: 'argument-commands',
                 commandName: 'dependent-arguments',
                 appHostPath: undefined,
