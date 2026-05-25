@@ -1,0 +1,19 @@
+{
+  "area": "Dashboard",
+  "areaEmoji": "📊",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "Updated `blazor.web.js` to the latest version to fix Dashboard failures when running with .NET 11 preview. The outdated file caused JS interop errors (e.g., `Blazor._internal.Virtualize.refreshObservers is not a function`) that prevented the Dashboard from loading.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🔧",
+  "firstMergedAt": "2026-05-24T23:30:44Z",
+  "lastMergedAt": "2026-05-24T23:30:44Z",
+  "name": "Fix Dashboard loading error with .NET 11 preview",
+  "owner": "JamesNK",
+  "prs": [
+    17445
+  ]
+}

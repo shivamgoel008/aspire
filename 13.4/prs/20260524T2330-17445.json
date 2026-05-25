@@ -1,0 +1,9 @@
+{
+  "author": "JamesNK",
+  "comment": "Bug fix: update blazor.web.js to fix Dashboard loading errors with .NET 11 preview",
+  "mergedAt": "2026-05-24T23:30:44Z",
+  "number": 17445,
+  "runDate": "2026-05-25T00:34:58Z",
+  "status": "included",
+  "title": "Update blazor.web.js to latest version in 11p4"
+}
