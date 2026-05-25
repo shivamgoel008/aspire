@@ -1,0 +1,19 @@
+{
+  "area": "Engineering",
+  "areaEmoji": "\ud83d\udd27",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Improvements",
+  "communityContributors": [],
+  "description": "The TypeScript API compatibility CI check now compares against the checked-in ATS baseline instead of regenerating it, and uses a single CLI invocation with the new --output-directory flag to scan multiple integrations. This significantly reduces CI time and process overhead for pull requests.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "\u26a1",
+  "firstMergedAt": "2026-05-25T03:40:27Z",
+  "lastMergedAt": "2026-05-25T03:40:27Z",
+  "name": "Faster TypeScript API compatibility checks",
+  "owner": "sebastienros",
+  "prs": [
+    17415
+  ]
+}

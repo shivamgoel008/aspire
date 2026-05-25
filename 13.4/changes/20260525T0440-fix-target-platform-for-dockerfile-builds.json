@@ -1,0 +1,17 @@
+{
+  "area": "AppHost",
+  "areaEmoji": "🏠",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": ["@McDonaldSean"],
+  "description": "Dockerfile builds in local dev (DCP) now correctly honor the configured target platform. The AddDockerfile default no longer pins linux/amd64 unconditionally — it only sets that platform in publish mode, using host architecture in run mode to avoid slow emulation. Fixes a bug where the local DCP path ignored the ContainerBuildOptionsCallbackAnnotation platform setting.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🎯",
+  "firstMergedAt": "2026-05-25T04:40:26Z",
+  "lastMergedAt": "2026-05-25T04:40:26Z",
+  "name": "Fix target platform for Dockerfile builds in local dev",
+  "owner": "mitchdenny",
+  "prs": [16700]
+}

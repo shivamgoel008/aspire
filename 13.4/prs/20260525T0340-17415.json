@@ -1,0 +1,9 @@
+{
+  "author": "sebastienros",
+  "comment": "Optimizes TypeScript API compat CI check to use checked-in baseline and single CLI invocation",
+  "mergedAt": "2026-05-25T03:40:27Z",
+  "number": 17415,
+  "runDate": "2026-05-25T05:33:36Z",
+  "status": "included",
+  "title": "Optimize TypeScript compatibility checks"
+}
