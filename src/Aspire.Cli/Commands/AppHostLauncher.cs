@@ -143,12 +143,12 @@ internal sealed class AppHostLauncher(
             effectiveAppHostFile.FullName,
             executionContext.HomeDirectory.FullName);
         var expectedHash = AppHostHelper.ExtractHashFromSocketPath(expectedSocketPrefix)!;
-        var legacyHash = AppHostHelper.ComputeLegacyHash(effectiveAppHostFile.FullName);
+        var legacyHashes = AppHostHelper.ComputeLegacyHashes(effectiveAppHostFile.FullName);
 
         logger.LogDebug("Waiting for socket with prefix: {SocketPrefix}, Hash: {Hash}", expectedSocketPrefix, expectedHash);
-        if (legacyHash is not null)
+        if (legacyHashes.Length > 0)
         {
-            logger.LogDebug("Also searching for legacy hash: {LegacyHash}", legacyHash);
+            logger.LogDebug("Also searching for legacy hash(es): {LegacyHashes}", string.Join(", ", legacyHashes));
         }
 
         // If --wait-for-debugger is active, show a message so the user knows the AppHost
@@ -165,9 +165,9 @@ internal sealed class AppHostLauncher(
         LaunchResult launchResult;
         try
         {
-            launchResult = await interactionService.ShowStatusAsync(
+            launchResult = await interactionService.ShowDynamicStatusAsync(
                 RunCommandStrings.StartingAppHostInBackground,
-                () => LaunchAndWaitForBackchannelAsync(executablePath, childArgs, expectedHash, legacyHash, TimeSpan.FromSeconds(timeoutSeconds), cancellationToken));
+                updateStatus => LaunchAndWaitForBackchannelAsync(executablePath, childArgs, expectedHash, legacyHashes, TimeSpan.FromSeconds(timeoutSeconds), updateStatus, cancellationToken));
         }
         catch (OperationCanceledException)
         {
@@ -324,8 +324,9 @@ internal sealed class AppHostLauncher(
         string executablePath,
         List<string> childArgs,
         string expectedHash,
-        string? legacyHash,
+        IReadOnlyList<string> legacyHashes,
         TimeSpan timeout,
+        Action<string> updateStatus,
         CancellationToken cancellationToken)
     {
         Process childProcess;
@@ -354,7 +355,7 @@ internal sealed class AppHostLauncher(
         logger.LogDebug("Child CLI process started with PID: {PID}", childProcess.Id);
 
         var startTime = timeProvider.GetUtcNow();
-        using var waitForBackchannelActivity = profilingTelemetry.StartDetachedWaitForBackchannel(childProcess.Id, expectedHash, legacyHash is not null);
+        using var waitForBackchannelActivity = profilingTelemetry.StartDetachedWaitForBackchannel(childProcess.Id, expectedHash, legacyHashes.Count > 0);
         var scanCount = 0;
         IAppHostAuxiliaryBackchannel? connection = null;
         DashboardUrlsState? dashboardUrls = null;
@@ -378,7 +379,7 @@ internal sealed class AppHostLauncher(
                 scanCount++;
 
                 connection ??= backchannelMonitor.GetConnectionsByHash(expectedHash).FirstOrDefault()
-                    ?? (legacyHash is not null ? backchannelMonitor.GetConnectionsByHash(legacyHash).FirstOrDefault() : null);
+                    ?? legacyHashes.SelectMany(backchannelMonitor.GetConnectionsByHash).FirstOrDefault();
                 if (connection is not null)
                 {
                     waitForBackchannelActivity.SetBackchannelScanCount(scanCount);
@@ -427,7 +428,9 @@ internal sealed class AppHostLauncher(
                                 return CreateChildExitedLaunchResult(childProcess, waitForBackchannelActivity, childStartedAt);
                             }
 
-                            break;
+                            updateStatus(RunCommandStrings.AppHostConnectionLostWaitingForExit);
+                            await childProcess.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+                            return CreateChildExitedLaunchResult(childProcess, waitForBackchannelActivity, childStartedAt);
                         }
 
                         if (appHostReady is null)
