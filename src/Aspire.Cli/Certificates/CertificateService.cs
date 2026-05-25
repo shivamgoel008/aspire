@@ -61,8 +61,7 @@ internal sealed class CertificateService(
         var isLinux = _isLinux();
 
         // In non-interactive environments on macOS and Windows we can't successfully
-        // prompt for trust (macOS Keychain password, Windows trust dialog) and we also
-        // don't want to silently generate a new certificate that won't be trusted.
+        // prompt for trust (macOS Keychain password, Windows trust dialog).
         // Skip the trust attempt but still check the current state so we can warn when
         // the environment does not already have a trusted certificate. Linux trust is
         // non-interactive so it's safe to run the full flow there.
@@ -71,6 +70,24 @@ internal sealed class CertificateService(
         if (!canPerformTrust)
         {
             var preCheck = certificateToolRunner.CheckHttpCertificate();
+
+            if (!preCheck.HasCertificates)
+            {
+                // No certificate exists yet. Generate one without trusting it so that
+                // Kestrel's UseHttps() can load the cert from the personal store.
+                // Trust requires user interaction (Windows dialog / macOS Keychain) which
+                // is not possible here, but generation is non-interactive and safe.
+                //
+                // The .NET SDK's first-run experience normally handles this: the first
+                // invocation of any `dotnet` command calls EnsureAspNetCoreHttpsDevelopmentCertificate
+                // (trust: false) and writes a sentinel to ~/.dotnet/ so it only runs once per
+                // SDK version. For C# AppHosts this happens implicitly via `dotnet run`, but
+                // non-.NET AppHost languages (TypeScript, Python, etc.) launch a prebuilt
+                // native binary and never invoke `dotnet`, so the first-run cert generation
+                // never triggers. This call ensures consistent behavior across all languages.
+                certificateToolRunner.EnsureHttpCertificateExists();
+            }
+
             if (preCheck.IsPartiallyTrusted)
             {
                 interactionService.DisplayMessage(KnownEmojis.Warning, ErrorStrings.CertificatesPartiallyTrustedNonInteractive);

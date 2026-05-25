@@ -63,6 +63,14 @@ internal sealed class NativeCertificateToolRunner(CertificateManager certificate
         }
     }
 
+    public EnsureCertificateResult EnsureHttpCertificateExists()
+    {
+        var now = DateTimeOffset.Now;
+        return certificateManager.EnsureAspNetCoreHttpsDevelopmentCertificate(
+            now, now.Add(TimeSpan.FromDays(365)),
+            trust: false);
+    }
+
     public EnsureCertificateResult TrustHttpCertificate()
     {
         if (_isLinux())
