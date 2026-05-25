@@ -492,6 +492,15 @@ internal sealed class InitCommand : BaseCommand
         // `config.Channel = context.Channel` unconditionally when non-empty, so without
         // this guard a user-edited channel would be silently overwritten.
         var resolvedChannel = await ResolvePersistableChannelNameAsync(cancellationToken);
+        if (string.Equals(resolvedChannel, PackageChannelNames.Stable, StringComparisons.ChannelName))
+        {
+            // The stable explicit channel is the same public-feed package set users get by default,
+            // but pinning it in polyglot config makes `aspire add` search only the synthetic
+            // NuGet.org config and hides packages from ambient private feeds. Non-default explicit
+            // channels still need persistence so they keep matching the CLI build that scaffolded.
+            resolvedChannel = null;
+        }
+
         if (!string.IsNullOrEmpty(resolvedChannel))
         {
             var existing = TryLoadExistingChannel(workingDirectory);
