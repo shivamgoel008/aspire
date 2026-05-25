@@ -634,9 +634,14 @@ public static class JavaScriptHostingExtensions
             .WithEnvironment("NODE_ENV", builder.ApplicationBuilder.Environment.IsDevelopment() ? "development" : "production")
             .WithCertificateTrustConfiguration((ctx) =>
             {
-                // Bun 1.3+ honors NODE_EXTRA_CA_CERTS the same way Node does, including for
-                // fetch() and the node:https/http modules. See the Node compatibility section
-                // of https://bun.com/blog/bun-v1.3-nodejs-compatibility#node-extra-ca-certs.
+                // Configure Bun's Node-compatible custom-CA hook for append-scope trust.
+                // See https://bun.com/blog/bun-v1.3-nodejs-compatibility#node-extra-ca-certs.
+                //
+                // Important: Bun 1.3.10 and 1.3.14 still fail to trust Aspire's injected
+                // self-signed localhost certificate for outgoing HTTPS requests with
+                // UNABLE_TO_VERIFY_LEAF_SIGNATURE, even when NODE_EXTRA_CA_CERTS is set.
+                // curl --cacert and Node.js with NODE_EXTRA_CA_CERTS accept the same cert.
+                // Track the Bun dependency in https://github.com/microsoft/aspire/issues/17455.
                 if (ctx.Scope == CertificateTrustScope.Append)
                 {
                     ctx.EnvironmentVariables["NODE_EXTRA_CA_CERTS"] = ctx.CertificateBundlePath;
@@ -646,6 +651,8 @@ public static class JavaScriptHostingExtensions
                     // Bun reads NODE_OPTIONS for a subset of Node flags including --use-openssl-ca,
                     // which switches TLS verification to the OS trust store (matching the Override
                     // and System scopes here). See https://bun.com/docs/cli/run#node-options.
+                    // This does not work around the Aspire dev-certificate issue above unless that
+                    // certificate is trusted by the selected OS/OpenSSL store.
                     if (ctx.EnvironmentVariables.TryGetValue("NODE_OPTIONS", out var existingOptionsObj))
                     {
                         ctx.EnvironmentVariables["NODE_OPTIONS"] = existingOptionsObj switch
