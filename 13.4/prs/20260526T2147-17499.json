@@ -1,0 +1,9 @@
+{
+  "author": "tommasodotNET",
+  "comment": "AppHost breaking change: Foundry agent builder APIs aligned with Aspire conventions (AddPromptAgent parameter order, PublishAsHostedAgent renamed to WithComputeEnvironment)",
+  "mergedAt": "2026-05-26T21:47:15Z",
+  "number": 17499,
+  "runDate": "2026-05-26T22:33:04Z",
+  "status": "included",
+  "title": "Update Foundry agent builder APIs"
+}

@@ -1,0 +1,19 @@
+{
+  "area": "Extensions",
+  "areaEmoji": "🧩",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "Health check status icons in VS Code extension resource tree view tooltips now display correctly as emoji instead of VS Code codicon references (e.g., `$(pass)`), which were rendered as literal text in markdown strings.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🩹",
+  "firstMergedAt": "2026-05-26T21:46:21Z",
+  "lastMergedAt": "2026-05-26T21:46:21Z",
+  "name": "Fix health status icons in resource tree view tooltips",
+  "owner": "JamesNK",
+  "prs": [
+    17489
+  ]
+}

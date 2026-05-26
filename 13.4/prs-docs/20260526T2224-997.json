@@ -1,0 +1,9 @@
+{
+  "author": "app/aspire-repo-bot",
+  "comment": "Documents WithComputeEnvironment polyglot examples matching PR #17499 Foundry API change",
+  "mergedAt": "2026-05-26T22:24:10Z",
+  "number": 997,
+  "runDate": "2026-05-26T22:33:04Z",
+  "status": "included",
+  "title": "[docs] Add polyglot WithComputeEnvironment examples to Kubernetes and Docker integration pages"
+}

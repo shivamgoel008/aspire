@@ -1,0 +1,21 @@
+{
+  "area": "AppHost",
+  "areaEmoji": "🏠",
+  "backport": false,
+  "breaking": true,
+  "changeType": "Improvements",
+  "communityContributors": [],
+  "description": "Foundry agent builder APIs updated to follow standard Aspire AppHost conventions: `AddPromptAgent` now takes the resource name as the first parameter (before the model), and `PublishAsHostedAgent` has been renamed to `WithComputeEnvironment` to align with other deployment targets. The preview-only `AsHostedAgent` and `RunAsHostedAgent` methods were removed.",
+  "docsPrs": [
+    997
+  ],
+  "docsRequired": true,
+  "emoji": "🔄",
+  "firstMergedAt": "2026-05-26T21:47:15Z",
+  "lastMergedAt": "2026-05-26T21:47:15Z",
+  "name": "Foundry agent builder API alignment with Aspire conventions",
+  "owner": "tommasodotNET",
+  "prs": [
+    17499
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "author": "IEvangelist",
+  "comment": "CLI improvement: skills migrated from embedded resources to external @microsoft/aspire-skills npm bundle",
+  "mergedAt": "2026-05-26T20:58:12Z",
+  "number": 17323,
+  "runDate": "2026-05-26T22:33:04Z",
+  "status": "included",
+  "title": "Migrate Aspire skills to external bundle"
+}

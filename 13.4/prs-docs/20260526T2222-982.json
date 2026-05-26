@@ -1,0 +1,9 @@
+{
+  "author": "IEvangelist",
+  "comment": "Doc fix: corrects a package reference in the multi-language integration authoring guide; no matching new changelog entry",
+  "mergedAt": "2026-05-26T22:22:39Z",
+  "number": 982,
+  "runDate": "2026-05-26T22:33:04Z",
+  "status": "excluded",
+  "title": "docs: Fix Aspire.Hosting.Integration.Analyzers package reference in multi-language integration authoring guide"
+}

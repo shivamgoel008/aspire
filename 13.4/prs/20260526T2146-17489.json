@@ -1,0 +1,9 @@
+{
+  "author": "JamesNK",
+  "comment": "Extension bug fix: health status icons now display as emoji instead of literal codicon references in resource tooltips",
+  "mergedAt": "2026-05-26T21:46:21Z",
+  "number": 17489,
+  "runDate": "2026-05-26T22:33:04Z",
+  "status": "included",
+  "title": "Use emoji instead of codicons for health status in resource tooltips"
+}

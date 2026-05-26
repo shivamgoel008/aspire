@@ -1,0 +1,9 @@
+{
+  "author": "davidfowl",
+  "comment": "Extension improvement: reapplies parser-backed AppHost resource parsing, updating existing entry 20260522T0441",
+  "mergedAt": "2026-05-26T21:13:44Z",
+  "number": 17480,
+  "runDate": "2026-05-26T22:33:04Z",
+  "status": "included",
+  "title": "Reapply parser-backed AppHost resource parsing"
+}

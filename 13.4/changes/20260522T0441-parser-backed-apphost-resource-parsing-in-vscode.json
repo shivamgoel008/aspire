@@ -1,20 +1,21 @@
 {
   "area": "Extensions",
-  "areaEmoji": "\ud83e\udde9",
+  "areaEmoji": "🧩",
   "backport": false,
   "breaking": false,
-  "changeType": "Bug fixes",
+  "changeType": "Improvements",
   "communityContributors": [],
-  "description": "Parser-backed syntax analysis for AppHost resource detection was introduced in the VS Code extension, then reverted within the same milestone to unblock internal build pipelines where Tree-sitter npm packages could not be resolved through the approved Azure DevOps package mirror. The net state is unchanged \u2014 regex-based scanning remains active.",
+  "description": "The VS Code extension now uses a parser-backed syntax analyzer (Tree-sitter) to detect AppHost resources, ensuring that commented-out resource declarations and sample code inside string literals are no longer incorrectly treated as active resources.",
   "docsPrs": [],
   "docsRequired": false,
-  "emoji": "\u21a9\ufe0f",
+  "emoji": "🌳",
   "firstMergedAt": "2026-05-22T04:41:18Z",
-  "lastMergedAt": "2026-05-23T15:36:01Z",
-  "name": "Parser-backed AppHost resource detection (reverted)",
-  "owner": "adamint",
+  "lastMergedAt": "2026-05-26T21:13:44Z",
+  "name": "Parser-backed AppHost resource detection in VS Code extension",
+  "owner": "davidfowl",
   "prs": [
     17361,
-    17413
+    17413,
+    17480
   ]
 }
