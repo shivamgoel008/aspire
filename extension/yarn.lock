@@ -5581,9 +5581,9 @@ tinyglobby@^0.2.15:
     picomatch "^4.0.3"
 
 tmp@^0.2.3:
-  version "0.2.5"
-  resolved "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-public-npm/npm/registry/tmp/-/tmp-0.2.5.tgz"
-  integrity sha1-sGvNI/DzyDV7QmiRcm0WAVq/2Pg=
+  version "0.2.6"
+  resolved "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-public-npm/npm/registry/tmp/-/tmp-0.2.6.tgz"
+  integrity sha1-DfrBD9CakxkojrDo8O1SRgThg7Q=
 
 to-absolute-glob@^2.0.0, to-absolute-glob@^2.0.2:
   version "2.0.2"
