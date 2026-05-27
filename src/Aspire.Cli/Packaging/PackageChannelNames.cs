@@ -38,4 +38,8 @@ internal static class PackageChannelNames
     /// Alias that resolves to the current PR dogfood CLI's concrete <c>pr-&lt;N&gt;</c> channel.
     /// </summary>
     public const string PrAlias = "pr";
+
+    public static bool ShouldPersistChannelName(string? channelName) =>
+        !string.IsNullOrEmpty(channelName) &&
+        !string.Equals(channelName, Stable, StringComparisons.ChannelName);
 }
