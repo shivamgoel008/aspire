@@ -6,7 +6,9 @@
   "changeType": "New features",
   "communityContributors": [],
   "description": "Go resources can now be debugged natively from the Aspire VS Code extension when the Go extension is installed, using dlv-dap for launch configuration. The AppHost emits Go launch metadata and the extension maps it to the golang.go debugger.",
-  "docsPrs": [],
+  "docsPrs": [
+    1082
+  ],
   "docsRequired": true,
   "emoji": "🐹",
   "firstMergedAt": "2026-05-26T23:10:08Z",

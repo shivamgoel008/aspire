@@ -1,0 +1,9 @@
+{
+  "author": "app/aspire-repo-bot",
+  "comment": "Backport of #17521; fixes aspire agent init --skills failing due to stale SLSA build type URL in attestation verifier",
+  "mergedAt": "2026-05-27T07:06:08Z",
+  "number": 17525,
+  "runDate": "2026-05-27T07:28:33Z",
+  "status": "included",
+  "title": "[release/13.4] Fix Aspire skills attestation build type"
+}

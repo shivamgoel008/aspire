@@ -1,0 +1,9 @@
+{
+  "author": "app/aspire-repo-bot",
+  "comment": "Documents VS Code Go debugging support for Aspire Hosting Go (aspire#17406); expands dlv-dap integration, golang.go extension requirement, build flag forwarding, and mutual exclusivity with WithDelveServer",
+  "mergedAt": "2026-05-27T07:23:09Z",
+  "number": 1082,
+  "runDate": "2026-05-27T07:28:33Z",
+  "status": "included",
+  "title": "[docs] Expand VS Code Go debugging section in go-host integration guide"
+}

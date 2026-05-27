@@ -1,0 +1,19 @@
+{
+  "area": "AppHost",
+  "areaEmoji": "🏠",
+  "backport": true,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "Older auxiliary backchannel clients remain compatible when the AppHost serves resource properties containing non-string values such as booleans, numbers, and arrays. Newer clients can opt in to typed JSON properties via the `aux.v4` capability. The resource action menu Start command filtering was also simplified to use the resource command model as the single source of truth.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🔌",
+  "firstMergedAt": "2026-05-27T05:54:03Z",
+  "lastMergedAt": "2026-05-27T05:54:03Z",
+  "name": "Fix backchannel compatibility for non-string resource properties",
+  "owner": "adamint",
+  "prs": [
+    17522
+  ]
+}

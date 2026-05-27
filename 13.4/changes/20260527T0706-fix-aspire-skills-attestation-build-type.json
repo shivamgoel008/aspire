@@ -1,0 +1,19 @@
+{
+  "area": "CLI",
+  "areaEmoji": "💻",
+  "backport": true,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "Fixed `aspire agent init --skills` failing to install the released Aspire skills bundle because the attestation verifier expected a stale SLSA build type URL. The installer now validates the GitHub release-asset build type used by `actions/attest-build-provenance@v3`.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🔐",
+  "firstMergedAt": "2026-05-27T07:06:08Z",
+  "lastMergedAt": "2026-05-27T07:06:08Z",
+  "name": "Fix Aspire skills attestation build type",
+  "owner": "IEvangelist",
+  "prs": [
+    17525
+  ]
+}
