@@ -1,0 +1,9 @@
+{
+  "author": "mitchdenny",
+  "comment": "Documents Kubernetes Ingress WithRoute renamed to WithPath",
+  "mergedAt": "2026-05-26T23:36:01Z",
+  "number": 1060,
+  "runDate": "2026-05-27T00:39:13Z",
+  "status": "included",
+  "title": "Docs: rename Ingress WithRoute to WithPath (K8s 13.4)"
+}

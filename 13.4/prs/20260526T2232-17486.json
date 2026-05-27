@@ -1,0 +1,9 @@
+{
+  "author": "mitchdenny",
+  "comment": "Test-only change quarantining a flaky CLI E2E test",
+  "mergedAt": "2026-05-26T22:32:46Z",
+  "number": 17486,
+  "runDate": "2026-05-27T00:39:13Z",
+  "status": "excluded",
+  "title": "test(cli): quarantine ResourceCommand_FailsWhenInteractionServiceIsRequired (#17485)"
+}

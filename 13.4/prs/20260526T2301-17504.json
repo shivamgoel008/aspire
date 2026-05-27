@@ -1,0 +1,9 @@
+{
+  "author": "sebastienros",
+  "comment": "Test-only change adding E2E test for legacy TypeScript apphost.ts compatibility",
+  "mergedAt": "2026-05-26T23:01:41Z",
+  "number": 17504,
+  "runDate": "2026-05-27T00:39:13Z",
+  "status": "excluded",
+  "title": "Add E2E test for legacy TypeScript apphost.ts compatibility"
+}

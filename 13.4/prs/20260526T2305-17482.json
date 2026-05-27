@@ -1,0 +1,9 @@
+{
+  "author": "JamesNK",
+  "comment": "Adds structured search syntax with field qualifiers to Dashboard and CLI telemetry/log search",
+  "mergedAt": "2026-05-26T23:05:30Z",
+  "number": 17482,
+  "runDate": "2026-05-27T00:39:13Z",
+  "status": "included",
+  "title": "Improve text searching with structured filtering"
+}

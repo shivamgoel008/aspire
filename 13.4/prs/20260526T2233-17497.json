@@ -1,0 +1,9 @@
+{
+  "author": "tommasodotNET",
+  "comment": "Exposes Foundry inference endpoint as a direct env var for non-.NET consumers",
+  "mergedAt": "2026-05-26T22:33:35Z",
+  "number": 17497,
+  "runDate": "2026-05-27T00:39:13Z",
+  "status": "included",
+  "title": "Expose Foundry inference endpoint env var"
+}

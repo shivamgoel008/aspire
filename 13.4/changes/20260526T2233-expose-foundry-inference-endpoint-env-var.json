@@ -1,0 +1,19 @@
+{
+  "area": "AppHost",
+  "areaEmoji": "🏠",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Improvements",
+  "communityContributors": [],
+  "description": "Foundry deployment references now expose an ENDPOINTAIINFERENCE environment variable so non-.NET consumers can use the AI inference endpoint directly without parsing the composite connection string.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "🤖",
+  "firstMergedAt": "2026-05-26T22:33:35Z",
+  "lastMergedAt": "2026-05-26T22:33:35Z",
+  "name": "Foundry inference endpoint exposed as env var",
+  "owner": "tommasodotNET",
+  "prs": [
+    17497
+  ]
+}

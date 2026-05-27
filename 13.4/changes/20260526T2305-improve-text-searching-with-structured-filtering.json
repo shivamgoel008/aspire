@@ -1,0 +1,19 @@
+{
+  "area": "Dashboard",
+  "areaEmoji": "📊",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Improvements",
+  "communityContributors": [],
+  "description": "Text search across traces, logs, and spans now supports structured field qualifiers (e.g., status:error, severity:warning, duration:>100), attribute filters (@attr:value), negation, and numeric comparisons — all terms are ANDed together for precise filtering.",
+  "docsPrs": [],
+  "docsRequired": true,
+  "emoji": "🔍",
+  "firstMergedAt": "2026-05-26T23:05:30Z",
+  "lastMergedAt": "2026-05-26T23:05:30Z",
+  "name": "Structured text search for traces and logs",
+  "owner": "JamesNK",
+  "prs": [
+    17482
+  ]
+}

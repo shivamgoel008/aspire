@@ -1,0 +1,9 @@
+{
+  "author": "app/aspire-repo-bot",
+  "comment": "Documents aspire update CLI version preflight check for guest AppHost projects (aspire#17100)",
+  "mergedAt": "2026-05-26T22:57:40Z",
+  "number": 1013,
+  "runDate": "2026-05-27T00:39:13Z",
+  "status": "included",
+  "title": "[docs] Update aspire update docs: CLI version preflight check for guest AppHost projects"
+}

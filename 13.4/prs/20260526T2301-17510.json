@@ -1,0 +1,9 @@
+{
+  "author": "sebastienros",
+  "comment": "Improves TypeScript brownfield workspace validation for init command",
+  "mergedAt": "2026-05-26T23:01:07Z",
+  "number": 17510,
+  "runDate": "2026-05-27T00:39:13Z",
+  "status": "included",
+  "title": "Expand TypeScript brownfield workspace validation"
+}

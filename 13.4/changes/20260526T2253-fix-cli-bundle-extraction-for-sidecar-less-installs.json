@@ -1,0 +1,19 @@
+{
+  "area": "CLI",
+  "areaEmoji": "💻",
+  "backport": false,
+  "breaking": false,
+  "changeType": "Bug fixes",
+  "communityContributors": [],
+  "description": "CLI bundle extraction now defaults to the user-owned Aspire home directory ($ASPIRE_HOME or ~/.aspire) for sidecar-less installs, fixing failures when the CLI is installed in read-only or system-managed locations such as a Nix store.",
+  "docsPrs": [],
+  "docsRequired": false,
+  "emoji": "📦",
+  "firstMergedAt": "2026-05-26T22:53:39Z",
+  "lastMergedAt": "2026-05-26T22:53:39Z",
+  "name": "Fix CLI bundle extraction for sidecar-less installs",
+  "owner": "danegsta",
+  "prs": [
+    17505
+  ]
+}

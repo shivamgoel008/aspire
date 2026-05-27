@@ -1,0 +1,9 @@
+{
+  "author": "IEvangelist",
+  "comment": "Bug fix for TypeScript AppHost deadlock when RunSyncOnBackgroundThread used with async exports",
+  "mergedAt": "2026-05-26T22:35:14Z",
+  "number": 17508,
+  "runDate": "2026-05-27T00:39:13Z",
+  "status": "included",
+  "title": "Fix TypeScript AppHost deadlock for async callbacks"
+}

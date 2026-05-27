@@ -6,7 +6,9 @@
   "changeType": "Improvements",
   "communityContributors": [],
   "description": "Kubernetes Ingress `WithRoute` has been renamed to `WithPath` to match the underlying `spec.rules[].http.paths[]` concept in Kubernetes YAML. The shared `IngressPathType` enum is split into `KubernetesIngressPathType` (for Ingress) and `KubernetesGatewayPathType` (for Gateway API) so each builder's path types accurately reflect the spec it targets.",
-  "docsPrs": [],
+  "docsPrs": [
+    1060
+  ],
   "docsRequired": true,
   "emoji": "🔀",
   "firstMergedAt": "2026-05-24T22:57:57Z",

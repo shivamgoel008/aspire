@@ -1,0 +1,9 @@
+{
+  "author": "danegsta",
+  "comment": "Fixes CLI bundle extraction for sidecar-less installs in read-only locations",
+  "mergedAt": "2026-05-26T22:53:39Z",
+  "number": 17505,
+  "runDate": "2026-05-27T00:39:13Z",
+  "status": "included",
+  "title": "Default CLI bundle extraction to Aspire home for sidecar-less installs"
+}
