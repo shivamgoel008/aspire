@@ -1,0 +1,9 @@
+{
+  "author": "app/aspire-repo-bot",
+  "comment": "Backport of #17262 - enriches TypeLoadException diagnostics for TypeScript AppHost version mismatches",
+  "mergedAt": "2026-05-27T20:52:30Z",
+  "number": 17556,
+  "runDate": "2026-05-27T22:36:20Z",
+  "status": "included",
+  "title": "[release/13.4] Enrich AppHost codegen TypeLoadException diagnostics"
+}
