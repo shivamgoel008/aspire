@@ -660,6 +660,78 @@ before we start writing code.
   absolute paths and a project-relative shorthand (e.g.
   `local:./artifacts/...`).
 
+**Provenance, signing, and static-feed integrity**
+
+- **What level of provenance checking do we want for builds
+  downloaded from blob storage, and what does that cost the user
+  on their machine?** Options run from "rely on existing NuGet
+  package signature verification only" (no new local toolchain),
+  through "verify a SLSA / in-toto attestation alongside each
+  feed" (likely requires a verifier embedded in the CLI), up to
+  "verify a Sigstore bundle / cosign signature" (requires
+  Sigstore tooling or an embedded library) or "verify an
+  Authenticode signature on the archive on Windows" (uses the
+  OS, but is Windows-only). The decision drives both confidence
+  level and the dev/CI machine requirements; we should pick the
+  weakest scheme that meaningfully raises the bar versus the
+  attacker model we care about, and avoid forcing a new
+  third-party install on contributors.
+- **Does a static NuGet v3 feed have any built-in integrity
+  mechanism we can lean on?** Short answer based on the spec
+  today: not really at the feed level — NuGet v3 service
+  index / registration / flat-container files are plain JSON /
+  binary blobs with no canonical signature. Package-level
+  integrity is provided by NuGet package signatures (author and
+  repository signatures embedded inside the `.nupkg`), which
+  the client verifies against trusted certificate roots. That
+  protects the **bytes inside each `.nupkg`** from tampering
+  after publish, but it does **not** protect the **feed
+  metadata** (which packages exist at which versions). A
+  malicious party with write access to the blob could
+  conceivably introduce a new `(id, version)` whose package
+  itself was legitimately signed but should not appear at this
+  URL. Confirm this analysis and decide what additional
+  integrity we layer on top (signed `index.json` manifest? a
+  signed "feed contents" attestation listing the expected
+  `(id, version, sha256)` tuples for this build? both?).
+- **What do we lose by serving a static feed instead of a live
+  NuGet server?** Enumerate concretely and decide whether any of
+  these costs are blockers:
+  - No server-side search (`?q=...`) for `aspire add`'s package
+    discovery; the CLI has to fetch and filter the catalog
+    locally. For per-build feeds this is fine (feed sizes are
+    bounded), but it changes what `IntegrationPackageSearchService`
+    can ask for in one round-trip.
+  - No server-side semver / framework / prerelease filtering;
+    the CLI does it after download.
+  - No live "package recall / unlist" — recall is a pointer
+    flip or an immutability override, both of which we already
+    discuss for staging.
+  - No incremental `/v3/registration/` updates; clients must
+    revalidate against the static file on each refresh.
+  - Caching behavior is whatever blob + AFD give us; we cannot
+    add server-side smarts like ETag-aware delta endpoints.
+  - Limited per-package telemetry (no per-request server logs
+    tied to a NuGet operation type), which can affect our
+    ability to measure adoption / debug failures. Decide whether
+    we need to compensate via CLI-side telemetry.
+- **Per-build attestations vs. per-package attestations.**
+  Should the provenance unit be the **feed** (one attestation
+  covering everything published from a given CI run) or the
+  **package** (one attestation per `.nupkg`)? Per-feed is
+  cheaper to verify and matches our publish unit; per-package
+  matches existing SLSA tooling. Open.
+- **Verifier story for the CLI itself.** If we ship an embedded
+  verifier (e.g. for SLSA or pointer-file signatures), it must
+  be AOT-safe and have zero native-tool runtime dependencies on
+  the user's machine. Confirm which crypto APIs are available
+  in the AOT-published CLI on all RIDs we support.
+- **Public-key rotation and breakglass.** If a signing key for
+  pointer files or feed attestations is compromised, what is
+  the user-facing recovery? CLI auto-update with a new pinned
+  thumbprint is one answer; need to confirm there is no scenario
+  where a stale CLI can be tricked into trusting a revoked key.
+
 ## Deliverable for the first iteration of this PR
 
 This is a big, sprawling change with real implementation risk, so
