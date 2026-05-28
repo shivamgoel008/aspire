@@ -9,13 +9,26 @@
 
 ## TL;DR
 
-Every Aspire CI build — PR, main, release/\*, GA — publishes a
-complete, immutable, static NuGet v3 feed to public Azure Blob
-storage at a per-build URL. Stable channel names (`daily`, `staging`,
-`pr-1234`, etc.) resolve through small mutable **pointer files** that
+Today the Aspire CLI resolves NuGet packages through five different
+channel-specific code paths: nuget.org for stable; a shared rolling
+`dnceng/public/_packaging/dotnet9` feed for daily; a SHA-derived
+`darc-pub-microsoft-aspire-<sha>` feed for staging (only synthesizable
+on stable-quality CLIs); a GitHub-Actions-artifact-plus-local-hive
+scheme for PRs (via `gh run download`); and a `~/.aspire/hives/*/packages`
+sideload for local. Resolution depends on the CLI's baked identity,
+the project channel, feature flags, override config, and the CLI
+version's commit hash, with quality-matrix fan-out behind it.
+
+This spec replaces all five with **one** code path. Every Aspire CI
+build — PR, main, release/\*, GA — publishes a complete, immutable,
+static NuGet v3 feed to public Azure Blob storage at a per-build URL.
+The existing channel names (`daily`, `staging`, `pr-1234`, etc.) keep
+working but now resolve through small mutable **pointer files** that
 name the current per-build feed URL for that channel. The CLI's job
 collapses to "fetch pointer file → use the URL it names." Almost all
-of today's channel-resolution machinery is then deletable.
+of today's channel-resolution machinery — the quality matrix, staging
+synthesis gating, SHA extraction, PR hive discovery, local hive
+sideload, override config keys — is then deletable.
 
 ```mermaid
 flowchart LR
