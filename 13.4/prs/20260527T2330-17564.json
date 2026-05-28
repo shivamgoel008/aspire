@@ -1,0 +1,9 @@
+{
+  "author": "sebastienros",
+  "comment": "Bug fix: pins aspire new to current CLI/SDK version when using channel flag to prevent floating to incompatible newer packages",
+  "mergedAt": "2026-05-27T23:30:34Z",
+  "number": 17564,
+  "runDate": "2026-05-28T00:35:27Z",
+  "status": "included",
+  "title": "Prefer current CLI template version for aspire new"
+}
