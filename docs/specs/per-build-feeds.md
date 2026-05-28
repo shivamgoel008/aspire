@@ -660,11 +660,18 @@ What it does **not** touch:
 ## Phased implementation plan (rough sequencing)
 
 The change touches storage, multiple CI pipelines, the acquisition
-scripts, the CLI, and shipped customer behavior. To avoid breaking
-anything live, the rollout is sequenced so each phase is
-independently revertible and **the existing channel/PackagingService
-code paths keep working as today until the very last phase deletes
-them**. The recurring technique is **shadow / sim-publish**: stand
+scripts, the CLI, and shipped customer behavior. The sequencing
+philosophy is **build the plane while we're flying it**: stand up
+each layer from the bottom (storage → publish workflow → pointer
+files → CLI resolver → per-channel cutover → pipeline merge →
+deletion), make sure that layer is genuinely *right* before the
+next one starts depending on it, and only replatform the layer
+above once the layer below is stable. The existing channel /
+PackagingService code paths keep working as today and stay the
+production path until the layer that replaces them has been
+exercised against real builds for a sustained period.
+
+The recurring technique is **shadow / sim-publish**: stand
 up the new infrastructure, publish to it in parallel with the
 current system, validate it against real builds for a sustained
 period, and only then cut consumers over.
@@ -678,8 +685,8 @@ not gates that block all other work.
 - This document reviewed and signed off.
 - Threat model written, candidate hardening controls chosen, IaC
   shape agreed.
-- No infrastructure, code, or pipeline changes yet. Failure mode:
-  redo the spec; nothing in production is touched.
+- No infrastructure, code, or pipeline changes yet — this phase
+  exists so the layers above have something correct to build on.
 
 ### Phase 1 — Stand up storage, but no consumer reads from it
 
@@ -688,13 +695,18 @@ not gates that block all other work.
 - No DNS / vanity hostname yet (or one that nothing depends on).
 - Manually upload a synthetic feed; verify a stock NuGet client
   can restore from it end-to-end against a throwaway project.
-- Failure mode: tear down the storage account; no consumer code
-  or pipeline change depends on it.
+- The goal of this phase is **a storage layer that is provably
+  correct in isolation** before anything in CI starts depending
+  on it. Get the IaC, identity trust policy, network rules, and
+  retention shape right here; the layers above will inherit those
+  choices.
 
 ### Phase 2 — Sim-publish from CI in parallel with today's pipelines
 
-This is the central risk-reduction phase and intentionally runs
-for **weeks**, not days.
+This is the central phase for getting the **publish layer** right
+before the resolver layer is built on top of it. It intentionally
+runs for **weeks**, not days — the point is to exercise the
+layer below against real builds until it is genuinely trustworthy.
 
 - Add the static-feed emit step to existing build pipelines so
   PR, daily, and release builds produce the `feed/` layout as a
@@ -716,9 +728,9 @@ for **weeks**, not days.
   across all build kinds, including at least one full
   staging → stable promotion exercised end-to-end against the
   blob layout (without actually flipping customer-visible
-  pointers).
-- Failure mode: disable the publish workflow; everything keeps
-  working off the existing channel infrastructure.
+  pointers). The publish layer must be *boring* — predictable,
+  signed, observable, well-understood — before any consumer
+  layer starts depending on it.
 
 ### Phase 3 — Pointer files and signing infrastructure
 
@@ -730,14 +742,15 @@ for **weeks**, not days.
   feature flag. **Disabled by default.** Internal opt-in only.
 - Internal dogfooding: ask team members to flip the flag and use
   the new resolver against the sim-published feeds for daily
-  work. Collect bug reports, iterate.
-- Failure mode: leave the flag off; CLI behavior is unchanged.
+  work. Collect bug reports, iterate until the resolver layer is
+  as boring as the publish layer below it.
 
 ### Phase 4 — Per-channel cutover, one channel at a time
 
-Cut consumers over in increasing order of blast radius, with a
-soak period between each step. Each cutover keeps the old code
-path reachable via fallback / flag for one full release cycle.
+With the publish, pointer, and resolver layers all running
+correctly underneath, consumers move over to the new path one
+channel at a time, in increasing order of blast radius, with a
+soak period between each step.
 
 1. **`pr-<N>` channel first.** Lowest blast radius — only people
    testing PR builds notice if it breaks, and they already know
@@ -758,10 +771,6 @@ path reachable via fallback / flag for one full release cycle.
    resolves to nuget.org by default; what changes is the
    *internal* promotion path that produces those nuget.org
    uploads.
-
-Each step's failure mode is "flip the per-channel feature flag /
-pointer back to the legacy path." No step requires the previous
-step to be irreversible.
 
 ### Phase 5 — Merge staging + stable pipelines into one signed-bits pipeline
 
