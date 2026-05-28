@@ -15,7 +15,7 @@ internal static class ProcessCaptureRunner
     // abandon the process. 2s is well above the <100ms typical post-kill exit
     // latency but small enough not to noticeably stall the caller.
     private static readonly TimeSpan s_postKillExitWaitBound = TimeSpan.FromSeconds(2);
-    private static readonly TimeSpan s_postKillCaptureWaitBound = TimeSpan.FromMilliseconds(250);
+    private static readonly TimeSpan s_postKillCaptureWaitBound = TimeSpan.FromSeconds(2);
 
     public static async Task<ProcessCaptureResult<TCapture>> RunAsync<TCapture>(
         ProcessStartInfo startInfo,
@@ -137,6 +137,10 @@ internal static class ProcessCaptureRunner
             // budget (potentially several seconds for a peer that exited in
             // milliseconds). Cap the post-exit drain at the same bound we use after a
             // kill so the success path doesn't pay the full timeout for that scenario.
+            // Keep this comfortably above a scheduling quantum: on loaded Windows CI,
+            // short-lived cmd.exe wrappers can exit before the async pipe readers get
+            // enough CPU to observe EOF, and treating that as empty output makes
+            // otherwise-successful probes flaky.
             var capture = await SwallowCaptureAsync(captureTask, createEmptyCapture, logger, s_postKillCaptureWaitBound).ConfigureAwait(false);
             var exitCode = process.ExitCode;
 
