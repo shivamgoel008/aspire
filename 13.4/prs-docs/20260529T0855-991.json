@@ -1,0 +1,9 @@
+{
+  "author": "app/aspire-repo-bot",
+  "comment": "Documents CLI log path in aspire ps and failed command output (aspire#17168)",
+  "mergedAt": "2026-05-29T08:55:31Z",
+  "number": 991,
+  "runDate": "2026-05-29T09:12:50Z",
+  "status": "included",
+  "title": "[docs] Update aspire ps and resource command docs for CLI log path"
+}

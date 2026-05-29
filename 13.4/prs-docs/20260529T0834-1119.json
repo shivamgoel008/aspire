@@ -1,0 +1,9 @@
+{
+  "author": "app/aspire-repo-bot",
+  "comment": "Documents aspire#17588 from milestone 13.5; no matching 13.4 changelog entry",
+  "mergedAt": "2026-05-29T08:34:51Z",
+  "number": 1119,
+  "runDate": "2026-05-29T09:12:50Z",
+  "status": "excluded",
+  "title": "[docs] Document Ctrl+C shutdown behavior for aspire run"
+}
