@@ -30,9 +30,40 @@ internal sealed class ProcessShutdownService(
         bool includeStartTimeForDcp,
         CancellationToken cancellationToken)
     {
+        return StopProcessTreeAsync(
+            pid,
+            startTime,
+            includeStartTimeForDcp,
+            forceKillEntireProcessTree: !OperatingSystem.IsWindows(),
+            cancellationToken);
+    }
+
+    public Task<bool> StopProcessTreeAsync(
+        int pid,
+        DateTimeOffset? startTime,
+        bool includeStartTimeForDcp,
+        bool forceKillEntireProcessTree,
+        CancellationToken cancellationToken)
+    {
         return StopProcessesAsync(
             [new ProcessTarget(pid, startTime)],
+            [new ProcessTarget(pid, startTime)],
             token => RequestProcessTreeGracefulShutdownAsync(pid, startTime, includeStartTimeForDcp, token),
+            forceKillEntireProcessTree,
+            cancellationToken);
+    }
+
+    public Task<bool> StopProcessGroupAsync(
+        int pid,
+        DateTimeOffset? startTime,
+        bool forceKillEntireProcessTree,
+        CancellationToken cancellationToken)
+    {
+        return StopProcessesAsync(
+            [new ProcessTarget(pid, startTime)],
+            [new ProcessTarget(pid, startTime)],
+            token => RequestProcessGroupGracefulShutdownAsync(pid, startTime, token),
+            forceKillEntireProcessTree,
             cancellationToken);
     }
 
@@ -59,6 +90,7 @@ internal sealed class ProcessShutdownService(
             processesToMonitor: [appHostProcess],
             processesToForceKill,
             token => RequestAppHostGracefulShutdownAsync(appHostInfo, requestRpcStopAsync, token),
+            forceKillEntireProcessTree: !OperatingSystem.IsWindows(),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -71,6 +103,7 @@ internal sealed class ProcessShutdownService(
             processesToMonitorAndKill,
             processesToMonitorAndKill,
             requestGracefulShutdownAsync,
+            forceKillEntireProcessTree: !OperatingSystem.IsWindows(),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -78,30 +111,23 @@ internal sealed class ProcessShutdownService(
         IReadOnlyCollection<ProcessTarget> processesToMonitor,
         IReadOnlyCollection<ProcessTarget> processesToForceKill,
         Func<CancellationToken, Task<bool>> requestGracefulShutdownAsync,
+        bool forceKillEntireProcessTree,
         CancellationToken cancellationToken)
     {
         var gracefulShutdownRequested = await TryRequestGracefulShutdownAsync(requestGracefulShutdownAsync, cancellationToken).ConfigureAwait(false);
         if (gracefulShutdownRequested && await MonitorProcessesForTerminationAsync(processesToMonitor, cancellationToken).ConfigureAwait(false))
         {
-            ForceKillRemainingProcesses(processesToForceKill.Except(processesToMonitor), afterTimeout: false);
+            ForceKillRemainingProcesses(processesToForceKill.Except(processesToMonitor), afterTimeout: false, killEntireProcessTree: forceKillEntireProcessTree);
             return true;
         }
 
-        ForceKillRemainingProcesses(processesToForceKill, afterTimeout: true);
+        ForceKillRemainingProcesses(processesToForceKill, afterTimeout: true, killEntireProcessTree: forceKillEntireProcessTree);
 
         return await MonitorProcessesForTerminationAsync(processesToMonitor, cancellationToken).ConfigureAwait(false);
     }
 
-    private void ForceKillRemainingProcesses(IEnumerable<ProcessTarget> processes, bool afterTimeout)
+    private void ForceKillRemainingProcesses(IEnumerable<ProcessTarget> processes, bool afterTimeout, bool killEntireProcessTree)
     {
-        // On Unix the AppHost's process tree does not include DCP (it is launched in its own
-        // session/process group), so a tree kill of the AppHost is safe: DCP will detect the
-        // AppHost exiting and gracefully tear down its own children. The same applies to the
-        // launcher CLI handle - any leftover `dotnet run` / AppHost descendants get cleaned up.
-        // On Windows DCP is an in-tree descendant of the AppHost, so we must single-process-kill
-        // here and rely on the graceful DCP `stop-process-tree` path for orderly resource cleanup.
-        var killEntireProcessTree = !OperatingSystem.IsWindows();
-
         foreach (var process in processes.Distinct())
         {
             if (afterTimeout)
@@ -209,6 +235,16 @@ internal sealed class ProcessShutdownService(
         logger.LogDebug("Sending stop signal to process {Pid}", pid);
         ProcessSignaler.RequestGracefulShutdown(pid, startTime, logger);
         return true;
+    }
+
+    private Task<bool> RequestProcessGroupGracefulShutdownAsync(
+        int pid,
+        DateTimeOffset? startTime,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ProcessSignaler.RequestGracefulShutdownForProcessGroup(pid, startTime, logger);
+        return Task.FromResult(true);
     }
 
     internal async Task<bool> TryStopProcessTreeWithDcpAsync(int pid, DateTimeOffset? startTime, bool includeStartTime, CancellationToken cancellationToken)

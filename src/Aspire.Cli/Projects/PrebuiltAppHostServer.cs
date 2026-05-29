@@ -906,6 +906,10 @@ internal sealed class PrebuiltAppHostServer : IAppHostServerProject, IDisposable
             UseShellExecute = false,
             CreateNoWindow = true
         };
+        if (OperatingSystem.IsWindows())
+        {
+            startInfo.CreateNewProcessGroup = true;
+        }
 
         // Insert "server" subcommand, then remaining args
         startInfo.ArgumentList.Add("server");

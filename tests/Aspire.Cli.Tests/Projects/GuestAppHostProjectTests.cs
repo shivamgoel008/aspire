@@ -4,7 +4,9 @@
 using Aspire.Cli.Configuration;
 using Aspire.Cli.Diagnostics;
 using Aspire.Cli.Interaction;
+using Aspire.Cli.Layout;
 using Aspire.Cli.Packaging;
+using Aspire.Cli.Processes;
 using Aspire.Cli.Projects;
 using Aspire.Cli.Telemetry;
 using Aspire.Cli.Tests.TestServices;
@@ -935,7 +937,14 @@ public class GuestAppHostProjectTests : IDisposable
             executionContext: executionContext,
             logger: NullLogger<GuestAppHostProject>.Instance,
             fileLoggerProvider: new FileLoggerProvider(logFilePath, new TestStartupErrorWriter()),
-            profilingTelemetry: _profilingTelemetry);
+            profilingTelemetry: _profilingTelemetry,
+            processShutdownService: new ProcessShutdownService(
+                new NullLayoutDiscovery(),
+                new NullBundleService(),
+                new LayoutProcessRunner(new TestProcessExecutionFactory()),
+                executionContext,
+                NullLogger<ProcessShutdownService>.Instance,
+                TimeProvider.System));
     }
 
 }

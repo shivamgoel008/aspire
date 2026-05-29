@@ -483,6 +483,11 @@ internal sealed class DotNetBasedAppHostServerProject : IAppHostServerProject
             UseShellExecute = false,
             CreateNoWindow = true
         };
+        if (OperatingSystem.IsWindows())
+        {
+            startInfo.CreateNewProcessGroup = true;
+        }
+
         startInfo.ArgumentList.Add("exec");
         startInfo.ArgumentList.Add(assemblyPath);
 

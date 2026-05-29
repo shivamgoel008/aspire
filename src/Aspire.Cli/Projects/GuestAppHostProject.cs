@@ -11,6 +11,7 @@ using Aspire.Cli.Diagnostics;
 using Aspire.Cli.DotNet;
 using Aspire.Cli.Interaction;
 using Aspire.Cli.Packaging;
+using Aspire.Cli.Processes;
 using Aspire.Cli.Resources;
 using Aspire.Cli.Telemetry;
 using Aspire.Cli.Utils;
@@ -47,6 +48,7 @@ internal sealed class GuestAppHostProject : IAppHostProject, IGuestAppHostSdkGen
     private readonly TimeProvider _timeProvider;
     private readonly RunningInstanceManager _runningInstanceManager;
     private readonly ProfilingTelemetry _profilingTelemetry;
+    private readonly ProcessShutdownService _processShutdownService;
 
     // Language is always resolved via constructor
     private readonly LanguageInfo _resolvedLanguage;
@@ -67,6 +69,7 @@ internal sealed class GuestAppHostProject : IAppHostProject, IGuestAppHostSdkGen
         ILogger<GuestAppHostProject> logger,
         FileLoggerProvider fileLoggerProvider,
         ProfilingTelemetry profilingTelemetry,
+        ProcessShutdownService processShutdownService,
         TimeProvider? timeProvider = null)
     {
         _resolvedLanguage = language;
@@ -83,6 +86,7 @@ internal sealed class GuestAppHostProject : IAppHostProject, IGuestAppHostSdkGen
         _logger = logger;
         _fileLoggerProvider = fileLoggerProvider;
         _profilingTelemetry = profilingTelemetry;
+        _processShutdownService = processShutdownService;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _runningInstanceManager = new RunningInstanceManager(_logger, _interactionService, _timeProvider);
     }
@@ -272,7 +276,8 @@ internal sealed class GuestAppHostProject : IAppHostProject, IGuestAppHostSdkGen
             environmentVariables: null,
             debug: false,
             _logger,
-            _profilingTelemetry);
+            _profilingTelemetry,
+            _processShutdownService);
 
         // Step 3: Connect to server
         var rpcClient = await serverSession.GetRpcClientAsync(cancellationToken);
@@ -428,7 +433,8 @@ internal sealed class GuestAppHostProject : IAppHostProject, IGuestAppHostSdkGen
                     launchSettingsEnvVars,
                     context.Debug,
                     _logger,
-                    _profilingTelemetry);
+                    _profilingTelemetry,
+                    _processShutdownService);
                 try
                 {
                     // Give the server a moment to start
@@ -1008,7 +1014,8 @@ internal sealed class GuestAppHostProject : IAppHostProject, IGuestAppHostSdkGen
                     launchSettingsEnvVars,
                     context.Debug,
                     _logger,
-                    _profilingTelemetry);
+                    _profilingTelemetry,
+                    _processShutdownService);
 
                 // Start connecting to the backchannel (fire-and-forget) so the caller is unblocked
                 // as soon as the server is reachable; the post-start work below races alongside it.
@@ -1799,7 +1806,7 @@ internal sealed class GuestAppHostProject : IAppHostProject, IGuestAppHostSdkGen
                 runtimeSpec = TypeScriptAppHostToolchainResolver.ApplyToRuntimeSpec(runtimeSpec, toolchain);
             }
 
-            _guestRuntime = new GuestRuntime(runtimeSpec, _logger, _fileLoggerProvider, profilingTelemetry: _profilingTelemetry);
+            _guestRuntime = new GuestRuntime(runtimeSpec, _logger, _fileLoggerProvider, profilingTelemetry: _profilingTelemetry, processShutdownService: _processShutdownService);
 
             _logger.LogDebug("Created GuestRuntime for {RuntimeDisplayName}: Execute={Command} {Args}",
                 runtimeSpec.DisplayName,

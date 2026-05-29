@@ -3,6 +3,7 @@
 
 using System.Diagnostics;
 using Aspire.Cli.Configuration;
+using Aspire.Cli.Processes;
 using Aspire.Cli.Telemetry;
 using Aspire.Cli.Utils;
 using Aspire.Hosting;
@@ -23,6 +24,7 @@ internal sealed class AppHostServerSession : IAppHostServerSession
     private readonly ProfilingTelemetry.ActivityScope _activity;
     private readonly ProfilingTelemetry? _profilingTelemetry;
     private readonly IDisposable? _projectLifetime;
+    private readonly ProcessShutdownService? _processShutdownService;
     private IAppHostRpcClient? _rpcClient;
     private bool _disposed;
 
@@ -34,7 +36,8 @@ internal sealed class AppHostServerSession : IAppHostServerSession
         ILogger logger,
         ProfilingTelemetry.ActivityScope activity = default,
         ProfilingTelemetry? profilingTelemetry = null,
-        IDisposable? projectLifetime = null)
+        IDisposable? projectLifetime = null,
+        ProcessShutdownService? processShutdownService = null)
     {
         _serverProcess = serverProcess;
         _output = output;
@@ -44,6 +47,7 @@ internal sealed class AppHostServerSession : IAppHostServerSession
         _activity = activity;
         _profilingTelemetry = profilingTelemetry;
         _projectLifetime = projectLifetime;
+        _processShutdownService = processShutdownService;
     }
 
     /// <inheritdoc />
@@ -68,13 +72,15 @@ internal sealed class AppHostServerSession : IAppHostServerSession
     /// <param name="debug">Whether to enable debug logging for the server.</param>
     /// <param name="logger">The logger to use for lifecycle diagnostics.</param>
     /// <param name="profilingTelemetry">Optional profiling telemetry for the server process lifetime.</param>
+    /// <param name="processShutdownService">Optional shared process shutdown coordinator.</param>
     /// <returns>The started AppHost server session.</returns>
     internal static AppHostServerSession Start(
         IAppHostServerProject appHostServerProject,
         Dictionary<string, string>? environmentVariables,
         bool debug,
         ILogger logger,
-        ProfilingTelemetry? profilingTelemetry = null)
+        ProfilingTelemetry? profilingTelemetry = null,
+        ProcessShutdownService? processShutdownService = null)
     {
         var currentPid = Environment.ProcessId;
         var serverEnvironmentVariables = environmentVariables is null
@@ -127,7 +133,8 @@ internal sealed class AppHostServerSession : IAppHostServerSession
             logger,
             activity,
             profilingTelemetry,
-            appHostServerProject as IDisposable);
+            appHostServerProject as IDisposable,
+            processShutdownService);
     }
 
     /// <inheritdoc />
@@ -156,14 +163,27 @@ internal sealed class AppHostServerSession : IAppHostServerSession
 
         if (!_serverProcess.HasExited)
         {
-            try
+            var stopped = false;
+            if (_processShutdownService is not null)
             {
-                _serverProcess.Kill(entireProcessTree: true);
-                _activity.SetError("AppHost server process was terminated during session disposal.");
+                stopped = await _processShutdownService.StopProcessGroupAsync(
+                    _serverProcess.Id,
+                    TryGetServerProcessStartTime(),
+                    forceKillEntireProcessTree: !OperatingSystem.IsWindows(),
+                    CancellationToken.None).ConfigureAwait(false);
             }
-            catch (Exception ex)
+
+            if (!stopped && !_serverProcess.HasExited)
             {
-                _logger.LogDebug(ex, "Error killing AppHost server process");
+                try
+                {
+                    _serverProcess.Kill(entireProcessTree: !OperatingSystem.IsWindows());
+                    _activity.SetError("AppHost server process was terminated during session disposal.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Error killing AppHost server process");
+                }
             }
         }
 
@@ -175,6 +195,19 @@ internal sealed class AppHostServerSession : IAppHostServerSession
         _serverProcess.Dispose();
         _projectLifetime?.Dispose();
         _activity.Dispose();
+    }
+
+    private DateTimeOffset? TryGetServerProcessStartTime()
+    {
+        try
+        {
+            return new DateTimeOffset(_serverProcess.StartTime);
+        }
+        catch (InvalidOperationException)
+        {
+            // The process exited between the HasExited check and shutdown coordination.
+            return null;
+        }
     }
 }
 

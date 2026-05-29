@@ -30,6 +30,26 @@ internal static partial class ProcessSignaler
         }
     }
 
+    public static void RequestGracefulShutdownForProcessGroup(int pid, DateTimeOffset? expectedStartTime, ILogger logger)
+    {
+        using var process = TryGetRunningProcess(pid, expectedStartTime, logger);
+        if (process is null)
+        {
+            return; // Process is not running or does not match the expected start time
+        }
+
+        logger.LogDebug("Requesting graceful shutdown of process group {Pid}...", pid);
+
+        if (OperatingSystem.IsWindows())
+        {
+            RequestGracefulShutdownWindowsProcessGroup(pid, logger);
+        }
+        else
+        {
+            RequestGracefulShutdownUnix(pid, logger);
+        }
+    }
+
     public static void ForceKill(int pid, DateTimeOffset? expectedStartTime, ILogger logger, bool killEntireProcessTree = false)
     {
         using var process = TryGetRunningProcess(pid, expectedStartTime, logger);
@@ -91,6 +111,21 @@ internal static partial class ProcessSignaler
     }
 
     private const int SigTerm = 15;
+    // Use CTRL_BREAK_EVENT for Windows process-group shutdown. Ctrl+C is not suitable here because
+    // Windows disables Ctrl+C delivery for processes launched with CREATE_NEW_PROCESS_GROUP.
+    // See https://learn.microsoft.com/windows/console/generateconsolectrlevent.
+    private const uint CtrlBreakEvent = 1;
+
+    private static void RequestGracefulShutdownWindowsProcessGroup(int pid, ILogger logger)
+    {
+        var result = GenerateConsoleCtrlEvent(CtrlBreakEvent, (uint)pid);
+        if (!result)
+        {
+            int error = Marshal.GetLastWin32Error();
+            // Best effort.
+            logger.LogWarning("Could not gracefully stop Aspire application host process group {Pid}; the error code from signal send operation was {ErrorCode}", pid, error);
+        }
+    }
 
     private static void RequestGracefulShutdownUnix(int pid, ILogger logger)
     {
@@ -107,4 +142,8 @@ internal static partial class ProcessSignaler
     // See https://developers.redhat.com/blog/2019/03/25/using-net-pinvoke-for-linux-system-functions
     [LibraryImport("libc", SetLastError = true, EntryPoint = "kill")]
     private static partial int kill(int pid, int sig);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GenerateConsoleCtrlEvent(uint dwCtrlEvent, uint dwProcessGroupId);
 }

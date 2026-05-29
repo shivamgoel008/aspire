@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Aspire.Cli.Diagnostics;
+using Aspire.Cli.Processes;
 using Aspire.Cli.Telemetry;
 using Aspire.Cli.Utils;
 using Aspire.TypeSystem;
@@ -20,6 +21,7 @@ internal sealed class GuestRuntime
     private readonly FileLoggerProvider? _fileLoggerProvider;
     private readonly Func<string, string?> _commandResolver;
     private readonly ProfilingTelemetry? _profilingTelemetry;
+    private readonly ProcessShutdownService? _processShutdownService;
 
     /// <summary>
     /// Creates a new GuestRuntime for the given runtime specification.
@@ -29,13 +31,21 @@ internal sealed class GuestRuntime
     /// <param name="fileLoggerProvider">Optional file logger for writing output to disk.</param>
     /// <param name="commandResolver">Optional command resolver used to locate executables on PATH.</param>
     /// <param name="profilingTelemetry">Optional profiling telemetry for child-process diagnostics.</param>
-    public GuestRuntime(RuntimeSpec spec, ILogger logger, FileLoggerProvider? fileLoggerProvider = null, Func<string, string?>? commandResolver = null, ProfilingTelemetry? profilingTelemetry = null)
+    /// <param name="processShutdownService">Optional shared process shutdown coordinator.</param>
+    public GuestRuntime(
+        RuntimeSpec spec,
+        ILogger logger,
+        FileLoggerProvider? fileLoggerProvider = null,
+        Func<string, string?>? commandResolver = null,
+        ProfilingTelemetry? profilingTelemetry = null,
+        ProcessShutdownService? processShutdownService = null)
     {
         _spec = spec;
         _logger = logger;
         _fileLoggerProvider = fileLoggerProvider;
         _commandResolver = commandResolver ?? PathLookupHelper.FindFullPathFromPath;
         _profilingTelemetry = profilingTelemetry;
+        _processShutdownService = processShutdownService;
     }
 
     /// <summary>
@@ -313,7 +323,7 @@ internal sealed class GuestRuntime
     /// <summary>
     /// Creates the default process-based launcher for this runtime.
     /// </summary>
-    public ProcessGuestLauncher CreateDefaultLauncher() => new(_spec.Language, _logger, _fileLoggerProvider, _commandResolver);
+    public ProcessGuestLauncher CreateDefaultLauncher() => new(_spec.Language, _logger, _fileLoggerProvider, _commandResolver, _processShutdownService);
 
     /// <summary>
     /// Replaces placeholders in command arguments with actual values.

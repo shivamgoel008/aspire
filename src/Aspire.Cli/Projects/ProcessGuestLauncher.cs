@@ -3,6 +3,7 @@
 
 using System.Diagnostics;
 using Aspire.Cli.Diagnostics;
+using Aspire.Cli.Processes;
 using Aspire.Cli.Telemetry;
 using Aspire.Cli.Utils;
 using Microsoft.Extensions.Logging;
@@ -18,13 +19,20 @@ internal sealed class ProcessGuestLauncher : IGuestProcessLauncher
     private readonly ILogger _logger;
     private readonly FileLoggerProvider? _fileLoggerProvider;
     private readonly Func<string, string?> _commandResolver;
+    private readonly ProcessShutdownService? _processShutdownService;
 
-    public ProcessGuestLauncher(string language, ILogger logger, FileLoggerProvider? fileLoggerProvider = null, Func<string, string?>? commandResolver = null)
+    public ProcessGuestLauncher(
+        string language,
+        ILogger logger,
+        FileLoggerProvider? fileLoggerProvider = null,
+        Func<string, string?>? commandResolver = null,
+        ProcessShutdownService? processShutdownService = null)
     {
         _language = language;
         _logger = logger;
         _fileLoggerProvider = fileLoggerProvider;
         _commandResolver = commandResolver ?? PathLookupHelper.FindFullPathFromPath;
+        _processShutdownService = processShutdownService;
     }
 
     public async Task<(int ExitCode, OutputCollector? Output)> LaunchAsync(
@@ -62,6 +70,10 @@ internal sealed class ProcessGuestLauncher : IGuestProcessLauncher
             UseShellExecute = false,
             CreateNoWindow = true
         };
+        if (OperatingSystem.IsWindows())
+        {
+            startInfo.CreateNewProcessGroup = true;
+        }
 
         foreach (var arg in args)
         {
@@ -123,6 +135,7 @@ internal sealed class ProcessGuestLauncher : IGuestProcessLauncher
 
         AddEvent(activity, ProfilingTelemetry.Events.GuestProcessStart);
         process.Start();
+        var processStartedAt = new DateTimeOffset(process.StartTime);
         activity?.SetTag(TelemetryConstants.Tags.ProcessPid, process.Id);
         AddEvent(activity, ProfilingTelemetry.Events.GuestProcessStarted, TelemetryConstants.Tags.ProcessPid, process.Id);
         if (afterLaunchAsync is not null)
@@ -141,9 +154,10 @@ internal sealed class ProcessGuestLauncher : IGuestProcessLauncher
         {
             // The guest process is the AppHost's primary process for this language. When the caller
             // cancels - either because the user pressed Ctrl+C or because a fatal startup condition
-            // (e.g. the AppHost server backchannel timed out) escalated into a teardown - we must kill
-            // the process tree, otherwise the AppHost stays alive after the CLI returns and the run
-            // appears to hang from the user's perspective.
+            // (e.g. the AppHost server backchannel timed out) escalated into a teardown - use the
+            // same graceful-then-force shutdown flow as AppHostLauncher. The command cancellation
+            // token is already canceled here, so using it for the process-exit wait would race the
+            // graceful shutdown and immediately force-kill the guest AppHost.
             //
             // We don't rethrow the OperationCanceledException because the caller in GuestAppHostProject
             // uses the returned exit code to distinguish user cancellation from internal teardown
@@ -152,13 +166,23 @@ internal sealed class ProcessGuestLauncher : IGuestProcessLauncher
             // the redirected output streams have time to drain.
             if (!process.HasExited)
             {
-                try
+                var stopped = _processShutdownService is not null &&
+                    await _processShutdownService.StopProcessGroupAsync(
+                        process.Id,
+                        processStartedAt,
+                        forceKillEntireProcessTree: true,
+                        CancellationToken.None).ConfigureAwait(false);
+
+                if (!stopped && !process.HasExited)
                 {
-                    process.Kill(entireProcessTree: true);
-                }
-                catch (Exception killEx)
-                {
-                    _logger.LogDebug(killEx, "Failed to kill guest process {ProcessId} after cancellation", process.Id);
+                    try
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                    catch (Exception killEx)
+                    {
+                        _logger.LogDebug(killEx, "Failed to kill guest process {ProcessId} after cancellation", process.Id);
+                    }
                 }
             }
 
