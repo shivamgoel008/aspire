@@ -81,8 +81,7 @@ internal sealed class RunCommand : BaseCommand
     // ProcessShutdownService to stop the guest and server processes. Each stop can spend
     // one run timeout waiting for graceful shutdown and another after force-kill fallback.
     private static readonly TimeSpan s_appHostStartupCancellationTimeout =
-        TimeSpan.FromTicks(ProcessShutdownService.RunProcessTerminationTimeout.Ticks * 4) +
-        TimeSpan.FromSeconds(1);
+        TimeSpan.FromTicks(ProcessShutdownService.RunProcessShutdownTimeout.Ticks * 2);
 
     // Guest AppHosts can bring up the temporary server/backchannel and then fail immediately
     // afterward when the guest startup process hits a syntax, pre-execute, or model validation

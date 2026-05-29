@@ -163,8 +163,8 @@ internal sealed class ProcessGuestLauncher : IGuestProcessLauncher
             // We don't rethrow the OperationCanceledException because the caller in GuestAppHostProject
             // uses the returned exit code to distinguish user cancellation from internal teardown
             // (e.g. surfacing captured output when the guest was killed because the AppHost system
-            // failed). Wait without honoring cancellation so the OS reports the final exit code and
-            // the redirected output streams have time to drain.
+            // failed). Use fresh timeout tokens instead of the already-canceled command token so
+            // shutdown gets its budget without turning into an unbounded wait.
             if (!process.HasExited)
             {
                 var stopped = false;
@@ -172,12 +172,20 @@ internal sealed class ProcessGuestLauncher : IGuestProcessLauncher
                 {
                     if (TryGetProcessStartTime(process, out var processStartedAt))
                     {
-                        stopped = await _processShutdownService.StopProcessGroupAsync(
-                            process.Id,
-                            processStartedAt,
-                            forceKillEntireProcessTree: true,
-                            processTerminationTimeout: ProcessShutdownService.RunProcessTerminationTimeout,
-                            CancellationToken.None).ConfigureAwait(false);
+                        using var shutdownCts = new CancellationTokenSource(ProcessShutdownService.RunProcessShutdownTimeout);
+                        try
+                        {
+                            stopped = await _processShutdownService.StopProcessGroupAsync(
+                                process.Id,
+                                processStartedAt,
+                                forceKillEntireProcessTree: true,
+                                processTerminationTimeout: ProcessShutdownService.RunProcessTerminationTimeout,
+                                shutdownCts.Token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException) when (shutdownCts.IsCancellationRequested)
+                        {
+                            _logger.LogWarning("Timed out waiting for {Language} guest process {ProcessId} shutdown.", _language, process.Id);
+                        }
                     }
                     else
                     {
@@ -204,13 +212,22 @@ internal sealed class ProcessGuestLauncher : IGuestProcessLauncher
             }
 
             _logger.LogDebug("Waiting for {Language} guest process {ProcessId} to exit after kill", _language, process.Id);
-            await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+            using var finalExitCts = new CancellationTokenSource(ProcessShutdownService.RunProcessTerminationTimeout);
+            try
+            {
+                await process.WaitForExitAsync(finalExitCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (finalExitCts.IsCancellationRequested)
+            {
+                _logger.LogWarning("Timed out waiting for {Language} guest process {ProcessId} to exit after shutdown.", _language, process.Id);
+            }
         }
 
-        _logger.LogDebug("{Language} guest process {ProcessId} exited with code {ExitCode}", _language, process.Id, process.ExitCode);
+        var exitCode = process.HasExited ? process.ExitCode : -1;
+        _logger.LogDebug("{Language} guest process {ProcessId} exited with code {ExitCode}", _language, process.Id, exitCode);
 
-        activity?.SetTag(TelemetryConstants.Tags.ProcessExitCode, process.ExitCode);
-        AddEvent(activity, ProfilingTelemetry.Events.GuestProcessExited, TelemetryConstants.Tags.ProcessExitCode, process.ExitCode);
+        activity?.SetTag(TelemetryConstants.Tags.ProcessExitCode, exitCode);
+        AddEvent(activity, ProfilingTelemetry.Events.GuestProcessExited, TelemetryConstants.Tags.ProcessExitCode, exitCode);
 
         // Wait for the redirected streams to finish draining so no trailing lines are lost.
         // Pass a fresh token rather than the outer cancellation token: when WaitForExitAsync
@@ -223,7 +240,7 @@ internal sealed class ProcessGuestLauncher : IGuestProcessLauncher
             _logger.LogWarning("{Language}({ProcessId}): Timed out waiting for output streams to drain after process exit", _language, process.Id);
         }
 
-        return (process.ExitCode, outputCollector);
+        return (exitCode, outputCollector);
     }
 
     private static bool TryGetProcessStartTime(Process process, out DateTimeOffset? startTime)

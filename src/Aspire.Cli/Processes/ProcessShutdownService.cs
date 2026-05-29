@@ -29,6 +29,9 @@ internal sealed class ProcessShutdownService(
 
     internal static TimeSpan RunProcessTerminationTimeout => s_runProcessTerminationTimeout;
 
+    internal static TimeSpan RunProcessShutdownTimeout =>
+        TimeSpan.FromTicks(s_runProcessTerminationTimeout.Ticks * 2) + TimeSpan.FromSeconds(1);
+
     public Task<bool> StopProcessTreeAsync(
         int pid,
         DateTimeOffset? startTime,

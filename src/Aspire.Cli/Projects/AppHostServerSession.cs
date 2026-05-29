@@ -168,12 +168,20 @@ internal sealed class AppHostServerSession : IAppHostServerSession
             {
                 if (TryGetServerProcessStartTime(out var serverProcessStartTime))
                 {
-                    stopped = await _processShutdownService.StopProcessGroupAsync(
-                        _serverProcess.Id,
-                        serverProcessStartTime,
-                        forceKillEntireProcessTree: !OperatingSystem.IsWindows(),
-                        processTerminationTimeout: ProcessShutdownService.RunProcessTerminationTimeout,
-                        CancellationToken.None).ConfigureAwait(false);
+                    using var shutdownCts = new CancellationTokenSource(ProcessShutdownService.RunProcessShutdownTimeout);
+                    try
+                    {
+                        stopped = await _processShutdownService.StopProcessGroupAsync(
+                            _serverProcess.Id,
+                            serverProcessStartTime,
+                            forceKillEntireProcessTree: !OperatingSystem.IsWindows(),
+                            processTerminationTimeout: ProcessShutdownService.RunProcessTerminationTimeout,
+                            shutdownCts.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (shutdownCts.IsCancellationRequested)
+                    {
+                        _logger.LogWarning("Timed out waiting for AppHost server process {ProcessId} shutdown.", _serverProcess.Id);
+                    }
                 }
                 else
                 {
