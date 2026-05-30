@@ -146,23 +146,14 @@ class WorkspaceAppHostItem extends vscode.TreeItem {
 }
 
 class WorkspaceAppHostActionItem extends vscode.TreeItem {
-    constructor(parent: WorkspaceAppHostItem, action: 'openSource' | 'run' | 'debug') {
-        const label = action === 'openSource'
-            ? appHostOpenSourceActionLabel
-            : action === 'run'
-                ? appHostRunActionLabel
-                : appHostDebugActionLabel;
-        super(label, vscode.TreeItemCollapsibleState.None);
-        this.id = `${parent.id}:action:${action}`;
-        this.iconPath = new vscode.ThemeIcon(action === 'debug' ? 'debug-alt' : action === 'run' ? 'play' : 'go-to-file');
-        this.contextValue = `workspaceAppHostAction:${action}`;
+    constructor(parent: WorkspaceAppHostItem) {
+        super(appHostOpenSourceActionLabel, vscode.TreeItemCollapsibleState.None);
+        this.id = `${parent.id}:action:openSource`;
+        this.iconPath = new vscode.ThemeIcon('go-to-file');
+        this.contextValue = 'workspaceAppHostAction:openSource';
         this.command = {
-            command: action === 'openSource'
-                ? 'aspire-vscode.openAppHostSource'
-                : action === 'run'
-                    ? 'aspire-vscode.runAppHost'
-                    : 'aspire-vscode.debugAppHost',
-            title: label,
+            command: 'aspire-vscode.openAppHostSource',
+            title: appHostOpenSourceActionLabel,
             arguments: [parent]
         };
     }
@@ -783,14 +774,7 @@ export class AspireAppHostTreeProvider implements vscode.TreeDataProvider<TreeEl
         }
 
         if (element instanceof WorkspaceAppHostItem) {
-            const items: TreeElement[] = [new WorkspaceAppHostActionItem(element, 'openSource')];
-            if (!element.launching) {
-                items.push(new WorkspaceAppHostActionItem(element, 'run'));
-                items.push(new WorkspaceAppHostActionItem(element, 'debug'));
-            }
-            items.push(new WorkspaceAppHostPathItem(element));
-
-            return items;
+            return [new WorkspaceAppHostActionItem(element), new WorkspaceAppHostPathItem(element)];
         }
 
         if (element instanceof WorkspaceResourcesItem) {

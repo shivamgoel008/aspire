@@ -818,9 +818,11 @@ suite('AspireAppHostTreeProvider.findAppHostElement', () => {
         assert.strictEqual(appHostItem.collapsibleState, vscode.TreeItemCollapsibleState.Collapsed);
         assert.deepStrictEqual(provider.getChildren(appHostItem).map(item => item.contextValue), [
             'workspaceAppHostAction:openSource',
-            'workspaceAppHostAction:run',
-            'workspaceAppHostAction:debug',
             'workspaceAppHostPath',
+        ]);
+        assert.deepStrictEqual(provider.getChildren(appHostItem).map(item => item.command?.command), [
+            'aspire-vscode.openAppHostSource',
+            undefined,
         ]);
         assert.ok(result, 'Expected to find the workspace AppHost candidate');
         provider.dispose();
