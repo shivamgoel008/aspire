@@ -80,7 +80,7 @@ function getVisibleCommands(commands: Record<string, ResourceCommandJson>): [str
         .filter(([, command]) => isEnabledCommand(command) || command.state === 'Disabled');
 }
 
-function isEnabledCommand(command: ResourceCommandJson | null | undefined): boolean {
+export function isEnabledCommand(command: ResourceCommandJson | null | undefined): boolean {
     return command !== null && command !== undefined
         && (command.state === undefined || command.state === null || command.state === 'Enabled');
 }
@@ -728,7 +728,7 @@ export class AspireAppHostTreeProvider implements vscode.TreeDataProvider<TreeEl
                     // and its own resource list is empty (resources arrive via DCP separately).
                     const appHost = workspaceResources.length > 0
                         && selectedAppHostPath
-                        && isSamePath(runningAppHost.appHostPath, selectedAppHostPath)
+                        && isMatchingAppHostPath(runningAppHost.appHostPath, selectedAppHostPath)
                         && hasNoResources(runningAppHost.resources)
                         ? { ...runningAppHost, resources: workspaceResources }
                         : runningAppHost;
@@ -824,7 +824,7 @@ export class AspireAppHostTreeProvider implements vscode.TreeDataProvider<TreeEl
                 : undefined;
             const workspaceResources = [...this._repository.workspaceResources];
             const selectedAppHostPath = this._repository.workspaceAppHost?.appHostPath ?? this._repository.workspaceAppHostPath;
-            const allResources = element.allResources ?? (appHost && workspaceResources.length > 0 && selectedAppHostPath && isSamePath(appHost.appHostPath, selectedAppHostPath) && hasNoResources(appHost.resources)
+            const allResources = element.allResources ?? (appHost && workspaceResources.length > 0 && selectedAppHostPath && isMatchingAppHostPath(appHost.appHostPath, selectedAppHostPath) && hasNoResources(appHost.resources)
                 ? workspaceResources
                 : appHost?.resources ?? workspaceResources);
             return this._getResourceChildren(element, allResources);

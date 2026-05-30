@@ -1034,8 +1034,8 @@ suite('AspireAppHostTreeProvider.findAppHostElement', () => {
         const onDidChangeData: vscode.Event<void> = () => ({ dispose: () => { } });
         const repository = {
             viewMode: 'workspace' as ViewMode,
-            appHosts: [makeAppHost({ appHostPath: runningSourceFile, appHostPid: 1234, cliPid: 5678, resources: [makeResource()] })],
-            workspaceResources: [],
+            appHosts: [makeAppHost({ appHostPath: runningSourceFile, appHostPid: 1234, cliPid: 5678, resources: [] })],
+            workspaceResources: [makeResource({ name: 'workspace-service' })],
             workspaceAppHostPath: candidateCsproj,
             workspaceAppHostCandidatePaths: [candidateCsproj, idlePath],
             workspaceAppHostName: undefined,
@@ -1056,6 +1056,9 @@ suite('AspireAppHostTreeProvider.findAppHostElement', () => {
         const runningChildren = provider.getChildren(topLevelItems[0]);
         assert.strictEqual(runningChildren.length, 1);
         assert.ok(runningChildren[0].contextValue?.startsWith('workspaceResources'));
+        const resourceChildren = provider.getChildren(runningChildren[0]);
+        assert.strictEqual(resourceChildren.length, 1);
+        assert.strictEqual(resourceChildren[0].label, 'workspace-service');
 
         const idleChildren = provider.getChildren(topLevelItems[1]);
         assert.strictEqual(idleChildren.length, 1);

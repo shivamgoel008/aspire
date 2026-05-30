@@ -26,7 +26,7 @@ import { openLocalSettingsCommand, openGlobalSettingsCommand } from './commands/
 import { checkCliAvailableOrRedirect, checkForExistingAppHostPathInWorkspace } from './utils/workspace';
 import { AspireEditorCommandProvider } from './editor/AspireEditorCommandProvider';
 import { AspirePackageRestoreProvider } from './utils/AspirePackageRestoreProvider';
-import { AspireAppHostTreeProvider } from './views/AspireAppHostTreeProvider';
+import { AspireAppHostTreeProvider, isEnabledCommand } from './views/AspireAppHostTreeProvider';
 import { AppHostDataRepository } from './views/AppHostDataRepository';
 import { installCliStableCommand, installCliDailyCommand, verifyCliInstalledCommand } from './commands/walkthroughCommands';
 import { AspireMcpServerDefinitionProvider } from './mcp/AspireMcpServerDefinitionProvider';
@@ -153,6 +153,11 @@ export async function activate(context: vscode.ExtensionContext) {
   const codeLensRegistration = vscode.languages.registerCodeLensProvider(languageFilters, codeLensProvider);
   const codeLensDebugPipelineStepRegistration = vscode.commands.registerCommand('aspire-vscode.codeLensDebugPipelineStep', (stepName: string) => editorCommandProvider.tryExecuteDoAppHost(false, stepName));
   const codeLensResourceActionRegistration = vscode.commands.registerCommand('aspire-vscode.codeLensResourceAction', async (resourceName: string, action: string, appHostPath: string, resourceCommand?: ResourceCommandJson) => {
+    if (resourceCommand !== undefined && !isEnabledCommand(resourceCommand)) {
+      extensionLogOutputChannel.warn(`Ignoring disabled CodeLens resource command '${action}' for resource '${resourceName}'.`);
+      return;
+    }
+
     const commandArguments = await collectResourceCommandArguments(action, resourceCommand, {
       secretWarningState: context.globalState,
       loadDynamicArguments: createResourceCommandArgumentLoader({
