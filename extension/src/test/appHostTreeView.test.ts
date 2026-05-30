@@ -375,6 +375,43 @@ suite('AspireAppHostTreeProvider', () => {
         assert.deepStrictEqual(items.map(item => item.label), ['restart']);
     });
 
+    test('legacy command item without state executes from context menu', async () => {
+        const sentCommands: string[] = [];
+        const terminalProvider = {
+            getAspireCliExecutablePath: async () => 'aspire',
+            createEnvironment: () => ({}),
+            sendAspireCommandToAspireTerminal: (command: string) => sentCommands.push(command),
+        } as unknown as AspireTerminalProvider;
+        const onDidChangeData: vscode.Event<void> = () => ({ dispose: () => { } });
+        const repository = {
+            viewMode: 'global' as ViewMode,
+            appHosts: [
+                makeAppHost({
+                    resources: [
+                        makeResource({
+                            commands: {
+                                legacy: { displayName: 'Legacy command', description: null },
+                            },
+                        }),
+                    ],
+                }),
+            ],
+            workspaceResources: [],
+            workspaceAppHostPath: undefined,
+            workspaceAppHostCandidatePaths: [],
+            workspaceAppHostName: undefined,
+            onDidChangeData,
+        } as unknown as AppHostDataRepository;
+        const provider = new AspireAppHostTreeProvider(repository, terminalProvider, makeLaunchService());
+        const infoStub = sandbox.stub(vscode.window, 'showInformationMessage');
+        const [commandItem] = getResourceCommandItems(provider);
+
+        await provider.executeResourceCommandItem(commandItem as any);
+
+        assert.strictEqual(infoStub.called, false);
+        assert.deepStrictEqual(sentCommands, ['resource "my-service" "legacy" --apphost "/test/AppHost.csproj"']);
+    });
+
     test('resource with commands is expandable even without URLs, health checks, or child resources', () => {
         const provider = makeTreeProvider([
             makeAppHost({

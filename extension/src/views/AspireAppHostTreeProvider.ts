@@ -1116,7 +1116,7 @@ export class AspireAppHostTreeProvider implements vscode.TreeDataProvider<TreeEl
         const command = element.commandJson;
         const resourceItem = element.resourceItem;
 
-        if (command.state !== 'Enabled') {
+        if (!isEnabledCommand(command)) {
             vscode.window.showInformationMessage(noCommandsAvailable);
             return;
         }
