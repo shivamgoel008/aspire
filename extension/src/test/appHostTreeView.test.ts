@@ -477,6 +477,28 @@ suite('AspireAppHostTreeProvider', () => {
         assert.strictEqual(resourceItem.collapsibleState, vscode.TreeItemCollapsibleState.None);
         assert.strictEqual(provider.getChildren(resourceItem).length, 0);
     });
+
+    test('api-only command is not shown', () => {
+        const provider = makeTreeProvider([
+            makeAppHost({
+                resources: [
+                    makeResource({
+                        commands: {
+                            run: { displayName: 'Run', description: 'Run headless operation', state: 'Enabled', visibility: 'Api' },
+                        },
+                    }),
+                ],
+            }),
+        ]);
+
+        const [appHostItem] = provider.getChildren();
+        const resourcesGroup = provider.getChildren(appHostItem).find(item => item.contextValue === 'resourcesGroup');
+        assert.ok(resourcesGroup);
+        const [resourceItem] = provider.getChildren(resourcesGroup);
+
+        assert.strictEqual(resourceItem.collapsibleState, vscode.TreeItemCollapsibleState.None);
+        assert.strictEqual(provider.getChildren(resourceItem).length, 0);
+    });
 });
 
 suite('AppHostDataRepository', () => {
@@ -638,6 +660,13 @@ suite('getResourceContextValue', () => {
     test('resource with disabled lifecycle command has base context only', () => {
         const result = getResourceContextValue(makeResource({
             commands: { 'start': { displayName: null, description: null, state: 'Disabled' } },
+        }));
+        assert.strictEqual(result, 'resource');
+    });
+
+    test('resource with api-only lifecycle command has base context only', () => {
+        const result = getResourceContextValue(makeResource({
+            commands: { 'start': { displayName: null, description: null, state: 'Enabled', visibility: 'Api' } },
         }));
         assert.strictEqual(result, 'resource');
     });

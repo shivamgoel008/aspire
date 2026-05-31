@@ -152,6 +152,49 @@ public class ResourceSnapshotMapperTests
     }
 
     [Fact]
+    public void MapToResourceJson_WithSecretCommandArgument_OmitsValue()
+    {
+        var snapshot = new ResourceSnapshot
+        {
+            Name = "frontend",
+            DisplayName = "frontend",
+            ResourceType = "Project",
+            State = "Running",
+            Commands =
+            [
+                new ResourceSnapshotCommand
+                {
+                    Name = "login",
+                    State = KnownCommandState.Enabled,
+                    Description = "Log in",
+                    Visibility = KnownCommandVisibility.Api,
+                    ArgumentInputs =
+                    [
+                        new ResourceSnapshotCommandArgument
+                        {
+                            Name = "password",
+                            InputType = "SecretText",
+                            Value = "super-secret"
+                        },
+                        new ResourceSnapshotCommandArgument
+                        {
+                            Name = "environment",
+                            InputType = "Text",
+                            Value = "Development"
+                        }
+                    ]
+                }
+            ]
+        };
+
+        var result = ResourceSnapshotMapper.MapToResourceJson(snapshot, [snapshot]);
+
+        var argumentInputs = Assert.Single(result.Commands!).Value.ArgumentInputs!;
+        Assert.Null(argumentInputs[0].Value);
+        Assert.Equal("Development", argumentInputs[1].Value);
+    }
+
+    [Fact]
     public void MapToResourceJson_WithWhitespaceCommandDisplayName_MapsDisplayNameToNull()
     {
         var snapshot = new ResourceSnapshot

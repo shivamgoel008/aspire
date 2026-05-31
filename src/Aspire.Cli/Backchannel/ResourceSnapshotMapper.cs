@@ -253,13 +253,18 @@ internal static class ResourceSnapshotMapper
             InputType = input.InputType,
             Required = input.Required,
             Placeholder = input.Placeholder,
-            Value = input.Value,
+            Value = IsSecretCommandArgument(input) ? null : input.Value,
             Options = input.Options,
             AllowCustomChoice = input.AllowCustomChoice,
             Disabled = input.Disabled,
             MaxLength = input.MaxLength,
             DynamicLoading = MapDynamicLoading(input.DynamicLoading)
         };
+    }
+
+    private static bool IsSecretCommandArgument(ResourceSnapshotCommandArgument input)
+    {
+        return string.Equals(input.InputType, nameof(InputType.SecretText), StringComparison.OrdinalIgnoreCase);
     }
 
     private static ResourceCommandArgumentDynamicLoadingJson? MapDynamicLoading(ResourceSnapshotCommandArgumentDynamicLoading? dynamicLoading)

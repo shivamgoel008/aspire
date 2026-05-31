@@ -77,12 +77,22 @@ function hasNoResources(resources: readonly ResourceJson[] | null | undefined): 
 
 function getVisibleCommands(commands: Record<string, ResourceCommandJson>): [string, ResourceCommandJson][] {
     return Object.entries(commands)
-        .filter(([, command]) => isEnabledCommand(command) || command.state === 'Disabled');
+        .filter(([, command]) => isCommandVisibleToUi(command) && (isEnabledCommand(command) || command.state === 'Disabled'));
 }
 
 export function isEnabledCommand(command: ResourceCommandJson | null | undefined): boolean {
     return command !== null && command !== undefined
         && (command.state === undefined || command.state === null || command.state === 'Enabled');
+}
+
+function isCommandVisibleToUi(command: ResourceCommandJson | null | undefined): boolean {
+    const visibility = command?.visibility;
+    if (visibility === undefined || visibility === null || visibility.trim().length === 0) {
+        return true;
+    }
+
+    return visibility.split(',')
+        .some(value => value.trim().toLowerCase() === 'ui');
 }
 
 /**
@@ -384,7 +394,8 @@ export function getResourceContextValue(resource: ResourceJson): string {
 }
 
 function hasEnabledCommand(commands: Record<string, ResourceCommandJson> | null | undefined, commandName: string): boolean {
-    return isEnabledCommand(commands?.[commandName]);
+    const command = commands?.[commandName];
+    return isCommandVisibleToUi(command) && isEnabledCommand(command);
 }
 
 export function getResourceIcon(resource: ResourceJson): vscode.ThemeIcon {
