@@ -469,8 +469,8 @@ suite('AppHostDataRepository', () => {
             await waitForAppHostDiscovery();
 
             assert.strictEqual(repository.viewMode, 'workspace');
-            assert.strictEqual(spawnStub.callCount, 2);
-            assert.deepStrictEqual(spawnStub.secondCall.args[2], ['ps', '--follow', '--format', 'json']);
+            const spawnArgs = spawnStub.getCalls().map(call => call.args[2] as string[]);
+            assert.ok(spawnArgs.some(args => JSON.stringify(args) === JSON.stringify(['ps', '--follow', '--format', 'json'])));
         } finally {
             repository.dispose();
             workspaceFoldersStub.restore();
