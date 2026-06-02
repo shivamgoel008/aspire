@@ -5,6 +5,7 @@ import { getCommandInvocationCount, getDebugLaunchCount, getTerminalCommandCount
 import { executeE2eControlCommand, restoreWorkspaceCliPath, setCliUnavailableForE2E, setDebugLaunchSuppressedForE2E, setTerminalCommandExecutionSuppressedForE2E } from './helpers/fixtures';
 import { ensureDiagnosticsDir, getExtensionRoot, getPrimaryAppHostProjectPath } from './helpers/paths';
 import { openAspireView, waitForEditorTitle } from './helpers/vscode';
+import { quoteShellArg } from '../utils/AspireTerminalProvider';
 
 interface PackageJson {
     name?: string;
@@ -183,9 +184,9 @@ suite('Aspire package contribution surface E2E', function () {
             { commandId: 'aspire-vscode.add', expectedSubcommand: 'add' },
             { commandId: 'aspire-vscode.update', expectedSubcommand: 'update' },
             { commandId: 'aspire-vscode.updateSelf', expectedSubcommand: 'update --self' },
-            { commandId: 'aspire-vscode.codeLensViewLogs', args: ['e2e-worker', appHostPath], expectedSubcommand: 'logs "e2e-worker"' },
+            { commandId: 'aspire-vscode.codeLensViewLogs', args: ['e2e-worker', appHostPath], expectedSubcommand: `logs ${quoteShellArg('e2e-worker')}` },
             { commandId: 'aspire-vscode.codeLensViewAppHostLogs', args: [appHostPath], expectedSubcommand: 'logs' },
-            { commandId: 'aspire-vscode.codeLensResourceAction', args: ['e2e-worker', 'restart', appHostPath], expectedSubcommand: 'resource "e2e-worker" "restart"' },
+            { commandId: 'aspire-vscode.codeLensResourceAction', args: ['e2e-worker', 'restart', appHostPath], expectedSubcommand: `resource ${quoteShellArg('e2e-worker')} ${quoteShellArg('restart')}` },
         ];
 
         for (const item of cases) {

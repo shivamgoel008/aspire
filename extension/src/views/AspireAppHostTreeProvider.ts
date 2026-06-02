@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { AspireTerminalProvider } from '../utils/AspireTerminalProvider';
+import { AspireTerminalProvider, quoteShellArg } from '../utils/AspireTerminalProvider';
 import { ResourceState, HealthStatus, StateStyle } from '../editor/resourceConstants';
 import {
     pidDescription,
@@ -1153,7 +1153,7 @@ export class AspireAppHostTreeProvider implements vscode.TreeDataProvider<TreeEl
             vscode.window.showWarningMessage(appHostSourceNotFound);
             return;
         }
-        this._terminalProvider.sendAspireCommandToAspireTerminal(`stop --apphost "${appHostPath}"`);
+        this._terminalProvider.sendAspireCommandToAspireTerminal(`stop --apphost ${quoteShellArg(appHostPath)}`);
     }
 
     async openAppHostSource(element?: AppHostItem | WorkspaceResourcesItem | WorkspaceAppHostItem): Promise<void> {
@@ -1197,17 +1197,18 @@ export class AspireAppHostTreeProvider implements vscode.TreeDataProvider<TreeEl
     viewResourceLogs(element: ResourceItem): void {
         // aspire logs accepts the resource display name, not the internal name
         const resourceName = element.resource.displayName ?? element.resource.name;
+        const resourceNameArg = quoteShellArg(resourceName);
         if (this._repository.viewMode === 'workspace') {
             const appHostPath = this._getAppHostPathForResource(element);
-            const appHostFlag = appHostPath ? ` --apphost "${appHostPath}"` : '';
-            this._terminalProvider.sendAspireCommandToAspireTerminal(`logs "${resourceName}"${appHostFlag}`);
+            const appHostFlag = appHostPath ? ` --apphost ${quoteShellArg(appHostPath)}` : '';
+            this._terminalProvider.sendAspireCommandToAspireTerminal(`logs ${resourceNameArg}${appHostFlag}`);
             return;
         }
         const appHost = this._findAppHostForResource(element);
         if (!appHost) {
             return;
         }
-        this._terminalProvider.sendAspireCommandToAspireTerminal(`logs "${resourceName}" --apphost "${appHost.appHostPath}"`);
+        this._terminalProvider.sendAspireCommandToAspireTerminal(`logs ${resourceNameArg} --apphost ${quoteShellArg(appHost.appHostPath)}`);
     }
 
     async executeResourceCommand(element: ResourceItem): Promise<void> {
@@ -1246,7 +1247,7 @@ export class AspireAppHostTreeProvider implements vscode.TreeDataProvider<TreeEl
             throw new vscode.CancellationError();
         }
 
-        this._runResourceCommand(element, `"${selected.label}"`, commandArguments.args, commandArguments.containsSecret);
+        this._runResourceCommand(element, selected.label, commandArguments.args, commandArguments.containsSecret);
     }
 
     async executeResourceCommandItem(element: ResourceCommandItem): Promise<void> {
@@ -1267,7 +1268,7 @@ export class AspireAppHostTreeProvider implements vscode.TreeDataProvider<TreeEl
             return;
         }
 
-        this._runResourceCommand(resourceItem, `"${commandName}"`, commandArguments.args, commandArguments.containsSecret);
+        this._runResourceCommand(resourceItem, commandName, commandArguments.args, commandArguments.containsSecret);
     }
 
     async copyAppHostPath(element: AppHostItem | WorkspaceResourcesItem | WorkspaceAppHostItem): Promise<void> {
@@ -1335,11 +1336,14 @@ export class AspireAppHostTreeProvider implements vscode.TreeDataProvider<TreeEl
         vscode.commands.executeCommand('simpleBrowser.show', element.url);
     }
 
-    private _runResourceCommand(element: ResourceItem, command: string, additionalArgs?: string[], redactAdditionalArgs = false): void {
+    private _runResourceCommand(element: ResourceItem, commandName: string, additionalArgs?: string[], redactAdditionalArgs = false): void {
+        const resourceNameArg = quoteShellArg(element.resource.name);
+        const commandNameArg = quoteShellArg(commandName);
+
         if (this._repository.viewMode === 'workspace') {
             const appHostPath = this._getAppHostPathForResource(element);
-            const appHostFlag = appHostPath ? ` --apphost "${appHostPath}"` : '';
-            this._terminalProvider.sendAspireCommandToAspireTerminal(`resource "${element.resource.name}" ${command}${appHostFlag}`, true, additionalArgs, { redactAdditionalArgs });
+            const appHostFlag = appHostPath ? ` --apphost ${quoteShellArg(appHostPath)}` : '';
+            this._terminalProvider.sendAspireCommandToAspireTerminal(`resource ${resourceNameArg} ${commandNameArg}${appHostFlag}`, true, additionalArgs, { redactAdditionalArgs });
             return;
         }
 
@@ -1347,7 +1351,7 @@ export class AspireAppHostTreeProvider implements vscode.TreeDataProvider<TreeEl
         if (!appHost) {
             return;
         }
-        this._terminalProvider.sendAspireCommandToAspireTerminal(`resource "${element.resource.name}" ${command} --apphost "${appHost.appHostPath}"`, true, additionalArgs, { redactAdditionalArgs });
+        this._terminalProvider.sendAspireCommandToAspireTerminal(`resource ${resourceNameArg} ${commandNameArg} --apphost ${quoteShellArg(appHost.appHostPath)}`, true, additionalArgs, { redactAdditionalArgs });
     }
 
     private async _loadResourceCommandArguments(element: ResourceItem, commandName: string, values: readonly ResourceCommandArgumentValue[]): Promise<ResourceCommandArgumentInputJson[] | undefined> {

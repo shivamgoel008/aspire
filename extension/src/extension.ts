@@ -20,7 +20,7 @@ import { AspireExtensionContext } from './AspireExtensionContext';
 import AspireRpcServer, { RpcServerConnectionInfo } from './server/AspireRpcServer';
 import AspireDcpServer from './dcp/AspireDcpServer';
 import { configureLaunchJsonCommand } from './commands/configureLaunchJson';
-import { AspireTerminalProvider, AspireTerminalCommandEvent } from './utils/AspireTerminalProvider';
+import { AspireTerminalProvider, AspireTerminalCommandEvent, quoteShellArg } from './utils/AspireTerminalProvider';
 import { MessageConnection } from 'vscode-jsonrpc';
 import { openTerminalCommand } from './commands/openTerminal';
 import { updateCommand, updateSelfCommand } from './commands/update';
@@ -234,16 +234,16 @@ export async function activate(context: vscode.ExtensionContext) {
       return;
     }
 
-    let command = `resource "${resourceName}" "${action}"`;
+    let command = `resource ${quoteShellArg(resourceName)} ${quoteShellArg(action)}`;
     if (appHostPath) {
-      command += ` --apphost "${appHostPath}"`;
+      command += ` --apphost ${quoteShellArg(appHostPath)}`;
     }
     terminalProvider.sendAspireCommandToAspireTerminal(command, true, commandArguments.args, { redactAdditionalArgs: commandArguments.containsSecret });
   });
   const codeLensViewLogsRegistration = registerInstrumentedCommand('aspire-vscode.codeLensViewLogs', 'codelens', (resourceName: string, appHostPath: string) => {
-    let command = `logs "${resourceName}"`;
+    let command = `logs ${quoteShellArg(resourceName)}`;
     if (appHostPath) {
-      command += ` --apphost "${appHostPath}"`;
+      command += ` --apphost ${quoteShellArg(appHostPath)}`;
     }
     command += ' --follow';
     terminalProvider.sendAspireCommandToAspireTerminal(command);

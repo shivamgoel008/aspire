@@ -9,6 +9,7 @@ import { AspireAppHostTreeProvider, getResourceContextValue, getResourceIcon, ge
 import type { AppHostDisplayInfo, ResourceJson, ViewMode } from '../views/AppHostDataRepository';
 import { ResourceState, HealthStatus, StateStyle } from '../editor/resourceConstants';
 import type { AspireTerminalProvider } from '../utils/AspireTerminalProvider';
+import { quoteShellArg } from '../utils/AspireTerminalProvider';
 import { AppHostLaunchService } from '../services/AppHostLaunchService';
 
 function makeResource(overrides: Partial<ResourceJson> = {}): ResourceJson {
@@ -334,6 +335,7 @@ suite('AspireAppHostTreeProvider', () => {
         ];
         const provider = makeTreeProvider(appHosts);
         const showQuickPickStub = sandbox.stub(vscode.window, 'showQuickPick').callsFake(async items => (items as readonly vscode.QuickPickItem[])[0]);
+        const openExternalStub = sandbox.stub(vscode.env, 'openExternal').resolves(true);
 
         await provider.openDashboard();
 
@@ -342,6 +344,7 @@ suite('AspireAppHostTreeProvider', () => {
             'apps/Store/AppHost.csproj',
             'samples/Store/AppHost.csproj',
         ]);
+        assert.strictEqual(openExternalStub.callCount, 1);
     });
 
     test('non-http endpoints remain visible but are not clickable', () => {
@@ -452,7 +455,7 @@ suite('AspireAppHostTreeProvider', () => {
                     resources: [
                         makeResource({
                             commands: {
-                                legacy: { displayName: 'Legacy command', description: null },
+                                '$(legacy)': { displayName: 'Legacy command', description: null },
                             },
                         }),
                     ],
@@ -471,7 +474,7 @@ suite('AspireAppHostTreeProvider', () => {
         await provider.executeResourceCommandItem(commandItem as any);
 
         assert.strictEqual(infoStub.called, false);
-        assert.deepStrictEqual(sentCommands, ['resource "my-service" "legacy" --apphost "/test/AppHost.csproj"']);
+        assert.deepStrictEqual(sentCommands, [`resource ${quoteShellArg('my-service')} ${quoteShellArg('$(legacy)')} --apphost ${quoteShellArg('/test/AppHost.csproj')}`]);
     });
 
     test('resource with commands is expandable even without URLs, health checks, or child resources', () => {
@@ -1379,8 +1382,8 @@ suite('AspireAppHostTreeProvider.findAppHostElement', () => {
         provider.restartResource(resourceItem as any);
 
         assert.deepStrictEqual(commands, [
-            `logs "cache" --apphost "${otherHostPath}"`,
-            `resource "cache-b" restart --apphost "${otherHostPath}"`,
+            `logs ${quoteShellArg('cache')} --apphost ${quoteShellArg(otherHostPath)}`,
+            `resource ${quoteShellArg('cache-b')} ${quoteShellArg('restart')} --apphost ${quoteShellArg(otherHostPath)}`,
         ]);
         provider.dispose();
     });
