@@ -30,6 +30,7 @@ export interface AspireTerminalCommandEvent {
     additionalArgs?: readonly string[];
     containsRedactedArgs: boolean;
     executionSuppressed: boolean;
+    executionMode: 'suppressed' | 'shellIntegration' | 'sendText';
 }
 
 /**
@@ -146,6 +147,11 @@ export class AspireTerminalProvider implements vscode.Disposable {
             logCommand = `${baseCommand} ${logArgs.join(' ')}`;
         }
         const executionSuppressed = isE2eTerminalCommandExecutionSuppressed();
+        const executionMode = executionSuppressed
+            ? 'suppressed'
+            : aspireTerminal.terminal.shellIntegration
+                ? 'shellIntegration'
+                : 'sendText';
         this._onDidSendAspireCommand.fire({
             subcommand,
             commandLine: logCommand,
@@ -153,6 +159,7 @@ export class AspireTerminalProvider implements vscode.Disposable {
             additionalArgs: options?.redactAdditionalArgs ? undefined : cliArgs,
             containsRedactedArgs: options?.redactAdditionalArgs === true && additionalArgs !== undefined && additionalArgs.length > 0,
             executionSuppressed,
+            executionMode,
         });
         extensionLogOutputChannel.info(`Sending command to Aspire terminal: ${logCommand}`);
 
@@ -164,7 +171,7 @@ export class AspireTerminalProvider implements vscode.Disposable {
             return;
         }
 
-        if (aspireTerminal.terminal.shellIntegration) {
+        if (executionMode === 'shellIntegration' && aspireTerminal.terminal.shellIntegration) {
             aspireTerminal.terminal.shellIntegration.executeCommand(command);
         }
         else {
