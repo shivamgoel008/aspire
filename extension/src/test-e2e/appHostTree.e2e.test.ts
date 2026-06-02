@@ -61,11 +61,13 @@ suite('Aspire AppHost tree E2E', function () {
 
         await setTerminalCommandExecutionSuppressedForE2E(true);
         try {
-            await executeE2eControlCommand({ name: 'stopAppHost', appHostPath: discovered.state.workspaceAppHostPath ?? getPrimaryAppHostProjectPath() });
-            await waitForCommandOutcome('aspire-vscode.stopAppHost', 'success');
+            await executeE2eControlCommand(
+                { name: 'stopAppHost', appHostPath: discovered.state.workspaceAppHostPath ?? getPrimaryAppHostProjectPath() },
+                { waitFor: 'started' });
 
             section = await openAspireView();
             await waitForTreeItemDescription(section, appHostLabel, 'Stopping...');
+            await waitForCommandOutcome('aspire-vscode.stopAppHost', 'success');
         } finally {
             await setTerminalCommandExecutionSuppressedForE2E(false);
         }

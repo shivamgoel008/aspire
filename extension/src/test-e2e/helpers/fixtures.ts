@@ -113,7 +113,6 @@ export async function addIntegrationPackageToAppHost(integration: string, appHos
         integration,
         '--apphost',
         appHostPath,
-        ...getPackageVersionArgs(),
         '--non-interactive',
         '--nologo',
     ], {
