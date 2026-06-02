@@ -13,8 +13,9 @@
 ## Files and Responsibilities
 
 - Modify `extension/scripts/run-e2e.js`: add deterministic enabled, disabled, hidden, API-only, unknown-state, and no-command resources/commands to the generated E2E AppHost fixture.
-- Modify `extension/src/test-e2e/helpers/fixtures.ts`: add a helper that writes a temporary Aspire CLI wrapper used to simulate older CLIs that do not advertise `describe-include-disabled-commands.v1`.
-- Modify `extension/src/test-e2e/treeActions.e2e.test.ts`: assert the real VS Code tree renders `Commands`, an enabled command item, and a disabled command item; assert hidden/API-only/unknown-state commands and empty command groups are absent; keep the existing command execution assertions.
+- Modify `extension/src/test-e2e/helpers/fixtures.ts`: add helpers that write temporary Aspire CLI wrappers used to simulate older CLIs that either do not advertise `describe-include-disabled-commands.v1` or do not support `config info --json` at all.
+- Modify `extension/src/test-e2e/helpers/vscode.ts`: add a helper for reading active quick-pick labels so the E2E can assert picker filtering before selecting a command.
+- Modify `extension/src/test-e2e/treeActions.e2e.test.ts`: assert the real VS Code tree renders `Commands`, an enabled command item, and a disabled command item; assert hidden/API-only/unknown-state commands and empty command groups are absent; assert enabled command-item context-menu execution works; assert the legacy resource-command picker excludes disabled/hidden/API-only/unknown commands; keep the existing argument/secret-redaction execution assertions.
 - Modify `extension/src/test-e2e/packageSurface.e2e.test.ts`: add `aspire-vscode.executeResourceCommandItem` to the expected `view/item/context` command list.
 - Resolve conflicts in `extension/src/extension.ts`: preserve #17772's `registerInstrumentedCommand` registrations and `AppHostsViewTelemetry`, while adding `executeResourceCommandItem` and the disabled CodeLens guard from #17698.
 - Resolve conflicts in `extension/src/views/AppHostDataRepository.ts`: preserve #17772's multi-AppHost/resource routing fixes and add #17698's disabled-command capability probe plus fallback retry without `--include-disabled-commands`.
@@ -263,7 +264,7 @@ Expected: PASS.
 
 ---
 
-### Task 3: Add an old-CLI compatibility helper
+### Task 3: Add old-CLI compatibility helpers
 
 **Files:**
 - Modify: `extension/src/test-e2e/helpers/fixtures.ts`
@@ -325,6 +326,105 @@ exec ${JSON.stringify(realCliPath)} "$@"
 
 Expected: E2E tests can switch `aspire.aspireCliExecutablePath` to this wrapper using the existing `writeWorkspaceCliPath(...)` helper. The wrapper makes the extension take the same no-capability path as an old CLI, rejects any accidental `--include-disabled-commands` describe invocation, and still delegates `run`, `ps`, `describe`, `resource`, and `stop` to the real test CLI.
 
+- [ ] **Step 2: Add a wrapper helper that simulates a CLI with no `config info --json` support**
+
+Add:
+
+```ts
+export function createCliWithoutConfigInfoWrapper(): string {
+    const wrapperDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'aspire-e2e-no-config-info-cli-'));
+    const realCliPath = getCliPath();
+
+    if (process.platform === 'win32') {
+        const wrapperPath = path.join(wrapperDirectory, 'aspire-no-config-info-cli.cmd');
+        fs.writeFileSync(wrapperPath, `@echo off
+if "%1"=="config" if "%2"=="info" if "%3"=="--json" (
+  echo Unrecognized command or argument 'info' 1>&2
+  exit /b 1
+)
+for %%A in (%*) do (
+  if "%%~A"=="--include-disabled-commands" (
+    echo Unrecognized command or argument '--include-disabled-commands' 1>&2
+    exit /b 1
+  )
+)
+"${realCliPath}" %*
+exit /b %ERRORLEVEL%
+`);
+        return wrapperPath;
+    }
+
+    const wrapperPath = path.join(wrapperDirectory, 'aspire-no-config-info-cli');
+    fs.writeFileSync(wrapperPath, `#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$#" -eq 3 && "$1" == "config" && "$2" == "info" && "$3" == "--json" ]]; then
+  printf '%s\n' "Unrecognized command or argument 'info'" >&2
+  exit 1
+fi
+for arg in "$@"; do
+  if [[ "$arg" == "--include-disabled-commands" ]]; then
+    printf '%s\n' "Unrecognized command or argument '--include-disabled-commands'" >&2
+    exit 1
+  fi
+done
+exec ${JSON.stringify(realCliPath)} "$@"
+`);
+    fs.chmodSync(wrapperPath, 0o755);
+
+    return wrapperPath;
+}
+```
+
+Expected: this wrapper exercises the fallback path that previously bit compatibility: the extension cannot read capabilities, optimistically tries `--include-disabled-commands`, receives a localized/old-CLI-style rejection before data arrives, retries without the flag, and still discovers resources.
+
+- [ ] **Step 3: Compile E2E tests**
+
+Run:
+
+```bash
+cd extension
+corepack yarn compile-e2e
+```
+
+Expected: PASS.
+
+---
+
+### Task 4: Add quick-pick inspection support
+
+**Files:**
+- Modify: `extension/src/test-e2e/helpers/vscode.ts`
+
+- [ ] **Step 1: Add a helper for active quick-pick labels**
+
+Add:
+
+```ts
+export async function getActiveQuickPickLabels(timeoutMs = 30000): Promise<string[]> {
+    const input = await VSBrowser.instance.driver.wait(async () => {
+        try {
+            return await InputBox.create();
+        }
+        catch {
+            return false;
+        }
+    }, timeoutMs, 'Timed out waiting for active quick pick to appear.');
+
+    return await VSBrowser.instance.driver.wait(async () => {
+        try {
+            const picks = await input.getQuickPicks();
+            const labels = await Promise.all(picks.map(pick => pick.getLabel()));
+            return labels.length > 0 ? labels : false;
+        }
+        catch {
+            return false;
+        }
+    }, timeoutMs, 'Timed out waiting for active quick pick labels.');
+}
+```
+
+Expected: tests can assert the resource command picker contents before selecting an item.
+
 - [ ] **Step 2: Compile E2E tests**
 
 Run:
@@ -338,7 +438,7 @@ Expected: PASS.
 
 ---
 
-### Task 4: Add UI-level E2E assertions for command tree items and filters
+### Task 5: Add UI-level E2E assertions for command tree items and filters
 
 **Files:**
 - Modify: `extension/src/test-e2e/treeActions.e2e.test.ts`
@@ -348,8 +448,8 @@ Expected: PASS.
 Change the imports to include the old-CLI wrapper and `waitForTreeItem`:
 
 ```ts
-import { createCliWithoutDisabledCommandCapabilityWrapper, executeE2eControlCommand, restoreWorkspaceCliPath, runE2eTeardown, setCliUnavailableForE2E, setTerminalCommandExecutionSuppressedForE2E, stopPrimaryAppHostIfRunning, writeWorkspaceCliPath } from './helpers/fixtures';
-import { answerActiveInput, chooseActiveQuickPick, openAspireView, waitForEditorTitle, waitForTreeItem } from './helpers/vscode';
+import { createCliWithoutConfigInfoWrapper, createCliWithoutDisabledCommandCapabilityWrapper, executeE2eControlCommand, restoreWorkspaceCliPath, runE2eTeardown, setCliUnavailableForE2E, setTerminalCommandExecutionSuppressedForE2E, stopPrimaryAppHostIfRunning, writeWorkspaceCliPath } from './helpers/fixtures';
+import { answerActiveInput, chooseActiveQuickPick, getActiveQuickPickLabels, openAspireView, waitForEditorTitle, waitForTreeItem } from './helpers/vscode';
 ```
 
 - [ ] **Step 2: Add tree rendering assertions after the worker reaches Running**
@@ -375,6 +475,7 @@ await commandsGroupItem.expand();
 const enabledCommandItem = await waitForTreeItem(treeSection, 'echo-arguments', 60000);
 assert.strictEqual(await enabledCommandItem.getLabel(), 'echo-arguments');
 assert.strictEqual(await enabledCommandItem.getDescription(), undefined);
+assert.ok(await enabledCommandItem.getActionButton('Execute command'), 'Enabled command item should expose the Execute command action.');
 
 const disabledCommandItem = await waitForTreeItem(treeSection, 'disabled-e2e-command', 60000);
 assert.strictEqual(await disabledCommandItem.getLabel(), 'disabled-e2e-command');
@@ -403,7 +504,65 @@ Expected: the test fails before the #17698 tree-rendering behavior is present, b
 
 Do not replace the existing `executeE2eControlCommand({ name: 'executeResourceCommand', ... })` block. It still proves the command routing and argument prompting path. The new assertions prove the missing UI behavior: command child nodes render, disabled state is visible, and disabled commands do not expose the execute context action.
 
-- [ ] **Step 4: Add an old-CLI compatibility test**
+- [ ] **Step 4: Assert the legacy resource-command quick-pick is filtered**
+
+In the existing `executeResourceCommand` block, immediately after:
+
+```ts
+await executeE2eControlCommand({ name: 'executeResourceCommand', appHostPath, resourceName: workerResourceName }, { waitFor: 'started' });
+```
+
+add:
+
+```ts
+const commandPickerLabels = await getActiveQuickPickLabels();
+assert.ok(commandPickerLabels.includes('echo-arguments'));
+assert.ok(!commandPickerLabels.includes('disabled-e2e-command'), `Disabled command should not be in the quick pick. Items: ${commandPickerLabels.join(', ')}`);
+assert.ok(!commandPickerLabels.includes('hidden-e2e-command'), `Hidden command should not be in the quick pick. Items: ${commandPickerLabels.join(', ')}`);
+assert.ok(!commandPickerLabels.includes('api-only-e2e-command'), `API-only command should not be in the quick pick. Items: ${commandPickerLabels.join(', ')}`);
+assert.ok(!commandPickerLabels.includes('unknown-state-e2e-command'), `Unknown-state command should not be in the quick pick. Items: ${commandPickerLabels.join(', ')}`);
+```
+
+Then keep the existing:
+
+```ts
+await chooseActiveQuickPick('echo-arguments');
+```
+
+Expected: the older right-click "Execute resource command" picker remains safe even after disabled commands are included in the describe payload.
+
+- [ ] **Step 5: Add enabled command-item context-menu execution coverage**
+
+After the legacy quick-pick execution block completes and before stopping/restarting resources again, add:
+
+```ts
+await setTerminalCommandExecutionSuppressedForE2E(true);
+before = getCommandInvocationCount('aspire-vscode.executeResourceCommandItem');
+terminalBefore = getTerminalCommandCount();
+
+const executeEnabledCommandAction = await enabledCommandItem.getActionButton('Execute command');
+assert.ok(executeEnabledCommandAction, 'Enabled command item should expose the Execute command action.');
+await executeEnabledCommandAction.click();
+await chooseActiveQuickPick('Continue');
+await answerActiveInput('hello from command item e2e', 'Message');
+await chooseActiveQuickPick('Alpha');
+await chooseActiveQuickPick('No');
+await answerActiveInput('12.25', 'Threshold');
+await answerActiveInput('secret-from-command-item-e2e', 'Token');
+await waitForCommandOutcome('aspire-vscode.executeResourceCommandItem', 'success', 60000, before);
+
+const commandItemTerminalCommand = await waitForTerminalCommand(
+    event => event.subcommand.includes(`resource "${workerResourceName}"`) && event.subcommand.includes('"echo-arguments"') && event.executionSuppressed,
+    'resource command item with prompted arguments',
+    60000,
+    terminalBefore);
+assert.ok(commandItemTerminalCommand.containsRedactedArgs);
+assert.ok(!commandItemTerminalCommand.commandLine.includes('secret-from-command-item-e2e'));
+```
+
+Expected: the E2E exercises the new `executeResourceCommandItem` command path, not only the pre-existing resource-level quick-pick path.
+
+- [ ] **Step 6: Add an old-CLI compatibility test for a CLI that omits the capability**
 
 Add a second test to the same suite:
 
@@ -446,7 +605,50 @@ test('keeps resource discovery working when the CLI does not advertise disabled-
 
 Expected: with an old/no-capability CLI wrapper, resource discovery still works, enabled commands still render, and disabled commands are absent because the extension must not pass `--include-disabled-commands`. If the extension regresses and passes that flag anyway, the wrapper rejects the command and the test fails instead of being masked by the current test CLI.
 
-- [ ] **Step 5: Compile E2E tests**
+- [ ] **Step 7: Add an old-CLI compatibility test for a CLI with no `config info --json` support**
+
+Add a third test to the same suite:
+
+```ts
+test('retries resource discovery when an older CLI rejects include-disabled-commands after config info fails', async () => {
+    const oldCliWrapperPath = createCliWithoutConfigInfoWrapper();
+    await writeWorkspaceCliPath(oldCliWrapperPath);
+
+    await openAspireView();
+    await waitForRepositoryIdle();
+    const discovered = await waitForWorkspaceAppHost();
+    const appHostPath = discovered.state.workspaceAppHostPath ?? getPrimaryAppHostProjectPath();
+
+    let before = getCommandInvocationCount('aspire-vscode.runAppHost');
+    await executeE2eControlCommand({ name: 'runAppHost', appHostPath }, { waitFor: 'started' });
+    await waitForAppHostLaunching(appHostPath);
+    await waitForCommandOutcome('aspire-vscode.runAppHost', 'success', 120000, before);
+    await waitForRunningAppHost();
+    await waitForResourceState('e2e-worker', ['Running'], 180000);
+
+    const treeSection = await openAspireView();
+    const workerTreeItem = await waitForTreeItem(treeSection, 'e2e-worker', 60000);
+    await workerTreeItem.expand();
+
+    const commandsGroupItem = await waitForTreeItem(treeSection, 'Commands', 60000);
+    await commandsGroupItem.expand();
+
+    const enabledCommandItem = await waitForTreeItem(treeSection, 'echo-arguments', 60000);
+    assert.strictEqual(await enabledCommandItem.getLabel(), 'echo-arguments');
+
+    const disabledCommandItem = await treeSection.findItem('disabled-e2e-command', 4);
+    assert.strictEqual(disabledCommandItem, undefined);
+
+    before = getCommandInvocationCount('aspire-vscode.stopAppHost');
+    await executeE2eControlCommand({ name: 'stopAppHost', appHostPath });
+    await waitForCommandOutcome('aspire-vscode.stopAppHost', 'success', 60000, before);
+    await waitForNoRunningAppHost();
+});
+```
+
+Expected: this proves the exact fallback path for older CLIs that cannot answer `config info --json`: optimistic flag attempt, old-CLI rejection, retry without the flag, resources still render.
+
+- [ ] **Step 8: Compile E2E tests**
 
 Run:
 
@@ -459,7 +661,7 @@ Expected: PASS.
 
 ---
 
-### Task 5: Update package-surface E2E expectations
+### Task 6: Update package-surface E2E expectations
 
 **Files:**
 - Modify: `extension/src/test-e2e/packageSurface.e2e.test.ts`
@@ -508,7 +710,7 @@ Expected: PASS.
 
 ---
 
-### Task 6: Run targeted validations
+### Task 7: Run targeted validations
 
 **Files:**
 - Validate: `extension/src/extension.ts`
@@ -573,8 +775,93 @@ Expected: a normal implementation commit on top of the merge-from-main commit.
 
 ---
 
+### Task 8: Update the PR and run multi-model code review
+
+**Files:**
+- Review: full branch diff for PR #17698 after all implementation commits are pushed
+
+- [ ] **Step 1: Push the completed branch**
+
+Run:
+
+```bash
+git status --short
+git push
+```
+
+Expected: PR #17698 is updated with the merge-from-main commit and the E2E implementation commit(s).
+
+- [ ] **Step 2: Invoke the repository code-review skill**
+
+Run the repository `code-review` skill against PR #17698 after the branch is pushed. In Copilot CLI, this means invoking the skill and reviewing the updated PR branch/diff, not just the local unpushed work:
+
+```text
+Skill: code-review
+Target: https://github.com/microsoft/aspire/pull/17698
+Scope: full updated PR branch after the E2E implementation commit(s)
+```
+
+Expected: any findings from the code-review skill are triaged before requesting final review.
+
+- [ ] **Step 3: Run the code-review agent with GPT-5.5**
+
+Dispatch a code-review agent using model `gpt-5.5`:
+
+```text
+Agent type: code-review
+Model: gpt-5.5
+Prompt: Review https://github.com/microsoft/aspire/pull/17698 after the latest branch update. Focus on concrete correctness, compatibility, test reliability, and repository-convention issues. Pay special attention to the VS Code E2E resource-command scenarios, old CLI compatibility, command-state filtering, package contribution surface, and conflict resolutions with #17772. Report problems only.
+```
+
+Expected: no high-confidence unresolved issues, or all reported issues are fixed and revalidated.
+
+- [ ] **Step 4: Run the code-review agent with Claude Opus 4.7**
+
+Dispatch a code-review agent using model `claude-opus-4.7`:
+
+```text
+Agent type: code-review
+Model: claude-opus-4.7
+Prompt: Review https://github.com/microsoft/aspire/pull/17698 after the latest branch update. Focus on concrete correctness, compatibility, test reliability, and repository-convention issues. Pay special attention to the VS Code E2E resource-command scenarios, old CLI compatibility, command-state filtering, package contribution surface, and conflict resolutions with #17772. Report problems only.
+```
+
+Expected: no high-confidence unresolved issues, or all reported issues are fixed and revalidated.
+
+- [ ] **Step 5: Run the code-review agent with Claude Opus 4.8**
+
+Dispatch a code-review agent using model `claude-opus-4.8`:
+
+```text
+Agent type: code-review
+Model: claude-opus-4.8
+Prompt: Review https://github.com/microsoft/aspire/pull/17698 after the latest branch update. Focus on concrete correctness, compatibility, test reliability, and repository-convention issues. Pay special attention to the VS Code E2E resource-command scenarios, old CLI compatibility, command-state filtering, package contribution surface, and conflict resolutions with #17772. Report problems only.
+```
+
+Expected: no high-confidence unresolved issues, or all reported issues are fixed and revalidated.
+
+- [ ] **Step 6: Resolve review findings**
+
+For each high-confidence issue from the skill or any model review:
+
+```bash
+# edit the relevant files
+cd extension
+corepack yarn compile-tests
+corepack yarn compile
+corepack yarn lint
+corepack yarn compile-e2e
+cd ..
+git add <changed-files>
+git commit -m "Address resource command E2E review feedback" -m "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+git push
+```
+
+Expected: every accepted review finding is fixed, validated, committed, and pushed. If a finding is intentionally not fixed, document the reason in the PR discussion before considering the task complete.
+
+---
+
 ## Self-Review
 
-- Spec coverage: The plan covers the requested E2E test, the expected #17772 conflict areas, and explicitly avoids merging/rebasing #17772 directly into #17698. It also covers the PR-comment edge cases: no-command resources, hidden commands, API-only commands, unknown command states, disabled command non-execution, package contribution coverage, and old CLI compatibility when `describe-include-disabled-commands.v1` is not advertised.
+- Spec coverage: The plan covers the requested E2E test, the expected #17772 conflict areas, and explicitly avoids merging/rebasing #17772 directly into #17698. It also covers the PR-comment edge cases: no-command resources, hidden commands, API-only commands, unknown command states, disabled command non-execution, enabled command-item context-menu execution, quick-pick filtering, package contribution coverage, and old CLI compatibility both when `describe-include-disabled-commands.v1` is not advertised and when `config info --json` is unsupported. It includes the requested final code-review pass using the repository `code-review` skill plus GPT-5.5, Claude Opus 4.7, and Claude Opus 4.8 code-review agents after the PR branch is updated.
 - Placeholder scan: No `TBD`, `TODO`, or undefined helper names remain. The code snippets use existing #17772 helpers and #17698 command names.
 - Type consistency: The plan uses existing ExTester helper types (`TreeItem.getDescription()`, `TreeItem.getChildren()`, `getActionButton()`), existing Aspire command APIs (`CommandOptions.UpdateState`, `ResourceCommandState.Disabled`, `ResourceCommandState.Hidden`, `ResourceCommandVisibility.Api`), and existing extension command IDs.
