@@ -72,7 +72,11 @@ suite('Aspire debug dashboard E2E', function () {
         const originalSource = fs.readFileSync(appHostSourcePath, 'utf8');
 
         try {
-            fs.writeFileSync(appHostSourcePath, `${originalSource}\n__AspireE2EFlushRegressionMissingSymbol__();\n`);
+            const brokenSource = originalSource.replace(
+                'builder.Build().Run();',
+                '__AspireE2EFlushRegressionMissingSymbol__();\n\nbuilder.Build().Run();');
+            assert.notStrictEqual(brokenSource, originalSource, 'Expected AppHost fixture to contain builder.Build().Run().');
+            fs.writeFileSync(appHostSourcePath, brokenSource);
             await setShowStatusDelayForE2E(2500);
 
             const before = getCommandInvocationCount('aspire-vscode.debugAppHost');

@@ -110,7 +110,7 @@ export function runProcess(file: string, args: readonly string[], options: RunPr
     });
 }
 
-function terminateProcessTree(pid: number | undefined, signal: NodeJS.Signals): void {
+export function terminateProcessTree(pid: number | undefined, signal: NodeJS.Signals): void {
     if (pid === undefined) {
         return;
     }

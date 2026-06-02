@@ -1,9 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { AspireExtensionE2EControlCommand, AspireExtensionE2EControlStatus } from '../../types/extensionApi';
-import { applyE2eControl, waitForExtensionState, waitForNoRunningAppHost } from './assertions';
+import { applyE2eControl, isSamePath, readStateFile, waitForExtensionState, waitForNoRunningAppHost } from './assertions';
 import { getCliPath, getPrimaryAppHostProjectPath, getRepoRoot, getWorkspaceRoot } from './paths';
-import { runProcess } from './process';
+import { runProcess, terminateProcessTree } from './process';
 
 const csharpFileHeader = `// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
@@ -264,12 +264,13 @@ export async function stopAppHostIfRunning(appHostPath: string): Promise<void> {
             return;
         }
 
-        if (/Failed to stop/i.test(error.message)) {
+        if (/timed out|Failed to stop/i.test(error.message)) {
             try {
                 // Debug-session shutdown can race with the CLI's fallback stop command. If the CLI
-                // had to force-terminate the AppHost it exits non-zero, but teardown should only fail
-                // when the extension still observes a running or launching AppHost afterward.
-                await waitForNoRunningAppHost(30000);
+                // had to force-terminate the AppHost (or the stop process timed out), teardown should
+                // only fail when the extension still observes this specific AppHost afterward.
+                terminateRunningAppHostFromState(appHostPath);
+                await waitForNoRunningAppHost(30000, appHostPath);
                 return;
             }
             catch {
@@ -278,6 +279,17 @@ export async function stopAppHostIfRunning(appHostPath: string): Promise<void> {
         }
 
         throw error;
+    }
+}
+
+function terminateRunningAppHostFromState(appHostPath: string): void {
+    const state = readStateFile().state;
+    const runningAppHost = state.workspaceAppHost && isSamePath(state.workspaceAppHost.appHostPath, appHostPath)
+        ? state.workspaceAppHost
+        : state.appHosts.find(candidate => isSamePath(candidate.appHostPath, appHostPath));
+
+    if (runningAppHost) {
+        terminateProcessTree(runningAppHost.appHostPid, 'SIGTERM');
     }
 }
 

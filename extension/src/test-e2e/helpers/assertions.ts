@@ -47,8 +47,11 @@ export async function waitForAppHostLaunching(appHostPath = getPrimaryAppHostPro
         timeoutMs);
 }
 
-export async function waitForNoRunningAppHost(timeoutMs = 90000): Promise<ExtensionE2EStateFile> {
-    return await waitForExtensionState(file => findRunningAppHost(file.state) === undefined && file.state.launchingPaths.length === 0, 'AppHost to stop', timeoutMs);
+export async function waitForNoRunningAppHost(timeoutMs = 90000, appHostPath = getPrimaryAppHostProjectPath()): Promise<ExtensionE2EStateFile> {
+    return await waitForExtensionState(
+        file => findRunningAppHost(file.state, appHostPath) === undefined && !file.state.launchingPaths.some(launchingPath => isSamePath(launchingPath, appHostPath)),
+        `AppHost '${appHostPath}' to stop`,
+        timeoutMs);
 }
 
 export async function waitForResource(resourceName: string, timeoutMs = 120000): Promise<ExtensionE2EStateFile> {
@@ -187,11 +190,10 @@ export function findResource(state: ExtensionStateSnapshot, resourceName: string
     return getResources(state).find(resource => isResourceMatch(resource, resourceName));
 }
 
-export function findRunningAppHost(state: ExtensionStateSnapshot): AppHostState | undefined {
-    const primaryAppHost = getPrimaryAppHostProjectPath();
-    return state.workspaceAppHost && isSamePath(state.workspaceAppHost.appHostPath, primaryAppHost)
+export function findRunningAppHost(state: ExtensionStateSnapshot, appHostPath = getPrimaryAppHostProjectPath()): AppHostState | undefined {
+    return state.workspaceAppHost && isSamePath(state.workspaceAppHost.appHostPath, appHostPath)
         ? state.workspaceAppHost
-        : state.appHosts.find(appHost => isSamePath(appHost.appHostPath, primaryAppHost));
+        : state.appHosts.find(appHost => isSamePath(appHost.appHostPath, appHostPath));
 }
 
 export async function waitForExtensionState(
