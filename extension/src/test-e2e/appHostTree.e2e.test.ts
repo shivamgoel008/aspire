@@ -1,8 +1,8 @@
 import * as assert from 'assert';
-import { getResources, getTreeAppHostLabel, waitForCommandOutcome, waitForDashboardUrl, waitForNoRunningAppHost, waitForRepositoryIdle, waitForResource, waitForRunningAppHost, waitForWorkspaceAppHost } from './helpers/assertions';
+import { getResources, getTerminalCommandCount, getTreeAppHostLabel, waitForCommandOutcome, waitForDashboardUrl, waitForNoRunningAppHost, waitForRepositoryIdle, waitForResource, waitForRunningAppHost, waitForTerminalCommand, waitForWorkspaceAppHost } from './helpers/assertions';
 import { executeE2eControlCommand, restoreWorkspaceCliPath, runE2eTeardown, setCliUnavailableForE2E, setTerminalCommandExecutionSuppressedForE2E, stopPrimaryAppHostIfRunning } from './helpers/fixtures';
 import { getPrimaryAppHostProjectPath } from './helpers/paths';
-import { cancelActiveInput, clickTreeItem, openAspireView, waitForTreeItem, waitForTreeItemDescription } from './helpers/vscode';
+import { cancelActiveInput, clickTreeItem, openAspireView, waitForTreeItem } from './helpers/vscode';
 
 suite('Aspire AppHost tree E2E', function () {
     this.timeout(240000);
@@ -61,12 +61,16 @@ suite('Aspire AppHost tree E2E', function () {
 
         await setTerminalCommandExecutionSuppressedForE2E(true);
         try {
+            const beforeTerminalCommand = getTerminalCommandCount();
             await executeE2eControlCommand(
                 { name: 'stopAppHost', appHostPath: discovered.state.workspaceAppHostPath ?? getPrimaryAppHostProjectPath() },
                 { waitFor: 'started' });
 
-            section = await openAspireView();
-            await waitForTreeItemDescription(section, appHostLabel, 'Stopping...');
+            await waitForTerminalCommand(
+                event => event.executionSuppressed && event.subcommand.startsWith('stop '),
+                'suppressed AppHost stop terminal routing',
+                60000,
+                beforeTerminalCommand);
             await waitForCommandOutcome('aspire-vscode.stopAppHost', 'success');
         } finally {
             await setTerminalCommandExecutionSuppressedForE2E(false);
